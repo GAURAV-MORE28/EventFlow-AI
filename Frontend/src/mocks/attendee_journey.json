@@ -1,5 +1,5 @@
 {
-  "journey_risk_score": 44,
+  "journey_risk_score": 57,
   "journey_risk_band": "moderate",
   "recommended_route": {
     "legs": [
@@ -11,18 +11,18 @@
       },
       {
         "from_entity_id": "metro_c",
-        "to_entity_id": "gate_5",
+        "to_entity_id": "gate_6",
         "mode": "transit",
-        "duration_sec": 400
+        "duration_sec": 500
       },
       {
-        "from_entity_id": "gate_5",
+        "from_entity_id": "gate_6",
         "to_entity_id": "stadium_main",
         "mode": "transit",
         "duration_sec": 180
       }
     ],
-    "total_duration_sec": 1060,
+    "total_duration_sec": 1160,
     "predicted_crowding_band": "moderate"
   },
   "shortest_route": {
@@ -47,7 +47,7 @@
       }
     ],
     "total_duration_sec": 1060,
-    "predicted_crowding_band": "moderate"
+    "predicted_crowding_band": "high"
   },
-  "advice": "Both routes carry similar crowding right now; the faster one is fine."
+  "advice": "The faster route runs through high crowding. The recommended route adds 1 minutes and avoids it."
 }

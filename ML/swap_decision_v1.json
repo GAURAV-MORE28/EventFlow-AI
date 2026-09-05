@@ -1,0 +1,27 @@
+{
+  "evaluated_at_epoch": 50,
+  "train_pool": {
+    "AP": 0.8364,
+    "precision_at_recall_0.70": 0.7974,
+    "n_topologies": 32,
+    "n_positive": 8266
+  },
+  "heldout_pool": {
+    "AP": 0.9001,
+    "precision_at_recall_0.70": 0.9959,
+    "n_topologies": 8,
+    "n_positive": 1324
+  },
+  "heldout_caveat": "Held-out AP/precision exceed train-pool figures. A trivial 2-feature logistic-regression baseline shows the SAME pattern (train AP 0.768 vs held-out AP 0.814), and five candidate explanations (base rate, mean/min capacity, edge coefficients, travel time, within-topology rate spread) were checked and ruled out. Most likely explanation: ordinary small-sample variance in which specific entities/scenarios landed positive within only 8 held-out topologies (~1,324 positives), not a topology-level or feature-level artifact. Train-pool figures are used as the conservative estimate for the swap decision below.",
+  "deterministic_propagator_precision_at_recall_0.70": null,
+  "deterministic_propagator_lead_time_mae_sec": 3092.3,
+  "contract_thresholds": {
+    "min_precision": 0.75,
+    "min_recall": 0.7
+  },
+  "swap_rule_result_using_conservative_train_figures": "PASS -- train-pool precision 0.7974 >= 0.75 at recall >= 0.70. use_gnn=true is defensible on the conservative estimate alone. Final swap should still compare lead-time MAE against the deterministic propagator per 03_ML_CONTRACT.md \u00a74.3 before flipping the config flag.",
+  "deterministic_propagator_precision": 0.8419,
+  "deterministic_propagator_recall": 0.3218,
+  "final_decision": "use_gnn: true",
+  "final_reasoning": "Deterministic propagator fails the recall>=0.70 bar outright (achieves 0.322), so the GNN wins on recall regardless of the held-out-inflation caveat noted above. On lead-time MAE, GNN beats deterministic by 13-43x even using the CONSERVATIVE train-pool TTC figure (~204s) against deterministic's 3092s -- the margin survives generous discounting for the held-out-pool artifact. Swap decision does not depend on trusting the more favourable held-out-only GNN numbers."
+}

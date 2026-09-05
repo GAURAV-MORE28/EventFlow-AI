@@ -232,6 +232,22 @@ class SyntheticGenerator:
             for sub in p.get("scenarios", []):
                 self.inject(sub.get("scenario_type", ""), sub.get("params", {}))
 
+    def apply_relief(self, entity_ids: list[str], relief_fraction: float) -> None:
+        """An approved intervention's real effect on the world (01 §3.6 approve gate).
+
+        Approving an intervention used to only flip a status flag — nothing an
+        operator did ever touched the simulation, so `load_variance` could not
+        visibly respond to a real decision. This is the other half of `inject()`:
+        same persist-until-reset multiplier mechanism, just driven by an
+        approval instead of a demo-control scenario. `relief_fraction` is the
+        optimiser's own `estimated_relief_pct / 100`, applied directly as a
+        demand reduction on the entities the intervention targets.
+        """
+        factor = clamp(1.0 - relief_fraction, 0.05, 1.0)
+        for eid in entity_ids:
+            if eid in self.nodes:
+                self._intensity_mult[eid] = self._intensity_mult.get(eid, 1.0) * factor
+
     def reset(self, seed: int | None = None) -> None:
         if seed is not None:
             self.seed = seed

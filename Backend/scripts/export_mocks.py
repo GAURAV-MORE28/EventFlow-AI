@@ -28,6 +28,7 @@ from app.services.commander import Commander  # noqa: E402
 from app.services.engine import Engine, set_engine  # noqa: E402
 from app.services.metrics import build_metrics, build_regret  # noqa: E402
 from app.services.simulation import SIMULATIONS  # noqa: E402
+from app.simtime import shift  # noqa: E402
 
 logging.basicConfig(level=logging.WARNING)
 
@@ -134,9 +135,23 @@ async def build(out: Path, cycles: int) -> None:
     )
     pair = [i for i in (stable[:1] + unstable[:1]) if i]
     pair.sort(key=lambda i: -i["rank_score"])
+    selected = pair or all_interventions[:2]
+
+    # The picked pair almost certainly aged past its TTL sometime during the
+    # cycles run above — InterventionQueue.jsx only renders
+    # proposed|executing|approved, so an "expired" status here silently drops
+    # the card and the STABLE/UNSTABLE contrast frame (02 §5.5's "single most
+    # important frame in the presentation") never renders in mock mode.
+    # Re-stamp both as freshly proposed, as of *this* export, so the fixture
+    # always renders regardless of when in the run they happened to be picked.
+    for item in selected:
+        item["status"] = "proposed"
+        item["created_at"] = store.sim_time
+        item["expires_at"] = shift(store.sim_time, 900)
+
     write(out, "interventions.json", {
         "sim_time": store.sim_time,
-        "interventions": pair or all_interventions[:2],
+        "interventions": selected,
     })
 
     write(out, "twin_fidelity.json", store.twin_fidelity_payload() or {})

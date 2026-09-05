@@ -1,0 +1,49 @@
+name: CI
+
+# The schema-validation gate 00_SHARED_CONTRACT.md and README.md have always
+# described ("If a mock file fails validation, the build fails.") but that
+# never had anything actually running it. This is that CI.
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: ["**"]
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: Backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements.txt
+      - run: python -m pytest tests/ -q
+      - run: python -m scripts.export_schemas --out ../contracts/schemas
+      - uses: actions/upload-artifact@v4
+        with:
+          name: contracts-schemas
+          path: contracts/schemas
+
+  frontend-mocks:
+    needs: backend
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: Frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - uses: actions/download-artifact@v4
+        with:
+          name: contracts-schemas
+          path: contracts/schemas
+      - run: npm ci
+      - run: npm run validate:mocks
+      - run: npm run build

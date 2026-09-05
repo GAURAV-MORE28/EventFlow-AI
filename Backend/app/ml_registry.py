@@ -68,11 +68,13 @@ def _load_class(module_key: str) -> tuple[type, str]:
             return cls, "ml"
         except Exception as exc:
             log.warning(
-                "ml.%s found at %s but failed to import (%s); using reference implementation",
-                module_key, candidate, exc,
+                "ml.%s found at %s but failed to import as %r (%s); trying next candidate",
+                module_key, candidate, pkg, exc,
             )
-            break
+            continue  # `ml`/`ML` alias the same path on a case-insensitive filesystem (Windows);
+            # a failed import under one case must not stop the other from being tried.
 
+    log.warning("ml.%s not found under ml/ or ML/; using reference implementation", module_key)
     return getattr(ml_reference, class_name), "reference"
 
 

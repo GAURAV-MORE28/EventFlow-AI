@@ -15,10 +15,10 @@ forecaster:
   device: "cpu"
 
 cascade:
-  use_gnn: false
+  use_gnn: true
   max_depth: 4
   propagation_threshold: 0.15
-  gnn_checkpoint: "ml/checkpoints/hx_cascade.pt"
+  gnn_checkpoint: "ML/hx_cascade.pt"
 
 twin:
   ensemble_size: 20

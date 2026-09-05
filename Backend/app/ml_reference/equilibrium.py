@@ -121,15 +121,37 @@ class EquilibriumSolver:
         targets = list(intervention.get("target_entity_ids", []))
         relief = float(intervention.get("estimated_relief_pct", 0.0)) / 100.0
 
-        # The load surface the intervention redistributes over: zones, plus every
-        # entity the intervention names (so gate saturation is actually visible).
-        surface = list(dict.fromkeys(self._zones(node_state) + [t for t in targets if t in node_state]))
+        # Where does displaced load go? Down `substitutes_for` / `feeds` / `serves` /
+        # `last_mile_to` edges from the targets — discovered from the real graph,
+        # not filtered to a pre-guessed surface. Filtering receivers to "zones plus
+        # the named targets" (the previous approach) silently dropped any receiver
+        # that was neither: metro_c's real `feeds` edge to gate_5 (the 00 §5
+        # saturation trap) never appeared as a receiver, so gate_5 could never
+        # actually saturate no matter how the compliance sweep ran.
+        receivers = self._receivers(targets, edges)
+
+        # A target that is itself a *destination* of another target's edge (e.g.
+        # "reroute_transport"'s [metro_b, metro_c]: metro_c receives metro_b's
+        # diverted riders) must not also be drained by the relief loop below —
+        # only genuine relief sources lose load; named destinations only gain it.
+        target_set = set(targets)
+        destination_targets = {
+            e["dst_entity_id"] for e in edges
+            if e["src_entity_id"] in target_set
+            and e["dst_entity_id"] in target_set
+            and e["edge_type"] in ("feeds", "serves", "last_mile_to", "substitutes_for")
+        }
+        relief_targets = [t for t in targets if t not in destination_targets] or targets
+
+        # The load surface the intervention redistributes over: zones, every entity
+        # the intervention names, and every real receiver — so a saturating gate
+        # (or any other receiver) is actually visible in baseline/post variance.
+        surface = list(dict.fromkeys(
+            self._zones(node_state) + [t for t in targets if t in node_state]
+            + [r for r in receivers if r in node_state]
+        ))
         baseline = {e: float(node_state[e].get("utilisation", 0.0)) for e in surface}
         baseline_variance = variance(list(baseline.values()))
-
-        # Where does displaced load go? Down `substitutes_for` edges from the targets,
-        # and onto whatever the intervention feeds.
-        receivers = self._receivers(targets, edges, surface)
 
         sweep: list[dict] = []
         converged_all = True
@@ -140,7 +162,7 @@ class EquilibriumSolver:
 
         for rate in self.sweep_rates:
             load, converged, iters, oscillated = self._solve_followers(
-                baseline, targets, receivers, relief, rate, segments, node_state
+                baseline, relief_targets, receivers, relief, rate, segments, node_state
             )
             converged_all = converged_all and converged
             oscillation_any = oscillation_any or oscillated
@@ -185,24 +207,22 @@ class EquilibriumSolver:
             "compliance_sweep": sweep,
         }
 
-    def _receivers(self, targets: list[str], edges: list[dict], surface: list[str]) -> dict[str, float]:
-        """Weighted destinations for displaced load, from `substitutes_for` / `feeds`."""
+    def _receivers(self, targets: list[str], edges: list[dict]) -> dict[str, float]:
+        """Weighted destinations for displaced load, from `substitutes_for` / `feeds` /
+        `serves` / `last_mile_to` edges leaving the targets — the real graph decides
+        where the load goes, not a pre-filtered "surface" list."""
         weights: dict[str, float] = {}
         target_set = set(targets)
         for e in edges:
-            if e["src_entity_id"] not in target_set:
+            if e["src_entity_id"] not in target_set or e["dst_entity_id"] in target_set:
                 continue
             dst = e["dst_entity_id"]
-            if dst not in surface:
-                continue
             if e["edge_type"] == "substitutes_for":
                 weights[dst] = weights.get(dst, 0.0) + float(e.get("substitutability", 0.0))
             elif e["edge_type"] in ("feeds", "serves", "last_mile_to"):
                 weights[dst] = weights.get(dst, 0.0) + float(e.get("transfer_coefficient", 0.0))
         if not weights:
-            # Nowhere named to send it: spread across the least loaded half of the surface.
-            spare = sorted(surface, key=lambda e: e)[: max(1, len(surface) // 2)]
-            weights = {e: 1.0 for e in spare}
+            return {}
         total = sum(weights.values()) or 1.0
         return {k: v / total for k, v in weights.items()}
 

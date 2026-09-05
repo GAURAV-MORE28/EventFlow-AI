@@ -189,6 +189,20 @@ class PressureTimelineResponse(Base):
     items: list[PressureTimelineItem]
 
 
+class PressureTimelineFrame(Base):
+    """Shape of one entry in `pressure_timeline.json` / the `forecast_update`
+    WS event's data — `PressureTimelineResponse` plus `active_source`, which
+    the REST response omits but the WS broadcast (engine.py `_broadcast`)
+    always carries. Mock-mode replays the WS stream, so this is the schema
+    that actually describes what it replays; validating mock frames against
+    `PressureTimelineResponse` itself would fail on the extra key under
+    `extra="forbid"` (00 §0)."""
+
+    sim_time: str
+    active_source: ForecastSource
+    items: list[PressureTimelineItem]
+
+
 class EntityDetailResponse(Base):
     state: EntityState
     forecast: Optional[Forecast] = None

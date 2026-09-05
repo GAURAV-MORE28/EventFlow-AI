@@ -214,12 +214,30 @@ async def approve(intervention_id: str, body: S.ApproveRequest) -> S.ApproveResp
         )
 
     # A counterfactual branch is forked at approval time so the regret ledger can
-    # later answer "what if we had done nothing" with evidence rather than a guess.
+    # later answer "what if we had done nothing" with evidence rather than a guess
+    # (engine.py:_settle_executing_interventions reads `_counterfactual_trajectory`
+    # 900s from now to compute `counterfactual_relief_pct`/`realised_relief_pct` for
+    # real, instead of a hash()-derived number that also broke seed reproducibility).
     branch = await asyncio.to_thread(engine.registry.twin.branch, {}, 1800)
+    targets = [t for t in item["target_entity_ids"] if t in store.entity_states]
+    util_at_approval = (
+        sum(store.entity_states[t]["utilisation"] for t in targets) / len(targets) if targets else 0.0
+    )
+
     item["status"] = "executing"
     item["_applied_at"] = store.sim_time
-    item["_counterfactual_relief_pct"] = 0.0
+    item["_util_at_approval"] = util_at_approval
+    item["_counterfactual_trajectory"] = {t: branch["trajectory"].get(t, []) for t in targets}
     item["_twin_branch_id"] = branch["branch_id"]
+
+    # This is the step that used to be missing entirely: approving an
+    # intervention only ever flipped a status flag before, so nothing an
+    # operator did could change `load_variance` or any other live metric.
+    # `apply_relief` mirrors the demo-control `inject()` mechanism the
+    # generator already had — same persist-until-reset demand multiplier,
+    # just driven by a real approval instead of a scripted scenario.
+    relief_fraction = float(item.get("estimated_relief_pct", 0.0)) / 100.0
+    engine.generator.apply_relief(item["target_entity_ids"], relief_fraction)
 
     nudges = issue_nudges(engine, item)
     _audit(engine, f"operator:{body.operator_id}", "approve", intervention_id, {"note": body.note})

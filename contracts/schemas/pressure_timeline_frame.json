@@ -1,0 +1,110 @@
+{
+  "$defs": {
+    "PressureTimelineItem": {
+      "additionalProperties": false,
+      "properties": {
+        "entity_id": {
+          "title": "Entity Id",
+          "type": "string"
+        },
+        "display_name": {
+          "title": "Display Name",
+          "type": "string"
+        },
+        "current_utilisation": {
+          "title": "Current Utilisation",
+          "type": "number"
+        },
+        "current_band": {
+          "enum": [
+            "low",
+            "moderate",
+            "high",
+            "critical"
+          ],
+          "title": "Current Band",
+          "type": "string"
+        },
+        "time_to_critical_sec": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Time To Critical Sec"
+        },
+        "trajectory": {
+          "items": {
+            "$ref": "#/$defs/TrajectoryPoint"
+          },
+          "title": "Trajectory",
+          "type": "array"
+        }
+      },
+      "required": [
+        "entity_id",
+        "display_name",
+        "current_utilisation",
+        "current_band",
+        "trajectory"
+      ],
+      "title": "PressureTimelineItem",
+      "type": "object"
+    },
+    "TrajectoryPoint": {
+      "additionalProperties": false,
+      "properties": {
+        "horizon_sec": {
+          "title": "Horizon Sec",
+          "type": "integer"
+        },
+        "utilisation": {
+          "title": "Utilisation",
+          "type": "number"
+        }
+      },
+      "required": [
+        "horizon_sec",
+        "utilisation"
+      ],
+      "title": "TrajectoryPoint",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Shape of one entry in `pressure_timeline.json` / the `forecast_update`\nWS event's data — `PressureTimelineResponse` plus `active_source`, which\nthe REST response omits but the WS broadcast (engine.py `_broadcast`)\nalways carries. Mock-mode replays the WS stream, so this is the schema\nthat actually describes what it replays; validating mock frames against\n`PressureTimelineResponse` itself would fail on the extra key under\n`extra=\"forbid\"` (00 §0).",
+  "properties": {
+    "sim_time": {
+      "title": "Sim Time",
+      "type": "string"
+    },
+    "active_source": {
+      "enum": [
+        "persistence",
+        "tsfm",
+        "local_model"
+      ],
+      "title": "Active Source",
+      "type": "string"
+    },
+    "items": {
+      "items": {
+        "$ref": "#/$defs/PressureTimelineItem"
+      },
+      "title": "Items",
+      "type": "array"
+    }
+  },
+  "required": [
+    "sim_time",
+    "active_source",
+    "items"
+  ],
+  "title": "pressure_timeline_frame",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

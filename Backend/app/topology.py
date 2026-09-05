@@ -396,23 +396,39 @@ DEMO_CASCADE_CHAIN = ["metro_b", "gate_3", "road_4", "emergency_north"]
 DEMO_UNSTABLE_TARGET = "gate_5"
 
 
+class TopologyIntegrityError(RuntimeError):
+    """A structural guarantee the demo depends on does not hold."""
+
+
 def verify(topology: dict[str, Any]) -> None:
-    """Fail loudly at startup rather than quietly at demo time."""
+    """Fail loudly at startup rather than quietly at demo time.
+
+    Plain `raise`, not `assert` (M8): `assert` is compiled out entirely under
+    `python -O` / `PYTHONOPTIMIZE`, which would make every guarantee here a
+    silent no-op — exactly the "fails quietly at demo time" this function
+    exists to prevent.
+    """
     ids = {n["entity_id"] for n in topology["nodes"]}
-    assert len(topology["nodes"]) >= 60, f"01 §8 requires >=60 nodes, got {len(topology['nodes'])}"
+    if len(topology["nodes"]) < 60:
+        raise TopologyIntegrityError(f"01 §8 requires >=60 nodes, got {len(topology['nodes'])}")
 
     missing = [e for e in DEMO_CASCADE_CHAIN + [DEMO_UNSTABLE_TARGET] if e not in ids]
-    assert not missing, f"demo entities missing from topology: {missing}"
+    if missing:
+        raise TopologyIntegrityError(f"demo entities missing from topology: {missing}")
 
     edge_ids = {e["edge_id"] for e in topology["edges"]}
     for src, dst in zip(DEMO_CASCADE_CHAIN, DEMO_CASCADE_CHAIN[1:]):
-        assert any(
+        if not any(
             e["src_entity_id"] == src and e["dst_entity_id"] == dst for e in topology["edges"]
-        ), f"demo cascade chain broken: no edge {src} -> {dst}"
-    assert "metro_c__gate_5__feeds" in edge_ids, "gate_5 saturation trap is missing"
+        ):
+            raise TopologyIntegrityError(f"demo cascade chain broken: no edge {src} -> {dst}")
+    if "metro_c__gate_5__feeds" not in edge_ids:
+        raise TopologyIntegrityError("gate_5 saturation trap is missing")
 
     for e in topology["edges"]:
-        assert e["src_entity_id"] in ids and e["dst_entity_id"] in ids, f"dangling edge {e['edge_id']}"
+        if e["src_entity_id"] not in ids or e["dst_entity_id"] not in ids:
+            raise TopologyIntegrityError(f"dangling edge {e['edge_id']}")
 
     shares = sum(s["share"] for s in topology["segments"])
-    assert abs(shares - 1.0) < 1e-6, f"segment shares must sum to 1.0, got {shares}"
+    if abs(shares - 1.0) >= 1e-6:
+        raise TopologyIntegrityError(f"segment shares must sum to 1.0, got {shares}")

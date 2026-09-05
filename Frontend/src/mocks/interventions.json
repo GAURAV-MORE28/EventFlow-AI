@@ -1,58 +1,57 @@
 {
-  "sim_time": "2026-09-04T14:20:00Z",
+  "sim_time": "2026-09-04T14:45:00Z",
   "interventions": [
     {
-      "intervention_id": "int_2e360",
-      "intervention_type": "deploy_shuttle",
-      "status": "expired",
+      "intervention_id": "int_d781e",
+      "intervention_type": "notify_only",
+      "status": "proposed",
       "target_entity_ids": [
-        "hotel_south_cluster",
-        "metro_d"
+        "road_13"
       ],
-      "triggered_by_entity_id": "hotel_south_cluster",
-      "title": "Deploy 1 shuttle on the South Hotel Cluster link",
-      "description": "Run 1 additional shuttle between South Hotel Cluster and Metro D Station at 6-minute headway.",
-      "estimated_relief_pct": 10.5,
-      "estimated_cost_paise": 45000,
-      "estimated_delay_sec": 300,
-      "feasibility": 0.88,
-      "rank_score": 0.3303,
+      "triggered_by_entity_id": "road_13",
+      "title": "Notify operations team",
+      "description": "Escalate road_13 to the operations desk for manual assessment.",
+      "estimated_relief_pct": 4.0,
+      "estimated_cost_paise": 0,
+      "estimated_delay_sec": 0,
+      "feasibility": 1.0,
+      "rank_score": 0.16,
       "certificate": {
-        "certificate_id": "cert_d531",
-        "intervention_id": "int_2e360",
+        "certificate_id": "cert_4269",
+        "intervention_id": "int_d781e",
         "verdict": "STABLE",
         "converged": true,
-        "iterations": 39,
-        "post_nudge_variance": 0.0119,
-        "baseline_variance": 0.0162,
-        "max_zone_utilisation": 0.7103,
-        "max_zone_entity_id": "hotel_south_cluster",
+        "iterations": 1,
+        "post_nudge_variance": 0.0107,
+        "baseline_variance": 0.0108,
+        "max_zone_utilisation": 0.5527,
+        "max_zone_entity_id": "road_13",
         "oscillation_risk": false,
-        "compliance_sensitivity": 0.1687,
-        "reason": "Equilibrium holds across 40-90% compliance; peak 71% at South Hotel Cluster.",
+        "compliance_sensitivity": 0.0016,
+        "reason": "Equilibrium holds across 40-90% compliance; peak 55% at Arterial 13.",
         "compliance_sweep": [
           {
             "compliance_rate": 0.4,
-            "max_utilisation": 0.7103,
+            "max_utilisation": 0.5527,
             "verdict": "STABLE"
           },
           {
             "compliance_rate": 0.6,
-            "max_utilisation": 0.6087,
+            "max_utilisation": 0.5521,
             "verdict": "STABLE"
           },
           {
             "compliance_rate": 0.9,
-            "max_utilisation": 0.5416,
+            "max_utilisation": 0.5511,
             "verdict": "STABLE"
           }
         ]
       },
-      "created_at": "2026-09-04T14:05:00Z",
-      "expires_at": "2026-09-04T14:20:00Z"
+      "created_at": "2026-09-04T14:45:00Z",
+      "expires_at": "2026-09-04T15:00:00Z"
     },
     {
-      "intervention_id": "int_965a3",
+      "intervention_id": "int_5c0cd",
       "intervention_type": "reroute_transport",
       "status": "proposed",
       "target_entity_ids": [
@@ -60,7 +59,7 @@
         "metro_c"
       ],
       "triggered_by_entity_id": "metro_b",
-      "title": "Redirect 1,675 attendees to Metro C Station",
+      "title": "Redirect 402 attendees to Metro C Station",
       "description": "Divert 72% of inbound flow from Metro B Station to Metro C Station via platform signage and app alerts.",
       "estimated_relief_pct": 35.3,
       "estimated_cost_paise": 120000,
@@ -68,38 +67,38 @@
       "feasibility": 0.84,
       "rank_score": 0.1314,
       "certificate": {
-        "certificate_id": "cert_b884",
-        "intervention_id": "int_965a3",
+        "certificate_id": "cert_3d61",
+        "intervention_id": "int_5c0cd",
         "verdict": "UNSTABLE",
         "converged": false,
         "iterations": 40,
-        "post_nudge_variance": 0.0146,
-        "baseline_variance": 0.0123,
-        "max_zone_utilisation": 0.5926,
-        "max_zone_entity_id": "zone_south",
+        "post_nudge_variance": 0.0291,
+        "baseline_variance": 0.0248,
+        "max_zone_utilisation": 0.8772,
+        "max_zone_entity_id": "metro_d",
         "oscillation_risk": false,
-        "compliance_sensitivity": 0.024,
+        "compliance_sensitivity": 0.0391,
         "reason": "Did not converge within iteration cap.",
         "compliance_sweep": [
           {
             "compliance_rate": 0.4,
-            "max_utilisation": 0.5686,
+            "max_utilisation": 0.8381,
             "verdict": "STABLE"
           },
           {
             "compliance_rate": 0.6,
-            "max_utilisation": 0.5802,
+            "max_utilisation": 0.8578,
             "verdict": "UNSTABLE"
           },
           {
             "compliance_rate": 0.9,
-            "max_utilisation": 0.5926,
+            "max_utilisation": 0.8772,
             "verdict": "UNSTABLE"
           }
         ]
       },
-      "created_at": "2026-09-04T14:06:00Z",
-      "expires_at": "2026-09-04T14:21:00Z"
+      "created_at": "2026-09-04T14:45:00Z",
+      "expires_at": "2026-09-04T15:00:00Z"
     }
   ]
 }

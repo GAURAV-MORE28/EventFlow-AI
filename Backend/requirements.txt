@@ -8,6 +8,10 @@ httpx==0.28.1
 websockets==14.1
 python-dotenv==1.0.1
 
+# HX-Cascade GNN (ML/cascade.py) — CPU inference only, no CUDA required.
+torch==2.10.0
+torch_geometric==2.8.0.post1
+
 # Optional — enabled automatically when installed + configured.
 # psycopg[binary]==3.2.3      # PostgreSQL (DATABASE_URL=postgresql+psycopg://...)
 # redis==5.2.1                # Redis cache (REDIS_URL=redis://localhost:6379/0)

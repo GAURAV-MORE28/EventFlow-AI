@@ -10,6 +10,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from ..ml_reference.common import variance
+
 
 def _mean(values: list[float]) -> float:
     return sum(values) / len(values) if values else 0.0
@@ -21,6 +23,37 @@ def _improvement(value: float, baseline: float) -> float:
     return round((baseline - value) / baseline * 100.0, 1)
 
 
+def _rate(numerator: int, denominator: int) -> float:
+    return round(numerator / denominator, 3) if denominator else 0.0
+
+
+def _counterfactual_variance(store: Any) -> float:
+    """Zone variance if every zone that has ever had a settled intervention sat
+    at its twin do-nothing projection instead of its real (relief-affected)
+    value — the actual counterfactual `load_variance_reduction_pct` needs."""
+    utils = []
+    for eid in store.zone_ids():
+        cf = store.counterfactual_utilisation.get(eid)
+        if cf is not None:
+            utils.append(cf)
+        else:
+            state = store.entity_states.get(eid)
+            if state:
+                utils.append(state["utilisation"])
+    return variance(utils)
+
+
+def _counterfactual_peak(store: Any) -> float:
+    """Peak utilisation if every entity with a settled intervention sat at its
+    do-nothing projection instead. Entities never targeted keep their real
+    value — there is nothing to counterfactualise for them."""
+    peak = 0.0
+    for eid, state in store.entity_states.items():
+        util = store.counterfactual_utilisation.get(eid, state["utilisation"])
+        peak = max(peak, util)
+    return peak
+
+
 def build_metrics(engine: Any) -> dict[str, Any]:
     store = engine.store
     twin = store.twin_fidelity or {}
@@ -29,35 +62,53 @@ def build_metrics(engine: Any) -> dict[str, Any]:
     persistence_mae = round(_mean(store.forecast_errors["persistence"][-200:]), 4)
 
     lead_time = round(_mean(store.cascade_lead_times[-50:]), 0)
-    cascade_count = len([c for c in store.cascades.values() if c["total_downstream_failures"] > 0])
-    # Precision/recall are measured against the generator's own propagation, which
-    # is in-simulation only. Never presented as field validity (03 §8.4).
-    precision = round(min(0.95, 0.55 + 0.05 * cascade_count), 2) if cascade_count else 0.0
-    recall = round(min(0.92, 0.50 + 0.05 * cascade_count), 2) if cascade_count else 0.0
+    # Measured online (engine.py `_resolve_cascade_predictions` /
+    # `_track_cascade_recall`), never a formula over `cascade_count`. Precision
+    # is over alerts (did each prediction come true by its own eta); recall is
+    # over events (did each real high/critical transition have a prior alert)
+    # — the standard split for streaming-alert evaluation, so the two
+    # denominators are not the same count by design. In-simulation only, never
+    # presented as field validity (03 §8.4).
+    ev = store.cascade_eval
+    precision = _rate(ev["alerts_confirmed"], ev["alerts_confirmed"] + ev["alerts_false"])
+    recall = _rate(ev["events_caught"], ev["events_caught"] + ev["events_missed"])
 
     assimilated = float(twin.get("assimilated_rmse") or 0.0)
     uncorrected = twin.get("uncorrected_rmse")
     coverage = round(min(0.95, max(0.80, 0.85 + float(twin.get("ensemble_spread") or 0.0))), 2)
 
-    baseline_variance = store.baseline_load_variance
+    # Genuinely counterfactual (03 §5.6 / 01 §3.10): compares the real,
+    # relief-affected present against what the twin's do-nothing branch
+    # predicted for the same entities at the same settlement point — not a
+    # temporal diff against a cycle-3 snapshot, which just measures the event
+    # ramping up regardless of what any operator did.
     current_variance = store.summary["load_variance"]
+    cf_variance = _counterfactual_variance(store)
     variance_reduction = (
-        round((baseline_variance - current_variance) / baseline_variance * 100.0, 1)
-        if baseline_variance else 0.0
+        round((cf_variance - current_variance) / cf_variance * 100.0, 1) if cf_variance > 1e-9 else 0.0
     )
 
-    baseline_peak = store.baseline_peak_utilisation
     current_peak = max((s["utilisation"] for s in store.entity_states.values()), default=0.0)
+    cf_peak = _counterfactual_peak(store)
     peak_reduction = (
-        round((baseline_peak - current_peak) / baseline_peak * 100.0, 1)
-        if baseline_peak else 0.0
+        round((cf_peak - current_peak) / cf_peak * 100.0, 1) if cf_peak > 1e-9 else 0.0
     )
 
+    # 03 §5.6 names two distinct metrics that used to be conflated into one
+    # field: convergence rate (mechanical — did the solver converge) and
+    # certificate accuracy (does the converged prediction agree with an
+    # independent twin.branch() rollout, within 15%). `certificates_scored` is
+    # written once per certified candidate in
+    # `Engine._score_certificate_accuracy` and is exactly the latter.
     certified = [
         i for i in store.interventions.values() if (i.get("certificate") or {}).get("converged")
     ]
-    certificate_accuracy = (
+    convergence_rate = (
         round(len(certified) / len(store.interventions) * 100.0, 1) if store.interventions else 0.0
+    )
+    certificate_accuracy = (
+        round(_mean([1.0 if ok else 0.0 for ok in store.certificates_scored]) * 100.0, 1)
+        if store.certificates_scored else 0.0
     )
 
     ungrounded_rate = (
@@ -106,7 +157,11 @@ def build_metrics(engine: Any) -> dict[str, Any]:
                 "value": float(store.unstable_caught),
                 "baseline_name": "naive_optimiser_would_approve",
             },
-            "certificate_accuracy_pct": {"value": certificate_accuracy},
+            "certificate_accuracy_pct": {
+                "value": certificate_accuracy, "target": 85.0,
+                "baseline_name": "twin_branch_ground_truth",
+            },
+            "convergence_rate_pct": {"value": convergence_rate, "target": 85.0},
         },
         "system": {
             "cycle_latency_ms": {

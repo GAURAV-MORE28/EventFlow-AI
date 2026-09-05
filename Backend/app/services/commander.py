@@ -233,7 +233,7 @@ class Commander:
         return {"queued": True, "intervention_id": intervention_id}
 
     # --- planning ------------------------------------------------------------------
-    def _plan(self, query: str) -> list[tuple[str, dict]]:
+    def _plan(self, query: str) -> tuple[list[tuple[str, dict]], dict]:
         q = query.lower()
         store = self.engine.store
 
@@ -246,43 +246,66 @@ class Commander:
                     break
         top = store.pressure_timeline[0]["entity_id"] if store.pressure_timeline else None
         subject = named or top
+        # Whether the question named an entity is what separates "why is X
+        # happening" (a causal answer about X) from "what's the biggest
+        # problem" (a system-wide summary that happens to lead with X) — without
+        # this, both fall back to the identical subject/plan/prose whenever X is
+        # also the most urgent entity, which it usually is by construction.
+        meta = {"subject": subject, "subject_named": named is not None, "intent": "generic"}
 
         plan: list[tuple[str, dict]] = [("get_state", {"entity_id": "all"})]
 
         if any(w in q for w in ("do nothing", "nothing", "if we wait", "no action")):
+            meta["intent"] = "do_nothing"
             plan.append(("summarize_window", {}))
             if subject:
                 plan += [("get_forecast", {"entity_id": subject}), ("get_cascade", {"entity_id": subject})]
-            return plan
+            return plan, meta
 
         if any(w in q for w in ("action", "intervention", "do about", "improvement", "safest", "recommend")):
+            meta["intent"] = "action"
             plan.append(("get_interventions", {"status": "proposed"}))
             live = store.interventions_by_status("proposed", limit=1)
             if live:
                 plan.append(("get_certificate", {"intervention_id": live[0]["intervention_id"]}))
-            return plan
+            return plan, meta
 
+        if "why" in q:
+            meta["intent"] = "why"
         if subject:
             plan += [
                 ("get_state", {"entity_id": subject}),
                 ("get_forecast", {"entity_id": subject}),
                 ("get_cascade", {"entity_id": subject}),
             ]
-        return plan
+            if meta["intent"] == "generic":
+                # A generic "what's wrong" question needs the system-wide count
+                # too, so its answer differs from a "why is X" one even when
+                # both resolve to the same most-urgent subject.
+                plan.append(("summarize_window", {}))
+        return plan, meta
+
+    # A cached answer older than this many cycles is stale enough that the sim
+    # has moved on — re-answer rather than replay the first-ever response for
+    # the rest of the run (the cache exists to dedupe rapid repeats of the same
+    # question, e.g. a UI double-click, not to freeze an answer permanently).
+    CACHE_STALE_AFTER_CYCLES = 4
 
     # --- answering ---------------------------------------------------------------------
     async def answer(self, query: str, session_id: str = "sess_demo") -> dict:
         store = self.engine.store
         cache_key = query.strip().lower()
-        if self.cache_scripted and cache_key in self._cache:
-            cached = dict(self._cache[cache_key])
+        cached_entry = self._cache.get(cache_key) if self.cache_scripted else None
+        if cached_entry and store.cycle_number - cached_entry["cycle_number"] <= self.CACHE_STALE_AFTER_CYCLES:
+            cached = dict(cached_entry["payload"])
             cached["is_cached"] = True
             store.commander_calls += 1
             return cached
 
+        plan, meta = self._plan(query)
         tool_calls: list[dict] = []
         results: list[Any] = []
-        for name, args in self._plan(query):
+        for name, args in plan:
             store.commander_tool_calls_total += 1
             try:
                 result = self.tools.call(name, args)
@@ -293,7 +316,7 @@ class Commander:
             results.append(result)
             tool_calls.append({"tool": name, "args": args, "result_digest": self._digest(name, result)})
 
-        draft = self._compose(query, tool_calls, results)
+        draft = self._compose(query, tool_calls, results, meta)
         if self.engine_mode == "local_llm":
             draft = self._phrase_with_local_llm(query, results) or draft
 
@@ -310,7 +333,7 @@ class Commander:
         }
         self._log(session_id, query, payload)
         if self.cache_scripted:
-            self._cache[cache_key] = payload
+            self._cache[cache_key] = {"payload": payload, "cycle_number": store.cycle_number}
         return payload
 
     def _digest(self, name: str, result: Any) -> str:
@@ -333,8 +356,10 @@ class Commander:
             return f"critical={result.get('critical_count')} high={result.get('high_count')}"
         return json.dumps(result)[:120]
 
-    def _compose(self, query: str, tool_calls: list[dict], results: list[Any]) -> str:
+    def _compose(self, query: str, tool_calls: list[dict], results: list[Any], meta: dict | None = None) -> str:
         """Template synthesis over tool output. Every number here came from a tool."""
+        meta = meta or {}
+        intent = meta.get("intent", "generic")
         state = next((r for r in results if isinstance(r, dict) and "utilisation" in r), None)
         forecast = next((r for r in results if isinstance(r, dict) and "points" in r), None)
         cascade = next((r for r in results if isinstance(r, dict) and "steps" in r), None)
@@ -347,17 +372,46 @@ class Commander:
 
         parts: list[str] = []
 
+        # A "what's the biggest problem" question and a "why is X happening"
+        # question used to compose byte-identical answers whenever X was also
+        # the most urgent entity (the usual case) — both fell back to the same
+        # subject and the same state+forecast narrative below with no framing
+        # difference. `intent` (set from whether the query actually named an
+        # entity) is what lets them differ, grounded in the same tool results.
+        if intent == "generic" and window:
+            parts.append(
+                f"Across the event, {window['critical_count']} entities are critical and "
+                f"{window['high_count']} are at high risk."
+            )
+
         if state and forecast:
             name = state.get("display_name", state.get("entity_id"))
             ttc = forecast.get("time_to_critical_sec")
-            if ttc is not None:
-                parts.append(
-                    f"{name} is projected to cross critical in {_fmt_minutes(ttc)} minutes."
-                )
+            if intent == "generic":
+                if ttc is not None:
+                    parts.append(
+                        f"The most urgent is {name}, projected to cross critical in {_fmt_minutes(ttc)} minutes."
+                    )
+                else:
+                    parts.append(f"The most urgent is {name}, not projected to cross critical within the forecast horizon.")
             else:
-                parts.append(f"{name} is not projected to cross critical within the forecast horizon.")
+                if ttc is not None:
+                    parts.append(f"{name} is projected to cross critical in {_fmt_minutes(ttc)} minutes.")
+                else:
+                    parts.append(f"{name} is not projected to cross critical within the forecast horizon.")
+            # `flow_rate_per_min` is a signed NET rate (inbound minus outbound) —
+            # it goes negative whenever an entity is currently draining, which is
+            # a normal state, not a data error. Framing it as "inbound flow rate"
+            # regardless of sign read as a bug to anyone reviewing this (a
+            # negative "inbound" rate). The raw signed value is printed as-is
+            # (not `abs()`) — the grounding validator only knows the seconds->
+            # minutes and ratio->pct transforms (`_collect_numbers`), so a
+            # value transformed any other way reads as ungrounded and gets
+            # stripped to "—".
+            rate = state["flow_rate_per_min"]
+            direction = "filling" if rate >= 0 else "draining"
             parts.append(
-                f"Its inbound flow rate is {state['flow_rate_per_min']} per minute against a nominal "
+                f"It is currently {direction}, net flow {rate} per minute, against a nominal "
                 f"capacity of {int(state['nominal_capacity'])}, at {state['risk_score']} risk."
             )
             parts.append(f"The forecast source is {forecast.get('source')}.")
@@ -388,21 +442,28 @@ class Commander:
                 cert = top.get("certificate")
                 if cert:
                     parts.append(f"Its certificate reads {cert['verdict']}. {cert['reason']}")
-                unstable = [
-                    i for i in items
-                    if (i.get("certificate") or {}).get("verdict") == "UNSTABLE"
-                ]
-                if unstable:
-                    worst = unstable[0]
-                    parts.append(
-                        f"Note that \"{worst['title']}\" offers "
-                        f"{worst['estimated_relief_pct']} percent relief but certifies UNSTABLE, "
-                        f"so it ranks below the stable option."
-                    )
+                top_verdict = (top.get("certificate") or {}).get("verdict")
+                # Only worth flagging when the winner is genuinely more stable —
+                # "ranks below the unstable option" (when the winner is ALSO
+                # UNSTABLE, just for a different reason) isn't the contrast this
+                # sentence exists to make.
+                if top_verdict in ("STABLE", "CONDITIONAL"):
+                    unstable = [
+                        i for i in items
+                        if (i.get("certificate") or {}).get("verdict") == "UNSTABLE"
+                        and float(i.get("estimated_relief_pct", 0.0)) > float(top.get("estimated_relief_pct", 0.0))
+                    ]
+                    if unstable:
+                        worst = max(unstable, key=lambda i: float(i["estimated_relief_pct"]))
+                        parts.append(
+                            f"Note that \"{worst['title']}\" offers "
+                            f"{worst['estimated_relief_pct']} percent relief but certifies UNSTABLE, "
+                            f"so it ranks below the {top_verdict.lower()} option."
+                        )
         elif certificate:
             parts.append(f"The certificate verdict is {certificate['verdict']}. {certificate['reason']}")
 
-        if window:
+        if intent == "do_nothing" and window:
             parts.append(
                 f"Doing nothing leaves {window['critical_count']} entities critical and "
                 f"{window['high_count']} at high risk, with load variance {window['load_variance']}."

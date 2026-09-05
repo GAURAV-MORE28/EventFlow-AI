@@ -34,6 +34,7 @@ const MAPPING = {
   'attendee_journey.json': 'journey_response',
   'simulation.json': 'simulation_result',
   'health.json': 'health_response',
+  'attendee_nudges.json': 'nudge_list_response',
 };
 
 // These are arrays of per-cycle frames; each frame validates against a schema
@@ -97,6 +98,59 @@ function main() {
       console.error(`✗ ${file}: expected an array of cycles`);
     } else {
       console.log(`✓ ${file} (${data.length} cycles, structural check)`);
+    }
+  }
+
+  // pressure_timeline.json: each entry validates against its own frame schema
+  // (previously declared here but never actually looped over — the file went
+  // unvalidated regardless of what export_mocks.py wrote into it).
+  for (const [file, schemaName] of Object.entries(SEQUENCE_MAPPING)) {
+    const mockPath = path.join(MOCK_DIR, file);
+    if (!existsSync(mockPath)) {
+      console.warn(`  skip (missing): ${file}`);
+      continue;
+    }
+    const schema = loadSchema(schemaName);
+    const validate = ajv.compile(schema);
+    const frames = JSON.parse(readFileSync(mockPath, 'utf-8'));
+    checked += 1;
+    const badIndex = frames.findIndex((frame) => !validate(frame));
+    if (badIndex !== -1) {
+      validate(frames[badIndex]);
+      failures += 1;
+      console.error(`✗ ${file} (frame ${badIndex}, schema: ${schemaName})`);
+      for (const err of validate.errors.slice(0, 5)) {
+        console.error(`    ${err.instancePath || '/'} ${err.message}`);
+      }
+    } else {
+      console.log(`✓ ${file} (${frames.length} frames)`);
+    }
+  }
+
+  // commander_responses.json: a dict of question -> CommanderResponse, not a
+  // CommanderResponse itself, so it needs its own loop rather than a MAPPING
+  // entry.
+  {
+    const file = 'commander_responses.json';
+    const mockPath = path.join(MOCK_DIR, file);
+    if (existsSync(mockPath)) {
+      const schema = loadSchema('commander_response');
+      const validate = ajv.compile(schema);
+      const responses = JSON.parse(readFileSync(mockPath, 'utf-8'));
+      checked += 1;
+      const badQuestion = Object.entries(responses).find(([, r]) => !validate(r));
+      if (badQuestion) {
+        validate(badQuestion[1]);
+        failures += 1;
+        console.error(`✗ ${file} (question: "${badQuestion[0]}")`);
+        for (const err of validate.errors.slice(0, 5)) {
+          console.error(`    ${err.instancePath || '/'} ${err.message}`);
+        }
+      } else {
+        console.log(`✓ ${file} (${Object.keys(responses).length} questions)`);
+      }
+    } else {
+      console.warn(`  skip (missing): ${file}`);
     }
   }
 

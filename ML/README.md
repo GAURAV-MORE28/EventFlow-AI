@@ -59,7 +59,7 @@ and the backend's `active_source` field switches from `"deterministic"` to
 cd Backend
 python -m pytest tests/ -q          # contract tests still pass with your module loaded
 python -m scripts.export_schemas --out ../contracts/schemas
-python -m scripts.export_mocks --out ../Frontend/src/mocks --cycles 40
+python -m scripts.export_mocks --out ../Frontend/src/mocks --cycles 90
 ```
 
 If your module's return dict doesn't match the shared schema, Pydantic

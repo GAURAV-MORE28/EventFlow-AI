@@ -21,6 +21,7 @@ import asyncio
 import contextlib
 import logging
 import time
+from collections import deque
 from typing import Any
 
 from ..cache import CACHE, TTL
@@ -118,6 +119,23 @@ class Engine:
         truth = self.generator.ground_truth()
 
         # 3. assimilate — never skipped (§2 latency table) ----------------------
+        # The forecast half of the EnKF cycle (03 §3.1/§3.2): every member is
+        # advanced with process noise and mandatory covariance inflation BEFORE
+        # the analysis step below corrects it. Skipping this — as this line's
+        # absence used to do — means `assimilate()` only ever runs the Kalman
+        # update against a never-advanced ensemble: the gain shrinks spread every
+        # cycle with nothing re-injecting it, so the filter collapses (measured
+        # ensemble_spread -> ~0.0001 within ~15 cycles) and quietly stops
+        # correcting. `step()` has no `.fallback()` in the 03 §3.1 interface
+        # because it mutates internal state only — a failure here can't corrupt
+        # the wire, so it is caught and logged rather than routed through
+        # call_ml's timeout/fallback machinery.
+        if hasattr(self.registry.twin, "step"):
+            try:
+                await asyncio.to_thread(self.registry.twin.step, self.sim_dt)
+            except Exception:
+                log.exception("twin.step failed; assimilation will run against a stale ensemble")
+
         fidelity, twin_degraded, assimilate_ms = await call_ml(
             "twin.assimilate",
             self.registry.twin.assimilate,
@@ -201,6 +219,8 @@ class Engine:
         )
         self._apply_risk(scores or {})
         self._recompute_summary()
+        self._resolve_cascade_predictions()
+        self._track_cascade_recall(previous_states)
 
         # 8. interventions -------------------------------------------------------------
         new_interventions = await self._maybe_generate_interventions(node_state, sim_time)
@@ -381,11 +401,6 @@ class Engine:
             "high_count": sum(1 for s in states.values() if s["risk_band"] == "high"),
             "load_variance": load_variance,
         }
-        if store.baseline_load_variance is None and store.cycle_number >= 3:
-            store.baseline_load_variance = load_variance
-            store.baseline_peak_utilisation = max(
-                (s["utilisation"] for s in states.values()), default=0.0
-            )
 
     # --- step 7 -------------------------------------------------------------------------------
     def _critical_roots(self, node_state: dict[str, dict]) -> list[str]:
@@ -394,18 +409,84 @@ class Engine:
     def _apply_cascades(self, cascades: list[dict]) -> list[dict]:
         store = self.store
         store.cascades = {}
-        fresh = []
+        active_roots: set[str] = set()
+        newly_active = []
         for c in cascades or []:
             store.cascades[c["root_entity_id"]] = c
             if c["total_downstream_failures"] >= 1:
-                fresh.append(c)
+                active_roots.add(c["root_entity_id"])
+                # H4: cascade_alert is "when a new cascade appears" (01 §4.1), not
+                # every cycle a still-active one refreshes its prediction — a live
+                # cascade recomputes ~every cycle and would otherwise emit and
+                # restart the frontend's arc-reveal animation twice a second.
+                if c["root_entity_id"] not in store.previously_active_cascade_roots:
+                    newly_active.append(c)
                 # Lead time: how early we saw it, relative to the root's own ETA.
                 etas = [s["eta_sec"] for s in c["steps"] if s["depth"] > 0]
                 if etas:
                     store.cascade_lead_times.append(float(max(etas)))
+
+                self._schedule_cascade_checks(c)
+        store.previously_active_cascade_roots = active_roots
         if cascades:
             store.active_cascade_source = cascades[0]["source"]
-        return fresh
+        return newly_active
+
+    # --- online cascade precision/recall (03 §4.4) ------------------------------------------
+    def _schedule_cascade_checks(self, cascade: dict) -> None:
+        """Record every downstream (non-root) prediction so its outcome can be
+        checked once its own predicted eta arrives — this is what makes
+        `cascade_precision` a measurement instead of a formula."""
+        store = self.store
+        pending_entities = {eid for _, eid in store.cascade_pending_checks}
+        for step in cascade["steps"][1:]:
+            eid = step["entity_id"]
+            store.cascade_predicted_at[eid] = store.cycle_number
+            if eid in pending_entities:
+                continue  # already have an earlier check pending for this entity
+            due = store.cycle_number + max(1, round(step["eta_sec"] / self.sim_dt))
+            store.cascade_pending_checks.append((due, eid))
+            pending_entities.add(eid)
+
+    def _resolve_cascade_predictions(self) -> None:
+        """Precision half: of the predictions whose eta has now arrived, how many
+        actually landed in high/critical band?"""
+        store = self.store
+        remaining: deque[tuple[int, str]] = deque()
+        for due, eid in store.cascade_pending_checks:
+            if due > store.cycle_number:
+                remaining.append((due, eid))
+                continue
+            state = store.entity_states.get(eid)
+            band = state["risk_band"] if state else "low"
+            if band in ("high", "critical"):
+                store.cascade_eval["alerts_confirmed"] += 1
+            else:
+                store.cascade_eval["alerts_false"] += 1
+        store.cascade_pending_checks = remaining
+
+    # 03 §4.4's lead-time target is >=900s; a prediction older than the deepest
+    # forecast horizon (3600s) is no longer a meaningful "advance warning" for
+    # whatever just happened, so it does not count as a caught event.
+    CASCADE_RECALL_LOOKBACK_SEC = 3600
+
+    def _track_cascade_recall(self, previous_states: dict[str, dict]) -> None:
+        """Recall half: of the entities that just transitioned into high/critical,
+        how many had been predicted in advance by any cascade?"""
+        store = self.store
+        lookback_cycles = max(1, self.CASCADE_RECALL_LOOKBACK_SEC // self.sim_dt)
+        for eid, state in store.entity_states.items():
+            if state["risk_band"] not in ("high", "critical"):
+                continue
+            prev = previous_states.get(eid)
+            was_high = bool(prev) and prev["risk_band"] in ("high", "critical")
+            if was_high:
+                continue  # not a fresh transition — already counted when it first happened
+            predicted_cycle = store.cascade_predicted_at.get(eid)
+            if predicted_cycle is not None and 1 <= store.cycle_number - predicted_cycle <= lookback_cycles:
+                store.cascade_eval["events_caught"] += 1
+            else:
+                store.cascade_eval["events_missed"] += 1
 
     def _cascade_exposure(self) -> dict[str, float]:
         """Normalised downstream-failure count, per entity. Feeds RiskScorer."""
@@ -474,6 +555,7 @@ class Engine:
             candidate["certificate"] = certificate
             candidate["created_at"] = sim_time
             candidate["expires_at"] = shift(sim_time, candidate.pop("_ttl_sec", 900))
+            await self._score_certificate_accuracy(candidate, certificate, node_state)
 
         # rank() attaches rank_score using the certificate verdict — this is the
         # step where an UNSTABLE high-relief option loses to a STABLE lower one.
@@ -501,26 +583,96 @@ class Engine:
         verdict = (by_relief.get("certificate") or {}).get("verdict")
         if verdict == "UNSTABLE" and ranked[0]["intervention_id"] != by_relief["intervention_id"]:
             self.store.unstable_caught += 1
-        for i in ranked:
-            v = (i.get("certificate") or {}).get("verdict")
-            if v:
-                self.store.certificates_scored.append(v != "UNSTABLE" or True)
+
+    async def _score_certificate_accuracy(
+        self, candidate: dict, certificate: dict, node_state: dict[str, dict]
+    ) -> None:
+        """03 §5.6 — compare the certificate's predicted equilibrium against an
+        independent `twin.branch()` rollout of the same relief. Agreement within
+        15% is recorded; this is the only place `certificates_scored` is written,
+        and `metrics.certificate_accuracy_pct` is the only place it is read.
+
+        Deliberately a *different* mechanism from `certify()`'s own best-response
+        solver (a flat demand cut on the named targets vs. a compliance-weighted
+        segment model) — the point of this check is cross-validation, not
+        re-deriving the same number twice.
+        """
+        if not certificate.get("converged"):
+            return  # no equilibrium prediction to compare against
+        targets = candidate.get("target_entity_ids") or []
+        relief = float(candidate.get("estimated_relief_pct", 0.0)) / 100.0
+        scenario = {"demand_multipliers": {t: clamp(1.0 - relief, 0.05, 1.0) for t in targets if t in node_state}}
+        if not scenario["demand_multipliers"]:
+            return
+        branch, degraded, _ = await call_ml(
+            "twin.branch_check", self.registry.twin.branch, None, 0.2, scenario, 1800,
+        )
+        if degraded or not branch:
+            return
+        predicted = float(certificate.get("max_zone_utilisation", 0.0))
+        observed = float((branch.get("scenario") or {}).get("peak_utilisation", 0.0))
+        within_15pct = abs(predicted - observed) <= max(0.15 * observed, 0.05)
+        self.store.certificates_scored.append(within_15pct)
+
+    # `_counterfactual_trajectory` is a 6-point rollout at 300s increments
+    # (see AssimilatedTwin._branch, horizon_sec=1800 // 6 steps); settling at
+    # exactly 900s after approval lands on index 2.
+    SETTLE_DELAY_SEC = 900
+    _COUNTERFACTUAL_STEP_SEC = 300
 
     async def _settle_executing_interventions(self, sim_time: str) -> list[dict]:
-        """Close the loop: an executing intervention becomes a regret-ledger entry."""
+        """Close the loop: an executing intervention becomes a regret-ledger entry.
+
+        Both `realised_relief_pct` and `counterfactual_relief_pct` are measured
+        against the same baseline (`_util_at_approval`) and the same settlement
+        point — one from what the live simulation, with the relief actually
+        applied, shows now; the other from the do-nothing branch forked at
+        approval time. Neither is derived from `hash()` (which also broke
+        seed-42 reproducibility per 01 §8 — a per-process-salted hash of the
+        intervention id is not a function of the seed at all).
+        """
         store = self.store
         settled = []
         for i in list(store.interventions.values()):
             if i["status"] != "executing":
                 continue
             applied = i.get("_applied_at")
-            if not applied or (parse(sim_time) - parse(applied)).total_seconds() < 900:
+            if not applied or (parse(sim_time) - parse(applied)).total_seconds() < self.SETTLE_DELAY_SEC:
                 continue
 
             predicted = float(i["estimated_relief_pct"])
-            # Realised relief is measured against the twin's do-nothing branch.
-            counterfactual = float(i.get("_counterfactual_relief_pct", 0.0))
-            realised = round(predicted * (0.82 + 0.16 * ((hash(i["intervention_id"]) % 100) / 100.0)), 1)
+            baseline = float(i.get("_util_at_approval", 0.0))
+            targets = [t for t in i["target_entity_ids"] if t in store.entity_states]
+            traj = i.get("_counterfactual_trajectory") or {}
+            idx = self.SETTLE_DELAY_SEC // self._COUNTERFACTUAL_STEP_SEC - 1
+
+            actual_now = (
+                sum(store.entity_states[t]["utilisation"] for t in targets) / len(targets)
+                if targets else baseline
+            )
+            do_nothing_now = (
+                sum(traj[t][idx] for t in targets if t in traj and len(traj[t]) > idx)
+                / max(sum(1 for t in targets if t in traj and len(traj[t]) > idx), 1)
+                if any(t in traj and len(traj[t]) > idx for t in targets) else baseline
+            )
+
+            # A near-zero baseline turns a small absolute swing into a huge
+            # percentage (the twin's branch model is a crude ABM surrogate —
+            # see twin.py — not the generator's true curve, so it can diverge
+            # from what actually happens by more than a percentage swing
+            # should reasonably report). Clamped to the same +/-100 scale
+            # `estimated_relief_pct` itself uses, so an outlier reads as "very
+            # wrong" rather than as a plausible-looking three-digit number.
+            if baseline > 0.05:
+                realised = round(clamp((baseline - actual_now) / baseline * 100.0, -100.0, 100.0), 1)
+                counterfactual = round(clamp((baseline - do_nothing_now) / baseline * 100.0, -100.0, 100.0), 1)
+            else:
+                realised = 0.0
+                counterfactual = 0.0
+
+            for t in targets:
+                if t in traj and len(traj[t]) > idx:
+                    store.counterfactual_utilisation[t] = float(traj[t][idx])
 
             i["status"] = "completed"
             entry = {
@@ -570,6 +722,68 @@ class Engine:
                         for p in f["points"]
                     ]
                 )
+
+                # Interventions/certificates/nudges/regret entries are mutable
+                # (status flips, a certificate arrives after the intervention
+                # row does) so they're upserted by primary key every cycle
+                # rather than bulk-inserted — these tables were entirely
+                # write-never before this: every decision the demo makes was
+                # visible only in the in-memory StateStore and vanished on
+                # restart, despite 01 §1 naming "audit logging and the regret
+                # ledger" as something the backend owns.
+                for i in store.interventions.values():
+                    session.merge(
+                        models.Intervention(
+                            intervention_id=i["intervention_id"], intervention_type=i["intervention_type"],
+                            status=i["status"], target_entity_ids=i["target_entity_ids"],
+                            triggered_by_entity_id=i.get("triggered_by_entity_id"),
+                            title=i["title"], description=i["description"],
+                            estimated_relief_pct=i["estimated_relief_pct"],
+                            estimated_cost_paise=i["estimated_cost_paise"],
+                            estimated_delay_sec=i["estimated_delay_sec"], feasibility=i["feasibility"],
+                            rank_score=i["rank_score"], created_at=parse(i["created_at"]),
+                            expires_at=parse(i["expires_at"]),
+                        )
+                    )
+                    cert = store.certificates.get(i["intervention_id"])
+                    if cert:
+                        session.merge(
+                            models.Certificate(
+                                certificate_id=cert["certificate_id"], intervention_id=i["intervention_id"],
+                                verdict=cert["verdict"], converged=cert["converged"],
+                                iterations=cert["iterations"], post_nudge_variance=cert["post_nudge_variance"],
+                                baseline_variance=cert["baseline_variance"],
+                                max_zone_utilisation=cert["max_zone_utilisation"],
+                                max_zone_entity_id=cert.get("max_zone_entity_id"),
+                                oscillation_risk=cert["oscillation_risk"],
+                                compliance_sensitivity=cert["compliance_sensitivity"],
+                                compliance_sweep=cert["compliance_sweep"], reason=cert["reason"],
+                            )
+                        )
+
+                for entry in store.regret_entries:
+                    session.merge(
+                        models.RegretEntry(
+                            regret_id=entry["regret_id"], intervention_id=entry["intervention_id"],
+                            intervention_type=entry["intervention_type"],
+                            predicted_relief_pct=entry["predicted_relief_pct"],
+                            realised_relief_pct=entry["realised_relief_pct"],
+                            counterfactual_relief_pct=entry["counterfactual_relief_pct"],
+                            regret=entry["regret"], sim_time=parse(entry["sim_time"]),
+                        )
+                    )
+
+                for n in store.nudges.values():
+                    session.merge(
+                        models.Nudge(
+                            nudge_id=n["nudge_id"], attendee_id=n["attendee_id"],
+                            intervention_id=n.get("intervention_id"), segment_id=n.get("segment_id"),
+                            headline=n["headline"], body=n["body"], tradeoff=n["tradeoff"],
+                            target_entity_id=n.get("target_entity_id"), status=n["status"],
+                            issued_at=parse(n["issued_at"]), expires_at=parse(n["expires_at"]),
+                        )
+                    )
+
                 session.commit()
         except Exception:
             # Persistence is the durable record, not the live path. Losing a write

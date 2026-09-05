@@ -64,6 +64,19 @@ class StateStore:
 
         self.cascades: dict[str, dict] = {}
         self.active_cascade_source = "deterministic"
+        # H4 fix: a root that was already an active cascade last cycle does not
+        # re-fire `cascade_alert` just because the prediction refreshed — only a
+        # root that newly appears does. Tracked separately from `self.cascades`
+        # (which is replaced wholesale every cycle) so the diff survives it.
+        self.previously_active_cascade_roots: set[str] = set()
+
+        # Online precision/recall for the cascade predictor (03 §4.4), measured
+        # against what the generator's own downstream entities actually do —
+        # never against field data, and never a formula (01 §3.10 metrics.py
+        # used to synthesise these from `cascade_count` alone).
+        self.cascade_pending_checks: deque[tuple[int, str]] = deque()
+        self.cascade_predicted_at: dict[str, int] = {}
+        self.cascade_eval = {"alerts_confirmed": 0, "alerts_false": 0, "events_caught": 0, "events_missed": 0}
 
         self.interventions: dict[str, dict] = {}
         self.certificates: dict[str, dict] = {}
@@ -73,6 +86,12 @@ class StateStore:
         self.drift_mode_enabled = False
 
         self.regret_entries: list[dict] = []
+        # Per-entity "what the twin's do-nothing branch predicted" at the last
+        # settled intervention that targeted it — metrics.py's decision-panel
+        # reductions compare *this* against the real current value, so they are
+        # a genuine counterfactual instead of a before/after-the-event-ramped-up
+        # temporal diff (which is what `load_variance_reduction_pct` used to be).
+        self.counterfactual_utilisation: dict[str, float] = {}
         self.anomalies: deque[dict] = deque(maxlen=ANOMALY_LIMIT)
         self.nudges: dict[str, dict] = {}
 
@@ -92,10 +111,12 @@ class StateStore:
         self.commander_tool_calls_ok = 0
         self.commander_tool_calls_total = 0
         self.unstable_caught = 0
+        # 03 §5.6 "certificate accuracy": whether the certificate's predicted
+        # equilibrium agreed (within 15%) with an independent twin.branch()
+        # rollout of the same scenario — populated in
+        # Engine._maybe_generate_interventions, read in metrics.build_metrics.
         self.certificates_scored: list[bool] = []
         self.cascade_lead_times: list[float] = []
-        self.baseline_load_variance: float | None = None
-        self.baseline_peak_utilisation: float | None = None
         self.observed_compliance: list[bool] = []
 
     # --- helpers ------------------------------------------------------------
@@ -212,11 +233,16 @@ class StateStore:
         self.forecasts.clear()
         self.pressure_timeline.clear()
         self.cascades.clear()
+        self.previously_active_cascade_roots.clear()
+        self.cascade_pending_checks.clear()
+        self.cascade_predicted_at.clear()
+        self.cascade_eval = {"alerts_confirmed": 0, "alerts_false": 0, "events_caught": 0, "events_missed": 0}
         self.interventions.clear()
         self.certificates.clear()
         self.twin_fidelity = None
         self.twin_history.clear()
         self.regret_entries.clear()
+        self.counterfactual_utilisation.clear()
         self.anomalies.clear()
         self.nudges.clear()
         self.cycle_latency_ms.clear()
@@ -224,8 +250,6 @@ class StateStore:
         self.unstable_caught = 0
         self.certificates_scored.clear()
         self.cascade_lead_times.clear()
-        self.baseline_load_variance = None
-        self.baseline_peak_utilisation = None
         self.observed_compliance.clear()
         self.commander_calls = 0
         self.commander_ungrounded = 0

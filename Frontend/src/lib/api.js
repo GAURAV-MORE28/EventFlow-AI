@@ -7,8 +7,14 @@
  */
 import * as mocks from './mocks.js';
 
+// `.env` is gitignored (it carries no secrets, but local dev overrides
+// shouldn't get committed either), so a fresh clone has no VITE_MOCK at all —
+// `undefined !== '0'` must still mean "mock", or the zero-setup path
+// RUNNING.md promises starts in live mode against a backend that was never
+// asked to run, and shows nothing but error toasts. Only an explicit '0'
+// opts into live mode.
 export const MOCK_MODE =
-  import.meta.env.VITE_MOCK === '1' ||
+  import.meta.env.VITE_MOCK !== '0' ||
   new URLSearchParams(window.location.search).get('mock') === '1';
 
 const BASE = import.meta.env.VITE_API_BASE || '/api/v1';

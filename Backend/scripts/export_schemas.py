@@ -38,6 +38,7 @@ EXPORTS: dict[str, type] = {
     "graph_response": S.GraphResponse,
     "state_response": S.StateResponse,
     "pressure_timeline_response": S.PressureTimelineResponse,
+    "pressure_timeline_frame": S.PressureTimelineFrame,
     "intervention_list_response": S.InterventionListResponse,
     "metrics_response": S.MetricsResponse,
     "commander_response": S.CommanderResponse,

@@ -1,8 +1,8 @@
 {
   "status": "ok",
-  "server_time": "2026-09-04T14:20:00Z",
-  "sim_time": "2026-09-04T14:20:00Z",
-  "cycle_number": 40,
+  "server_time": "2026-09-04T14:45:00Z",
+  "sim_time": "2026-09-04T14:45:00Z",
+  "cycle_number": 90,
   "modules": {
     "forecaster": {
       "ready": true,
@@ -10,7 +10,7 @@
     },
     "cascade": {
       "ready": true,
-      "active_source": "deterministic"
+      "active_source": "gnn"
     },
     "twin": {
       "ready": true,
