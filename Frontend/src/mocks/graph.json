@@ -1,0 +1,1886 @@
+{
+  "nodes": [
+    {
+      "entity_id": "stadium_main",
+      "entity_type": "venue",
+      "display_name": "Main Stadium",
+      "lat": 19.076,
+      "lon": 72.8777,
+      "nominal_capacity": 70000.0,
+      "parent_id": null,
+      "meta": {
+        "tiers": 3
+      }
+    },
+    {
+      "entity_id": "gate_1",
+      "entity_type": "gate",
+      "display_name": "Gate 1",
+      "lat": 19.0805,
+      "lon": 72.8737,
+      "nominal_capacity": 2800.0,
+      "parent_id": "stadium_main",
+      "meta": {}
+    },
+    {
+      "entity_id": "gate_2",
+      "entity_type": "gate",
+      "display_name": "Gate 2",
+      "lat": 19.081,
+      "lon": 72.8787,
+      "nominal_capacity": 2800.0,
+      "parent_id": "stadium_main",
+      "meta": {}
+    },
+    {
+      "entity_id": "gate_3",
+      "entity_type": "gate",
+      "display_name": "Gate 3",
+      "lat": 19.079,
+      "lon": 72.8832,
+      "nominal_capacity": 2200.0,
+      "parent_id": "stadium_main",
+      "meta": {}
+    },
+    {
+      "entity_id": "gate_4",
+      "entity_type": "gate",
+      "display_name": "Gate 4",
+      "lat": 19.0735,
+      "lon": 72.8837,
+      "nominal_capacity": 2500.0,
+      "parent_id": "stadium_main",
+      "meta": {}
+    },
+    {
+      "entity_id": "gate_5",
+      "entity_type": "gate",
+      "display_name": "Gate 5",
+      "lat": 19.071,
+      "lon": 72.8782,
+      "nominal_capacity": 1500.0,
+      "parent_id": "stadium_main",
+      "meta": {}
+    },
+    {
+      "entity_id": "gate_6",
+      "entity_type": "gate",
+      "display_name": "Gate 6",
+      "lat": 19.072,
+      "lon": 72.8732,
+      "nominal_capacity": 2600.0,
+      "parent_id": "stadium_main",
+      "meta": {}
+    },
+    {
+      "entity_id": "metro_a",
+      "entity_type": "transport_node",
+      "display_name": "Metro A Station",
+      "lat": 19.088,
+      "lon": 72.8647,
+      "nominal_capacity": 3800.0,
+      "parent_id": null,
+      "meta": {
+        "lines": [
+          "blue"
+        ],
+        "platforms": 2
+      }
+    },
+    {
+      "entity_id": "metro_b",
+      "entity_type": "transport_node",
+      "display_name": "Metro B Station",
+      "lat": 19.0855,
+      "lon": 72.8917,
+      "nominal_capacity": 4200.0,
+      "parent_id": null,
+      "meta": {
+        "lines": [
+          "blue"
+        ],
+        "platforms": 2
+      }
+    },
+    {
+      "entity_id": "metro_c",
+      "entity_type": "transport_node",
+      "display_name": "Metro C Station",
+      "lat": 19.065,
+      "lon": 72.8867,
+      "nominal_capacity": 3600.0,
+      "parent_id": null,
+      "meta": {
+        "lines": [
+          "red"
+        ],
+        "platforms": 2
+      }
+    },
+    {
+      "entity_id": "metro_d",
+      "entity_type": "transport_node",
+      "display_name": "Metro D Station",
+      "lat": 19.061,
+      "lon": 72.8697,
+      "nominal_capacity": 3100.0,
+      "parent_id": null,
+      "meta": {
+        "lines": [
+          "red"
+        ],
+        "platforms": 1
+      }
+    },
+    {
+      "entity_id": "metro_e",
+      "entity_type": "transport_node",
+      "display_name": "Metro E Station",
+      "lat": 19.094,
+      "lon": 72.8807,
+      "nominal_capacity": 2900.0,
+      "parent_id": null,
+      "meta": {
+        "lines": [
+          "green"
+        ],
+        "platforms": 1
+      }
+    },
+    {
+      "entity_id": "bus_hub_north",
+      "entity_type": "transport_node",
+      "display_name": "North Bus Hub",
+      "lat": 19.092,
+      "lon": 72.8722,
+      "nominal_capacity": 2400.0,
+      "parent_id": null,
+      "meta": {
+        "lines": [],
+        "platforms": 0
+      }
+    },
+    {
+      "entity_id": "bus_hub_south",
+      "entity_type": "transport_node",
+      "display_name": "South Bus Hub",
+      "lat": 19.0585,
+      "lon": 72.8802,
+      "nominal_capacity": 2200.0,
+      "parent_id": null,
+      "meta": {
+        "lines": [],
+        "platforms": 0
+      }
+    },
+    {
+      "entity_id": "shuttle_hub_east",
+      "entity_type": "transport_node",
+      "display_name": "East Shuttle Hub",
+      "lat": 19.0775,
+      "lon": 72.8952,
+      "nominal_capacity": 1800.0,
+      "parent_id": null,
+      "meta": {
+        "lines": [],
+        "platforms": 0
+      }
+    },
+    {
+      "entity_id": "shuttle_hub_west",
+      "entity_type": "transport_node",
+      "display_name": "West Shuttle Hub",
+      "lat": 19.075,
+      "lon": 72.8592,
+      "nominal_capacity": 1800.0,
+      "parent_id": null,
+      "meta": {
+        "lines": [],
+        "platforms": 0
+      }
+    },
+    {
+      "entity_id": "line_blue",
+      "entity_type": "transport_route",
+      "display_name": "Blue Line",
+      "lat": 19.087,
+      "lon": 72.8782,
+      "nominal_capacity": 24000.0,
+      "parent_id": null,
+      "meta": {
+        "colour": "blue"
+      }
+    },
+    {
+      "entity_id": "line_red",
+      "entity_type": "transport_route",
+      "display_name": "Red Line",
+      "lat": 19.063,
+      "lon": 72.8832,
+      "nominal_capacity": 21000.0,
+      "parent_id": null,
+      "meta": {
+        "colour": "red"
+      }
+    },
+    {
+      "entity_id": "line_green",
+      "entity_type": "transport_route",
+      "display_name": "Green Line",
+      "lat": 19.093,
+      "lon": 72.8877,
+      "nominal_capacity": 15000.0,
+      "parent_id": null,
+      "meta": {
+        "colour": "green"
+      }
+    },
+    {
+      "entity_id": "road_1",
+      "entity_type": "road",
+      "display_name": "Arterial 1",
+      "lat": 19.0835,
+      "lon": 72.8687,
+      "nominal_capacity": 1100.0,
+      "parent_id": null,
+      "meta": {
+        "lanes": 2
+      }
+    },
+    {
+      "entity_id": "road_2",
+      "entity_type": "road",
+      "display_name": "Arterial 2",
+      "lat": 19.0845,
+      "lon": 72.8832,
+      "nominal_capacity": 1000.0,
+      "parent_id": null,
+      "meta": {
+        "lanes": 2
+      }
+    },
+    {
+      "entity_id": "road_3",
+      "entity_type": "road",
+      "display_name": "Arterial 3",
+      "lat": 19.078,
+      "lon": 72.8882,
+      "nominal_capacity": 950.0,
+      "parent_id": null,
+      "meta": {
+        "lanes": 2
+      }
+    },
+    {
+      "entity_id": "road_4",
+      "entity_type": "road",
+      "display_name": "Arterial 4",
+      "lat": 19.0745,
+      "lon": 72.8887,
+      "nominal_capacity": 900.0,
+      "parent_id": null,
+      "meta": {
+        "lanes": 2
+      }
+    },
+    {
+      "entity_id": "road_5",
+      "entity_type": "road",
+      "display_name": "Arterial 5",
+      "lat": 19.068,
+      "lon": 72.8822,
+      "nominal_capacity": 1000.0,
+      "parent_id": null,
+      "meta": {
+        "lanes": 2
+      }
+    },
+    {
+      "entity_id": "road_6",
+      "entity_type": "road",
+      "display_name": "Arterial 6",
+      "lat": 19.0685,
+      "lon": 72.8702,
+      "nominal_capacity": 1050.0,
+      "parent_id": null,
+      "meta": {
+        "lanes": 2
+      }
+    },
+    {
+      "entity_id": "road_7",
+      "entity_type": "road",
+      "display_name": "Arterial 7",
+      "lat": 19.0895,
+      "lon": 72.8742,
+      "nominal_capacity": 850.0,
+      "parent_id": null,
+      "meta": {
+        "lanes": 2
+      }
+    },
+    {
+      "entity_id": "road_8",
+      "entity_type": "road",
+      "display_name": "Arterial 8",
+      "lat": 19.0885,
+      "lon": 72.8862,
+      "nominal_capacity": 900.0,
+      "parent_id": null,
+      "meta": {
+        "lanes": 2
+      }
+    },
+    {
+      "entity_id": "road_9",
+      "entity_type": "road",
+      "display_name": "Arterial 9",
+      "lat": 19.0625,
+      "lon": 72.8887,
+      "nominal_capacity": 780.0,
+      "parent_id": null,
+      "meta": {
+        "lanes": 2
+      }
+    },
+    {
+      "entity_id": "road_10",
+      "entity_type": "road",
+      "display_name": "Arterial 10",
+      "lat": 19.062,
+      "lon": 72.8737,
+      "nominal_capacity": 820.0,
+      "parent_id": null,
+      "meta": {
+        "lanes": 2
+      }
+    },
+    {
+      "entity_id": "road_11",
+      "entity_type": "road",
+      "display_name": "Arterial 11",
+      "lat": 19.0805,
+      "lon": 72.8937,
+      "nominal_capacity": 740.0,
+      "parent_id": null,
+      "meta": {
+        "lanes": 2
+      }
+    },
+    {
+      "entity_id": "road_12",
+      "entity_type": "road",
+      "display_name": "Arterial 12",
+      "lat": 19.0715,
+      "lon": 72.8612,
+      "nominal_capacity": 740.0,
+      "parent_id": null,
+      "meta": {
+        "lanes": 2
+      }
+    },
+    {
+      "entity_id": "road_13",
+      "entity_type": "road",
+      "display_name": "Arterial 13",
+      "lat": 19.0955,
+      "lon": 72.8762,
+      "nominal_capacity": 700.0,
+      "parent_id": null,
+      "meta": {
+        "lanes": 2
+      }
+    },
+    {
+      "entity_id": "road_14",
+      "entity_type": "road",
+      "display_name": "Arterial 14",
+      "lat": 19.0565,
+      "lon": 72.8837,
+      "nominal_capacity": 700.0,
+      "parent_id": null,
+      "meta": {
+        "lanes": 2
+      }
+    },
+    {
+      "entity_id": "road_15",
+      "entity_type": "road",
+      "display_name": "Arterial 15",
+      "lat": 19.086,
+      "lon": 72.8962,
+      "nominal_capacity": 660.0,
+      "parent_id": null,
+      "meta": {
+        "lanes": 2
+      }
+    },
+    {
+      "entity_id": "road_16",
+      "entity_type": "road",
+      "display_name": "Arterial 16",
+      "lat": 19.066,
+      "lon": 72.8582,
+      "nominal_capacity": 660.0,
+      "parent_id": null,
+      "meta": {
+        "lanes": 2
+      }
+    },
+    {
+      "entity_id": "road_17",
+      "entity_type": "road",
+      "display_name": "Arterial 17",
+      "lat": 19.082,
+      "lon": 72.8622,
+      "nominal_capacity": 780.0,
+      "parent_id": null,
+      "meta": {
+        "lanes": 2
+      }
+    },
+    {
+      "entity_id": "road_18",
+      "entity_type": "road",
+      "display_name": "Arterial 18",
+      "lat": 19.07,
+      "lon": 72.8942,
+      "nominal_capacity": 780.0,
+      "parent_id": null,
+      "meta": {
+        "lanes": 2
+      }
+    },
+    {
+      "entity_id": "zone_north",
+      "entity_type": "zone",
+      "display_name": "North Zone",
+      "lat": 19.0825,
+      "lon": 72.8777,
+      "nominal_capacity": 14000.0,
+      "parent_id": null,
+      "meta": {}
+    },
+    {
+      "entity_id": "zone_south",
+      "entity_type": "zone",
+      "display_name": "South Zone",
+      "lat": 19.0695,
+      "lon": 72.8777,
+      "nominal_capacity": 13000.0,
+      "parent_id": null,
+      "meta": {}
+    },
+    {
+      "entity_id": "zone_east",
+      "entity_type": "zone",
+      "display_name": "East Zone",
+      "lat": 19.076,
+      "lon": 72.8852,
+      "nominal_capacity": 11000.0,
+      "parent_id": null,
+      "meta": {}
+    },
+    {
+      "entity_id": "zone_west",
+      "entity_type": "zone",
+      "display_name": "West Zone",
+      "lat": 19.076,
+      "lon": 72.8702,
+      "nominal_capacity": 11500.0,
+      "parent_id": null,
+      "meta": {}
+    },
+    {
+      "entity_id": "zone_core",
+      "entity_type": "zone",
+      "display_name": "Core Zone",
+      "lat": 19.0768,
+      "lon": 72.8785,
+      "nominal_capacity": 16000.0,
+      "parent_id": null,
+      "meta": {}
+    },
+    {
+      "entity_id": "zone_concourse_north",
+      "entity_type": "zone",
+      "display_name": "North Concourse",
+      "lat": 19.0798,
+      "lon": 72.8795,
+      "nominal_capacity": 6000.0,
+      "parent_id": null,
+      "meta": {}
+    },
+    {
+      "entity_id": "zone_concourse_south",
+      "entity_type": "zone",
+      "display_name": "South Concourse",
+      "lat": 19.0722,
+      "lon": 72.8759,
+      "nominal_capacity": 6000.0,
+      "parent_id": null,
+      "meta": {}
+    },
+    {
+      "entity_id": "zone_fanpark",
+      "entity_type": "zone",
+      "display_name": "Fan Park",
+      "lat": 19.085,
+      "lon": 72.8702,
+      "nominal_capacity": 9000.0,
+      "parent_id": null,
+      "meta": {}
+    },
+    {
+      "entity_id": "zone_plaza_east",
+      "entity_type": "zone",
+      "display_name": "East Plaza",
+      "lat": 19.077,
+      "lon": 72.8902,
+      "nominal_capacity": 5000.0,
+      "parent_id": null,
+      "meta": {}
+    },
+    {
+      "entity_id": "zone_plaza_west",
+      "entity_type": "zone",
+      "display_name": "West Plaza",
+      "lat": 19.075,
+      "lon": 72.8647,
+      "nominal_capacity": 5000.0,
+      "parent_id": null,
+      "meta": {}
+    },
+    {
+      "entity_id": "hotel_north_cluster",
+      "entity_type": "hotel",
+      "display_name": "North Hotel Cluster",
+      "lat": 19.0905,
+      "lon": 72.8837,
+      "nominal_capacity": 1400.0,
+      "parent_id": null,
+      "meta": {}
+    },
+    {
+      "entity_id": "hotel_core_cluster",
+      "entity_type": "hotel",
+      "display_name": "Core Hotel Cluster",
+      "lat": 19.0785,
+      "lon": 72.8752,
+      "nominal_capacity": 1800.0,
+      "parent_id": null,
+      "meta": {}
+    },
+    {
+      "entity_id": "hotel_east_cluster",
+      "entity_type": "hotel",
+      "display_name": "East Hotel Cluster",
+      "lat": 19.073,
+      "lon": 72.8927,
+      "nominal_capacity": 1100.0,
+      "parent_id": null,
+      "meta": {}
+    },
+    {
+      "entity_id": "hotel_south_cluster",
+      "entity_type": "hotel",
+      "display_name": "South Hotel Cluster",
+      "lat": 19.06,
+      "lon": 72.8762,
+      "nominal_capacity": 950.0,
+      "parent_id": null,
+      "meta": {}
+    },
+    {
+      "entity_id": "hotel_west_cluster",
+      "entity_type": "hotel",
+      "display_name": "West Hotel Cluster",
+      "lat": 19.079,
+      "lon": 72.8617,
+      "nominal_capacity": 1000.0,
+      "parent_id": null,
+      "meta": {}
+    },
+    {
+      "entity_id": "hotel_airport_cluster",
+      "entity_type": "hotel",
+      "display_name": "Airport Hotel Cluster",
+      "lat": 19.0975,
+      "lon": 72.8912,
+      "nominal_capacity": 1600.0,
+      "parent_id": null,
+      "meta": {}
+    },
+    {
+      "entity_id": "parking_p1",
+      "entity_type": "parking",
+      "display_name": "Parking P1",
+      "lat": 19.0832,
+      "lon": 72.8719,
+      "nominal_capacity": 2200.0,
+      "parent_id": null,
+      "meta": {}
+    },
+    {
+      "entity_id": "parking_p2",
+      "entity_type": "parking",
+      "display_name": "Parking P2",
+      "lat": 19.0828,
+      "lon": 72.8849,
+      "nominal_capacity": 1900.0,
+      "parent_id": null,
+      "meta": {}
+    },
+    {
+      "entity_id": "parking_p3",
+      "entity_type": "parking",
+      "display_name": "Parking P3",
+      "lat": 19.069,
+      "lon": 72.8845,
+      "nominal_capacity": 1700.0,
+      "parent_id": null,
+      "meta": {}
+    },
+    {
+      "entity_id": "parking_p4",
+      "entity_type": "parking",
+      "display_name": "Parking P4",
+      "lat": 19.0688,
+      "lon": 72.8715,
+      "nominal_capacity": 2000.0,
+      "parent_id": null,
+      "meta": {}
+    },
+    {
+      "entity_id": "parking_p5",
+      "entity_type": "parking",
+      "display_name": "Parking P5",
+      "lat": 19.0875,
+      "lon": 72.8677,
+      "nominal_capacity": 1500.0,
+      "parent_id": null,
+      "meta": {}
+    },
+    {
+      "entity_id": "parking_p6",
+      "entity_type": "parking",
+      "display_name": "Parking P6",
+      "lat": 19.087,
+      "lon": 72.8892,
+      "nominal_capacity": 1400.0,
+      "parent_id": null,
+      "meta": {}
+    },
+    {
+      "entity_id": "parking_p7",
+      "entity_type": "parking",
+      "display_name": "Parking P7",
+      "lat": 19.0642,
+      "lon": 72.8872,
+      "nominal_capacity": 1300.0,
+      "parent_id": null,
+      "meta": {}
+    },
+    {
+      "entity_id": "parking_p8",
+      "entity_type": "parking",
+      "display_name": "Parking P8",
+      "lat": 19.0648,
+      "lon": 72.8672,
+      "nominal_capacity": 1350.0,
+      "parent_id": null,
+      "meta": {}
+    },
+    {
+      "entity_id": "parking_p9",
+      "entity_type": "parking",
+      "display_name": "Parking P9",
+      "lat": 19.0925,
+      "lon": 72.8917,
+      "nominal_capacity": 1100.0,
+      "parent_id": null,
+      "meta": {}
+    },
+    {
+      "entity_id": "parking_p10",
+      "entity_type": "parking",
+      "display_name": "Parking P10",
+      "lat": 19.0592,
+      "lon": 72.8642,
+      "nominal_capacity": 1050.0,
+      "parent_id": null,
+      "meta": {}
+    },
+    {
+      "entity_id": "emergency_north",
+      "entity_type": "emergency_facility",
+      "display_name": "North Emergency Post",
+      "lat": 19.0815,
+      "lon": 72.8902,
+      "nominal_capacity": 140.0,
+      "parent_id": null,
+      "meta": {
+        "bays": 6
+      }
+    },
+    {
+      "entity_id": "emergency_south",
+      "entity_type": "emergency_facility",
+      "display_name": "South Emergency Post",
+      "lat": 19.0702,
+      "lon": 72.8657,
+      "nominal_capacity": 130.0,
+      "parent_id": null,
+      "meta": {
+        "bays": 5
+      }
+    },
+    {
+      "entity_id": "emergency_core",
+      "entity_type": "emergency_facility",
+      "display_name": "Core Emergency Post",
+      "lat": 19.0755,
+      "lon": 72.8799,
+      "nominal_capacity": 110.0,
+      "parent_id": null,
+      "meta": {
+        "bays": 4
+      }
+    }
+  ],
+  "edges": [
+    {
+      "edge_id": "line_blue__metro_a__feeds",
+      "src_entity_id": "line_blue",
+      "dst_entity_id": "metro_a",
+      "edge_type": "feeds",
+      "transfer_coefficient": 0.4,
+      "travel_time_sec": 120,
+      "substitutability": 0.0
+    },
+    {
+      "edge_id": "line_blue__metro_b__feeds",
+      "src_entity_id": "line_blue",
+      "dst_entity_id": "metro_b",
+      "edge_type": "feeds",
+      "transfer_coefficient": 0.55,
+      "travel_time_sec": 120,
+      "substitutability": 0.0
+    },
+    {
+      "edge_id": "line_red__metro_c__feeds",
+      "src_entity_id": "line_red",
+      "dst_entity_id": "metro_c",
+      "edge_type": "feeds",
+      "transfer_coefficient": 0.48,
+      "travel_time_sec": 120,
+      "substitutability": 0.0
+    },
+    {
+      "edge_id": "line_red__metro_d__feeds",
+      "src_entity_id": "line_red",
+      "dst_entity_id": "metro_d",
+      "edge_type": "feeds",
+      "transfer_coefficient": 0.42,
+      "travel_time_sec": 120,
+      "substitutability": 0.0
+    },
+    {
+      "edge_id": "line_green__metro_e__feeds",
+      "src_entity_id": "line_green",
+      "dst_entity_id": "metro_e",
+      "edge_type": "feeds",
+      "transfer_coefficient": 0.5,
+      "travel_time_sec": 120,
+      "substitutability": 0.0
+    },
+    {
+      "edge_id": "metro_b__gate_3__feeds",
+      "src_entity_id": "metro_b",
+      "dst_entity_id": "gate_3",
+      "edge_type": "feeds",
+      "transfer_coefficient": 0.62,
+      "travel_time_sec": 420,
+      "substitutability": 0.0
+    },
+    {
+      "edge_id": "metro_b__gate_4__feeds",
+      "src_entity_id": "metro_b",
+      "dst_entity_id": "gate_4",
+      "edge_type": "feeds",
+      "transfer_coefficient": 0.24,
+      "travel_time_sec": 540,
+      "substitutability": 0.0
+    },
+    {
+      "edge_id": "metro_a__gate_1__feeds",
+      "src_entity_id": "metro_a",
+      "dst_entity_id": "gate_1",
+      "edge_type": "feeds",
+      "transfer_coefficient": 0.55,
+      "travel_time_sec": 480,
+      "substitutability": 0.0
+    },
+    {
+      "edge_id": "metro_a__gate_2__feeds",
+      "src_entity_id": "metro_a",
+      "dst_entity_id": "gate_2",
+      "edge_type": "feeds",
+      "transfer_coefficient": 0.3,
+      "travel_time_sec": 520,
+      "substitutability": 0.0
+    },
+    {
+      "edge_id": "metro_c__gate_5__feeds",
+      "src_entity_id": "metro_c",
+      "dst_entity_id": "gate_5",
+      "edge_type": "feeds",
+      "transfer_coefficient": 0.68,
+      "travel_time_sec": 400,
+      "substitutability": 0.0
+    },
+    {
+      "edge_id": "metro_c__gate_6__feeds",
+      "src_entity_id": "metro_c",
+      "dst_entity_id": "gate_6",
+      "edge_type": "feeds",
+      "transfer_coefficient": 0.26,
+      "travel_time_sec": 500,
+      "substitutability": 0.0
+    },
+    {
+      "edge_id": "metro_d__gate_6__feeds",
+      "src_entity_id": "metro_d",
+      "dst_entity_id": "gate_6",
+      "edge_type": "feeds",
+      "transfer_coefficient": 0.45,
+      "travel_time_sec": 560,
+      "substitutability": 0.0
+    },
+    {
+      "edge_id": "metro_e__gate_1__feeds",
+      "src_entity_id": "metro_e",
+      "dst_entity_id": "gate_1",
+      "edge_type": "feeds",
+      "transfer_coefficient": 0.32,
+      "travel_time_sec": 660,
+      "substitutability": 0.0
+    },
+    {
+      "edge_id": "bus_hub_north__gate_2__feeds",
+      "src_entity_id": "bus_hub_north",
+      "dst_entity_id": "gate_2",
+      "edge_type": "feeds",
+      "transfer_coefficient": 0.4,
+      "travel_time_sec": 480,
+      "substitutability": 0.0
+    },
+    {
+      "edge_id": "bus_hub_south__gate_5__feeds",
+      "src_entity_id": "bus_hub_south",
+      "dst_entity_id": "gate_5",
+      "edge_type": "feeds",
+      "transfer_coefficient": 0.34,
+      "travel_time_sec": 500,
+      "substitutability": 0.0
+    },
+    {
+      "edge_id": "shuttle_hub_east__gate_4__feeds",
+      "src_entity_id": "shuttle_hub_east",
+      "dst_entity_id": "gate_4",
+      "edge_type": "feeds",
+      "transfer_coefficient": 0.38,
+      "travel_time_sec": 360,
+      "substitutability": 0.0
+    },
+    {
+      "edge_id": "shuttle_hub_west__gate_6__feeds",
+      "src_entity_id": "shuttle_hub_west",
+      "dst_entity_id": "gate_6",
+      "edge_type": "feeds",
+      "transfer_coefficient": 0.38,
+      "travel_time_sec": 360,
+      "substitutability": 0.0
+    },
+    {
+      "edge_id": "gate_1__stadium_main__feeds",
+      "src_entity_id": "gate_1",
+      "dst_entity_id": "stadium_main",
+      "edge_type": "feeds",
+      "transfer_coefficient": 0.9,
+      "travel_time_sec": 180,
+      "substitutability": 0.0
+    },
+    {
+      "edge_id": "gate_2__stadium_main__feeds",
+      "src_entity_id": "gate_2",
+      "dst_entity_id": "stadium_main",
+      "edge_type": "feeds",
+      "transfer_coefficient": 0.9,
+      "travel_time_sec": 180,
+      "substitutability": 0.0
+    },
+    {
+      "edge_id": "gate_3__stadium_main__feeds",
+      "src_entity_id": "gate_3",
+      "dst_entity_id": "stadium_main",
+      "edge_type": "feeds",
+      "transfer_coefficient": 0.9,
+      "travel_time_sec": 180,
+      "substitutability": 0.0
+    },
+    {
+      "edge_id": "gate_4__stadium_main__feeds",
+      "src_entity_id": "gate_4",
+      "dst_entity_id": "stadium_main",
+      "edge_type": "feeds",
+      "transfer_coefficient": 0.9,
+      "travel_time_sec": 180,
+      "substitutability": 0.0
+    },
+    {
+      "edge_id": "gate_5__stadium_main__feeds",
+      "src_entity_id": "gate_5",
+      "dst_entity_id": "stadium_main",
+      "edge_type": "feeds",
+      "transfer_coefficient": 0.9,
+      "travel_time_sec": 180,
+      "substitutability": 0.0
+    },
+    {
+      "edge_id": "gate_6__stadium_main__feeds",
+      "src_entity_id": "gate_6",
+      "dst_entity_id": "stadium_main",
+      "edge_type": "feeds",
+      "transfer_coefficient": 0.9,
+      "travel_time_sec": 180,
+      "substitutability": 0.0
+    },
+    {
+      "edge_id": "gate_3__road_4__adjacent_to",
+      "src_entity_id": "gate_3",
+      "dst_entity_id": "road_4",
+      "edge_type": "adjacent_to",
+      "transfer_coefficient": 0.62,
+      "travel_time_sec": 300,
+      "substitutability": 0.0
+    },
+    {
+      "edge_id": "gate_3__road_3__adjacent_to",
+      "src_entity_id": "gate_3",
+      "dst_entity_id": "road_3",
+      "edge_type": "adjacent_to",
+      "transfer_coefficient": 0.3,
+      "travel_time_sec": 300,
+      "substitutability": 0.0
+    },
+    {
+      "edge_id": "gate_1__road_1__adjacent_to",
+      "src_entity_id": "gate_1",
+      "dst_entity_id": "road_1",
+      "edge_type": "adjacent_to",
+      "transfer_coefficient": 0.32,
+      "travel_time_sec": 300,
+      "substitutability": 0.0
+    },
+    {
+      "edge_id": "gate_2__road_2__adjacent_to",
+      "src_entity_id": "gate_2",
+      "dst_entity_id": "road_2",
+      "edge_type": "adjacent_to",
+      "transfer_coefficient": 0.3,
+      "travel_time_sec": 300,
+      "substitutability": 0.0
+    },
+    {
+      "edge_id": "gate_4__road_3__adjacent_to",
+      "src_entity_id": "gate_4",
+      "dst_entity_id": "road_3",
+      "edge_type": "adjacent_to",
+      "transfer_coefficient": 0.28,
+      "travel_time_sec": 320,
+      "substitutability": 0.0
+    },
+    {
+      "edge_id": "gate_5__road_5__adjacent_to",
+      "src_entity_id": "gate_5",
+      "dst_entity_id": "road_5",
+      "edge_type": "adjacent_to",
+      "transfer_coefficient": 0.34,
+      "travel_time_sec": 300,
+      "substitutability": 0.0
+    },
+    {
+      "edge_id": "gate_6__road_6__adjacent_to",
+      "src_entity_id": "gate_6",
+      "dst_entity_id": "road_6",
+      "edge_type": "adjacent_to",
+      "transfer_coefficient": 0.3,
+      "travel_time_sec": 320,
+      "substitutability": 0.0
+    },
+    {
+      "edge_id": "road_1__road_7__adjacent_to",
+      "src_entity_id": "road_1",
+      "dst_entity_id": "road_7",
+      "edge_type": "adjacent_to",
+      "transfer_coefficient": 0.22,
+      "travel_time_sec": 240,
+      "substitutability": 0.0
+    },
+    {
+      "edge_id": "road_1__road_17__adjacent_to",
+      "src_entity_id": "road_1",
+      "dst_entity_id": "road_17",
+      "edge_type": "adjacent_to",
+      "transfer_coefficient": 0.22,
+      "travel_time_sec": 240,
+      "substitutability": 0.0
+    },
+    {
+      "edge_id": "road_2__road_8__adjacent_to",
+      "src_entity_id": "road_2",
+      "dst_entity_id": "road_8",
+      "edge_type": "adjacent_to",
+      "transfer_coefficient": 0.22,
+      "travel_time_sec": 240,
+      "substitutability": 0.0
+    },
+    {
+      "edge_id": "road_2__road_3__adjacent_to",
+      "src_entity_id": "road_2",
+      "dst_entity_id": "road_3",
+      "edge_type": "adjacent_to",
+      "transfer_coefficient": 0.22,
+      "travel_time_sec": 240,
+      "substitutability": 0.0
+    },
+    {
+      "edge_id": "road_3__road_4__adjacent_to",
+      "src_entity_id": "road_3",
+      "dst_entity_id": "road_4",
+      "edge_type": "adjacent_to",
+      "transfer_coefficient": 0.22,
+      "travel_time_sec": 240,
+      "substitutability": 0.0
+    },
+    {
+      "edge_id": "road_3__road_11__adjacent_to",
+      "src_entity_id": "road_3",
+      "dst_entity_id": "road_11",
+      "edge_type": "adjacent_to",
+      "transfer_coefficient": 0.22,
+      "travel_time_sec": 240,
+      "substitutability": 0.0
+    },
+    {
+      "edge_id": "road_4__road_18__adjacent_to",
+      "src_entity_id": "road_4",
+      "dst_entity_id": "road_18",
+      "edge_type": "adjacent_to",
+      "transfer_coefficient": 0.22,
+      "travel_time_sec": 240,
+      "substitutability": 0.0
+    },
+    {
+      "edge_id": "road_4__road_5__adjacent_to",
+      "src_entity_id": "road_4",
+      "dst_entity_id": "road_5",
+      "edge_type": "adjacent_to",
+      "transfer_coefficient": 0.22,
+      "travel_time_sec": 240,
+      "substitutability": 0.0
+    },
+    {
+      "edge_id": "road_5__road_9__adjacent_to",
+      "src_entity_id": "road_5",
+      "dst_entity_id": "road_9",
+      "edge_type": "adjacent_to",
+      "transfer_coefficient": 0.22,
+      "travel_time_sec": 240,
+      "substitutability": 0.0
+    },
+    {
+      "edge_id": "road_5__road_6__adjacent_to",
+      "src_entity_id": "road_5",
+      "dst_entity_id": "road_6",
+      "edge_type": "adjacent_to",
+      "transfer_coefficient": 0.22,
+      "travel_time_sec": 240,
+      "substitutability": 0.0
+    },
+    {
+      "edge_id": "road_6__road_10__adjacent_to",
+      "src_entity_id": "road_6",
+      "dst_entity_id": "road_10",
+      "edge_type": "adjacent_to",
+      "transfer_coefficient": 0.22,
+      "travel_time_sec": 240,
+      "substitutability": 0.0
+    },
+    {
+      "edge_id": "road_6__road_12__adjacent_to",
+      "src_entity_id": "road_6",
+      "dst_entity_id": "road_12",
+      "edge_type": "adjacent_to",
+      "transfer_coefficient": 0.22,
+      "travel_time_sec": 240,
+      "substitutability": 0.0
+    },
+    {
+      "edge_id": "road_7__road_13__adjacent_to",
+      "src_entity_id": "road_7",
+      "dst_entity_id": "road_13",
+      "edge_type": "adjacent_to",
+      "transfer_coefficient": 0.22,
+      "travel_time_sec": 240,
+      "substitutability": 0.0
+    },
+    {
+      "edge_id": "road_8__road_15__adjacent_to",
+      "src_entity_id": "road_8",
+      "dst_entity_id": "road_15",
+      "edge_type": "adjacent_to",
+      "transfer_coefficient": 0.22,
+      "travel_time_sec": 240,
+      "substitutability": 0.0
+    },
+    {
+      "edge_id": "road_9__road_14__adjacent_to",
+      "src_entity_id": "road_9",
+      "dst_entity_id": "road_14",
+      "edge_type": "adjacent_to",
+      "transfer_coefficient": 0.22,
+      "travel_time_sec": 240,
+      "substitutability": 0.0
+    },
+    {
+      "edge_id": "road_10__road_14__adjacent_to",
+      "src_entity_id": "road_10",
+      "dst_entity_id": "road_14",
+      "edge_type": "adjacent_to",
+      "transfer_coefficient": 0.22,
+      "travel_time_sec": 240,
+      "substitutability": 0.0
+    },
+    {
+      "edge_id": "road_11__road_15__adjacent_to",
+      "src_entity_id": "road_11",
+      "dst_entity_id": "road_15",
+      "edge_type": "adjacent_to",
+      "transfer_coefficient": 0.22,
+      "travel_time_sec": 240,
+      "substitutability": 0.0
+    },
+    {
+      "edge_id": "road_12__road_16__adjacent_to",
+      "src_entity_id": "road_12",
+      "dst_entity_id": "road_16",
+      "edge_type": "adjacent_to",
+      "transfer_coefficient": 0.22,
+      "travel_time_sec": 240,
+      "substitutability": 0.0
+    },
+    {
+      "edge_id": "road_13__road_17__adjacent_to",
+      "src_entity_id": "road_13",
+      "dst_entity_id": "road_17",
+      "edge_type": "adjacent_to",
+      "transfer_coefficient": 0.22,
+      "travel_time_sec": 240,
+      "substitutability": 0.0
+    },
+    {
+      "edge_id": "road_18__road_11__adjacent_to",
+      "src_entity_id": "road_18",
+      "dst_entity_id": "road_11",
+      "edge_type": "adjacent_to",
+      "transfer_coefficient": 0.22,
+      "travel_time_sec": 240,
+      "substitutability": 0.0
+    },
+    {
+      "edge_id": "road_4__emergency_north__evacuates_to",
+      "src_entity_id": "road_4",
+      "dst_entity_id": "emergency_north",
+      "edge_type": "evacuates_to",
+      "transfer_coefficient": 0.3,
+      "travel_time_sec": 300,
+      "substitutability": 0.0
+    },
+    {
+      "edge_id": "road_3__emergency_north__evacuates_to",
+      "src_entity_id": "road_3",
+      "dst_entity_id": "emergency_north",
+      "edge_type": "evacuates_to",
+      "transfer_coefficient": 0.22,
+      "travel_time_sec": 360,
+      "substitutability": 0.0
+    },
+    {
+      "edge_id": "road_6__emergency_south__evacuates_to",
+      "src_entity_id": "road_6",
+      "dst_entity_id": "emergency_south",
+      "edge_type": "evacuates_to",
+      "transfer_coefficient": 0.26,
+      "travel_time_sec": 320,
+      "substitutability": 0.0
+    },
+    {
+      "edge_id": "road_5__emergency_south__evacuates_to",
+      "src_entity_id": "road_5",
+      "dst_entity_id": "emergency_south",
+      "edge_type": "evacuates_to",
+      "transfer_coefficient": 0.2,
+      "travel_time_sec": 340,
+      "substitutability": 0.0
+    },
+    {
+      "edge_id": "stadium_main__emergency_core__evacuates_to",
+      "src_entity_id": "stadium_main",
+      "dst_entity_id": "emergency_core",
+      "edge_type": "evacuates_to",
+      "transfer_coefficient": 0.15,
+      "travel_time_sec": 240,
+      "substitutability": 0.0
+    },
+    {
+      "edge_id": "parking_p1__gate_1__serves",
+      "src_entity_id": "parking_p1",
+      "dst_entity_id": "gate_1",
+      "edge_type": "serves",
+      "transfer_coefficient": 0.35,
+      "travel_time_sec": 420,
+      "substitutability": 0.0
+    },
+    {
+      "edge_id": "parking_p2__gate_2__serves",
+      "src_entity_id": "parking_p2",
+      "dst_entity_id": "gate_2",
+      "edge_type": "serves",
+      "transfer_coefficient": 0.35,
+      "travel_time_sec": 420,
+      "substitutability": 0.0
+    },
+    {
+      "edge_id": "parking_p3__gate_4__serves",
+      "src_entity_id": "parking_p3",
+      "dst_entity_id": "gate_4",
+      "edge_type": "serves",
+      "transfer_coefficient": 0.35,
+      "travel_time_sec": 420,
+      "substitutability": 0.0
+    },
+    {
+      "edge_id": "parking_p4__gate_6__serves",
+      "src_entity_id": "parking_p4",
+      "dst_entity_id": "gate_6",
+      "edge_type": "serves",
+      "transfer_coefficient": 0.35,
+      "travel_time_sec": 420,
+      "substitutability": 0.0
+    },
+    {
+      "edge_id": "parking_p5__gate_1__serves",
+      "src_entity_id": "parking_p5",
+      "dst_entity_id": "gate_1",
+      "edge_type": "serves",
+      "transfer_coefficient": 0.35,
+      "travel_time_sec": 420,
+      "substitutability": 0.0
+    },
+    {
+      "edge_id": "parking_p6__gate_3__serves",
+      "src_entity_id": "parking_p6",
+      "dst_entity_id": "gate_3",
+      "edge_type": "serves",
+      "transfer_coefficient": 0.35,
+      "travel_time_sec": 420,
+      "substitutability": 0.0
+    },
+    {
+      "edge_id": "parking_p7__gate_5__serves",
+      "src_entity_id": "parking_p7",
+      "dst_entity_id": "gate_5",
+      "edge_type": "serves",
+      "transfer_coefficient": 0.35,
+      "travel_time_sec": 420,
+      "substitutability": 0.0
+    },
+    {
+      "edge_id": "parking_p8__gate_6__serves",
+      "src_entity_id": "parking_p8",
+      "dst_entity_id": "gate_6",
+      "edge_type": "serves",
+      "transfer_coefficient": 0.35,
+      "travel_time_sec": 420,
+      "substitutability": 0.0
+    },
+    {
+      "edge_id": "parking_p9__gate_2__serves",
+      "src_entity_id": "parking_p9",
+      "dst_entity_id": "gate_2",
+      "edge_type": "serves",
+      "transfer_coefficient": 0.35,
+      "travel_time_sec": 420,
+      "substitutability": 0.0
+    },
+    {
+      "edge_id": "parking_p10__gate_5__serves",
+      "src_entity_id": "parking_p10",
+      "dst_entity_id": "gate_5",
+      "edge_type": "serves",
+      "transfer_coefficient": 0.35,
+      "travel_time_sec": 420,
+      "substitutability": 0.0
+    },
+    {
+      "edge_id": "parking_p1__parking_p5__substitutes_for",
+      "src_entity_id": "parking_p1",
+      "dst_entity_id": "parking_p5",
+      "edge_type": "substitutes_for",
+      "transfer_coefficient": 0.0,
+      "travel_time_sec": 300,
+      "substitutability": 0.7
+    },
+    {
+      "edge_id": "parking_p2__parking_p6__substitutes_for",
+      "src_entity_id": "parking_p2",
+      "dst_entity_id": "parking_p6",
+      "edge_type": "substitutes_for",
+      "transfer_coefficient": 0.0,
+      "travel_time_sec": 300,
+      "substitutability": 0.7
+    },
+    {
+      "edge_id": "parking_p3__parking_p7__substitutes_for",
+      "src_entity_id": "parking_p3",
+      "dst_entity_id": "parking_p7",
+      "edge_type": "substitutes_for",
+      "transfer_coefficient": 0.0,
+      "travel_time_sec": 300,
+      "substitutability": 0.7
+    },
+    {
+      "edge_id": "parking_p4__parking_p8__substitutes_for",
+      "src_entity_id": "parking_p4",
+      "dst_entity_id": "parking_p8",
+      "edge_type": "substitutes_for",
+      "transfer_coefficient": 0.0,
+      "travel_time_sec": 300,
+      "substitutability": 0.7
+    },
+    {
+      "edge_id": "parking_p6__parking_p9__substitutes_for",
+      "src_entity_id": "parking_p6",
+      "dst_entity_id": "parking_p9",
+      "edge_type": "substitutes_for",
+      "transfer_coefficient": 0.0,
+      "travel_time_sec": 300,
+      "substitutability": 0.7
+    },
+    {
+      "edge_id": "parking_p7__parking_p10__substitutes_for",
+      "src_entity_id": "parking_p7",
+      "dst_entity_id": "parking_p10",
+      "edge_type": "substitutes_for",
+      "transfer_coefficient": 0.0,
+      "travel_time_sec": 300,
+      "substitutability": 0.7
+    },
+    {
+      "edge_id": "hotel_north_cluster__metro_b__last_mile_to",
+      "src_entity_id": "hotel_north_cluster",
+      "dst_entity_id": "metro_b",
+      "edge_type": "last_mile_to",
+      "transfer_coefficient": 0.4,
+      "travel_time_sec": 720,
+      "substitutability": 0.0
+    },
+    {
+      "edge_id": "hotel_core_cluster__metro_c__last_mile_to",
+      "src_entity_id": "hotel_core_cluster",
+      "dst_entity_id": "metro_c",
+      "edge_type": "last_mile_to",
+      "transfer_coefficient": 0.4,
+      "travel_time_sec": 480,
+      "substitutability": 0.0
+    },
+    {
+      "edge_id": "hotel_east_cluster__shuttle_hub_east__last_mile_to",
+      "src_entity_id": "hotel_east_cluster",
+      "dst_entity_id": "shuttle_hub_east",
+      "edge_type": "last_mile_to",
+      "transfer_coefficient": 0.4,
+      "travel_time_sec": 540,
+      "substitutability": 0.0
+    },
+    {
+      "edge_id": "hotel_south_cluster__metro_d__last_mile_to",
+      "src_entity_id": "hotel_south_cluster",
+      "dst_entity_id": "metro_d",
+      "edge_type": "last_mile_to",
+      "transfer_coefficient": 0.4,
+      "travel_time_sec": 600,
+      "substitutability": 0.0
+    },
+    {
+      "edge_id": "hotel_west_cluster__shuttle_hub_west__last_mile_to",
+      "src_entity_id": "hotel_west_cluster",
+      "dst_entity_id": "shuttle_hub_west",
+      "edge_type": "last_mile_to",
+      "transfer_coefficient": 0.4,
+      "travel_time_sec": 560,
+      "substitutability": 0.0
+    },
+    {
+      "edge_id": "hotel_airport_cluster__metro_e__last_mile_to",
+      "src_entity_id": "hotel_airport_cluster",
+      "dst_entity_id": "metro_e",
+      "edge_type": "last_mile_to",
+      "transfer_coefficient": 0.4,
+      "travel_time_sec": 900,
+      "substitutability": 0.0
+    },
+    {
+      "edge_id": "hotel_core_cluster__hotel_north_cluster__substitutes_for",
+      "src_entity_id": "hotel_core_cluster",
+      "dst_entity_id": "hotel_north_cluster",
+      "edge_type": "substitutes_for",
+      "transfer_coefficient": 0.0,
+      "travel_time_sec": 600,
+      "substitutability": 0.65
+    },
+    {
+      "edge_id": "hotel_core_cluster__hotel_east_cluster__substitutes_for",
+      "src_entity_id": "hotel_core_cluster",
+      "dst_entity_id": "hotel_east_cluster",
+      "edge_type": "substitutes_for",
+      "transfer_coefficient": 0.0,
+      "travel_time_sec": 600,
+      "substitutability": 0.55
+    },
+    {
+      "edge_id": "hotel_north_cluster__hotel_airport_cluster__substitutes_for",
+      "src_entity_id": "hotel_north_cluster",
+      "dst_entity_id": "hotel_airport_cluster",
+      "edge_type": "substitutes_for",
+      "transfer_coefficient": 0.0,
+      "travel_time_sec": 600,
+      "substitutability": 0.45
+    },
+    {
+      "edge_id": "hotel_east_cluster__hotel_south_cluster__substitutes_for",
+      "src_entity_id": "hotel_east_cluster",
+      "dst_entity_id": "hotel_south_cluster",
+      "edge_type": "substitutes_for",
+      "transfer_coefficient": 0.0,
+      "travel_time_sec": 600,
+      "substitutability": 0.4
+    },
+    {
+      "edge_id": "hotel_west_cluster__hotel_core_cluster__substitutes_for",
+      "src_entity_id": "hotel_west_cluster",
+      "dst_entity_id": "hotel_core_cluster",
+      "edge_type": "substitutes_for",
+      "transfer_coefficient": 0.0,
+      "travel_time_sec": 600,
+      "substitutability": 0.5
+    },
+    {
+      "edge_id": "metro_b__metro_c__substitutes_for",
+      "src_entity_id": "metro_b",
+      "dst_entity_id": "metro_c",
+      "edge_type": "substitutes_for",
+      "transfer_coefficient": 0.0,
+      "travel_time_sec": 480,
+      "substitutability": 0.72
+    },
+    {
+      "edge_id": "metro_b__metro_e__substitutes_for",
+      "src_entity_id": "metro_b",
+      "dst_entity_id": "metro_e",
+      "edge_type": "substitutes_for",
+      "transfer_coefficient": 0.0,
+      "travel_time_sec": 480,
+      "substitutability": 0.5
+    },
+    {
+      "edge_id": "metro_a__metro_e__substitutes_for",
+      "src_entity_id": "metro_a",
+      "dst_entity_id": "metro_e",
+      "edge_type": "substitutes_for",
+      "transfer_coefficient": 0.0,
+      "travel_time_sec": 480,
+      "substitutability": 0.55
+    },
+    {
+      "edge_id": "metro_c__metro_d__substitutes_for",
+      "src_entity_id": "metro_c",
+      "dst_entity_id": "metro_d",
+      "edge_type": "substitutes_for",
+      "transfer_coefficient": 0.0,
+      "travel_time_sec": 480,
+      "substitutability": 0.6
+    },
+    {
+      "edge_id": "metro_d__bus_hub_south__substitutes_for",
+      "src_entity_id": "metro_d",
+      "dst_entity_id": "bus_hub_south",
+      "edge_type": "substitutes_for",
+      "transfer_coefficient": 0.0,
+      "travel_time_sec": 480,
+      "substitutability": 0.4
+    },
+    {
+      "edge_id": "metro_a__bus_hub_north__substitutes_for",
+      "src_entity_id": "metro_a",
+      "dst_entity_id": "bus_hub_north",
+      "edge_type": "substitutes_for",
+      "transfer_coefficient": 0.0,
+      "travel_time_sec": 480,
+      "substitutability": 0.45
+    },
+    {
+      "edge_id": "metro_b__zone_north__last_mile_to",
+      "src_entity_id": "metro_b",
+      "dst_entity_id": "zone_north",
+      "edge_type": "last_mile_to",
+      "transfer_coefficient": 0.35,
+      "travel_time_sec": 480,
+      "substitutability": 0.0
+    },
+    {
+      "edge_id": "metro_b__zone_east__last_mile_to",
+      "src_entity_id": "metro_b",
+      "dst_entity_id": "zone_east",
+      "edge_type": "last_mile_to",
+      "transfer_coefficient": 0.35,
+      "travel_time_sec": 540,
+      "substitutability": 0.0
+    },
+    {
+      "edge_id": "metro_a__zone_west__last_mile_to",
+      "src_entity_id": "metro_a",
+      "dst_entity_id": "zone_west",
+      "edge_type": "last_mile_to",
+      "transfer_coefficient": 0.35,
+      "travel_time_sec": 500,
+      "substitutability": 0.0
+    },
+    {
+      "edge_id": "metro_c__zone_south__last_mile_to",
+      "src_entity_id": "metro_c",
+      "dst_entity_id": "zone_south",
+      "edge_type": "last_mile_to",
+      "transfer_coefficient": 0.35,
+      "travel_time_sec": 460,
+      "substitutability": 0.0
+    },
+    {
+      "edge_id": "metro_d__zone_south__last_mile_to",
+      "src_entity_id": "metro_d",
+      "dst_entity_id": "zone_south",
+      "edge_type": "last_mile_to",
+      "transfer_coefficient": 0.35,
+      "travel_time_sec": 620,
+      "substitutability": 0.0
+    },
+    {
+      "edge_id": "metro_e__zone_north__last_mile_to",
+      "src_entity_id": "metro_e",
+      "dst_entity_id": "zone_north",
+      "edge_type": "last_mile_to",
+      "transfer_coefficient": 0.35,
+      "travel_time_sec": 700,
+      "substitutability": 0.0
+    },
+    {
+      "edge_id": "shuttle_hub_east__zone_plaza_east__last_mile_to",
+      "src_entity_id": "shuttle_hub_east",
+      "dst_entity_id": "zone_plaza_east",
+      "edge_type": "last_mile_to",
+      "transfer_coefficient": 0.35,
+      "travel_time_sec": 300,
+      "substitutability": 0.0
+    },
+    {
+      "edge_id": "shuttle_hub_west__zone_plaza_west__last_mile_to",
+      "src_entity_id": "shuttle_hub_west",
+      "dst_entity_id": "zone_plaza_west",
+      "edge_type": "last_mile_to",
+      "transfer_coefficient": 0.35,
+      "travel_time_sec": 300,
+      "substitutability": 0.0
+    },
+    {
+      "edge_id": "bus_hub_north__zone_fanpark__last_mile_to",
+      "src_entity_id": "bus_hub_north",
+      "dst_entity_id": "zone_fanpark",
+      "edge_type": "last_mile_to",
+      "transfer_coefficient": 0.35,
+      "travel_time_sec": 420,
+      "substitutability": 0.0
+    },
+    {
+      "edge_id": "bus_hub_south__zone_south__last_mile_to",
+      "src_entity_id": "bus_hub_south",
+      "dst_entity_id": "zone_south",
+      "edge_type": "last_mile_to",
+      "transfer_coefficient": 0.35,
+      "travel_time_sec": 400,
+      "substitutability": 0.0
+    },
+    {
+      "edge_id": "zone_north__zone_core__adjacent_to",
+      "src_entity_id": "zone_north",
+      "dst_entity_id": "zone_core",
+      "edge_type": "adjacent_to",
+      "transfer_coefficient": 0.25,
+      "travel_time_sec": 180,
+      "substitutability": 0.0
+    },
+    {
+      "edge_id": "zone_south__zone_core__adjacent_to",
+      "src_entity_id": "zone_south",
+      "dst_entity_id": "zone_core",
+      "edge_type": "adjacent_to",
+      "transfer_coefficient": 0.25,
+      "travel_time_sec": 180,
+      "substitutability": 0.0
+    },
+    {
+      "edge_id": "zone_east__zone_core__adjacent_to",
+      "src_entity_id": "zone_east",
+      "dst_entity_id": "zone_core",
+      "edge_type": "adjacent_to",
+      "transfer_coefficient": 0.25,
+      "travel_time_sec": 180,
+      "substitutability": 0.0
+    },
+    {
+      "edge_id": "zone_west__zone_core__adjacent_to",
+      "src_entity_id": "zone_west",
+      "dst_entity_id": "zone_core",
+      "edge_type": "adjacent_to",
+      "transfer_coefficient": 0.25,
+      "travel_time_sec": 180,
+      "substitutability": 0.0
+    },
+    {
+      "edge_id": "zone_north__zone_concourse_north__adjacent_to",
+      "src_entity_id": "zone_north",
+      "dst_entity_id": "zone_concourse_north",
+      "edge_type": "adjacent_to",
+      "transfer_coefficient": 0.25,
+      "travel_time_sec": 180,
+      "substitutability": 0.0
+    },
+    {
+      "edge_id": "zone_south__zone_concourse_south__adjacent_to",
+      "src_entity_id": "zone_south",
+      "dst_entity_id": "zone_concourse_south",
+      "edge_type": "adjacent_to",
+      "transfer_coefficient": 0.25,
+      "travel_time_sec": 180,
+      "substitutability": 0.0
+    },
+    {
+      "edge_id": "zone_east__zone_plaza_east__adjacent_to",
+      "src_entity_id": "zone_east",
+      "dst_entity_id": "zone_plaza_east",
+      "edge_type": "adjacent_to",
+      "transfer_coefficient": 0.25,
+      "travel_time_sec": 180,
+      "substitutability": 0.0
+    },
+    {
+      "edge_id": "zone_west__zone_plaza_west__adjacent_to",
+      "src_entity_id": "zone_west",
+      "dst_entity_id": "zone_plaza_west",
+      "edge_type": "adjacent_to",
+      "transfer_coefficient": 0.25,
+      "travel_time_sec": 180,
+      "substitutability": 0.0
+    },
+    {
+      "edge_id": "zone_north__zone_fanpark__adjacent_to",
+      "src_entity_id": "zone_north",
+      "dst_entity_id": "zone_fanpark",
+      "edge_type": "adjacent_to",
+      "transfer_coefficient": 0.25,
+      "travel_time_sec": 180,
+      "substitutability": 0.0
+    },
+    {
+      "edge_id": "zone_concourse_north__zone_core__adjacent_to",
+      "src_entity_id": "zone_concourse_north",
+      "dst_entity_id": "zone_core",
+      "edge_type": "adjacent_to",
+      "transfer_coefficient": 0.25,
+      "travel_time_sec": 180,
+      "substitutability": 0.0
+    },
+    {
+      "edge_id": "zone_concourse_south__zone_core__adjacent_to",
+      "src_entity_id": "zone_concourse_south",
+      "dst_entity_id": "zone_core",
+      "edge_type": "adjacent_to",
+      "transfer_coefficient": 0.25,
+      "travel_time_sec": 180,
+      "substitutability": 0.0
+    },
+    {
+      "edge_id": "zone_core__zone_north__substitutes_for",
+      "src_entity_id": "zone_core",
+      "dst_entity_id": "zone_north",
+      "edge_type": "substitutes_for",
+      "transfer_coefficient": 0.0,
+      "travel_time_sec": 420,
+      "substitutability": 0.7
+    },
+    {
+      "edge_id": "zone_core__zone_west__substitutes_for",
+      "src_entity_id": "zone_core",
+      "dst_entity_id": "zone_west",
+      "edge_type": "substitutes_for",
+      "transfer_coefficient": 0.0,
+      "travel_time_sec": 420,
+      "substitutability": 0.62
+    },
+    {
+      "edge_id": "zone_east__zone_north__substitutes_for",
+      "src_entity_id": "zone_east",
+      "dst_entity_id": "zone_north",
+      "edge_type": "substitutes_for",
+      "transfer_coefficient": 0.0,
+      "travel_time_sec": 420,
+      "substitutability": 0.58
+    },
+    {
+      "edge_id": "zone_south__zone_west__substitutes_for",
+      "src_entity_id": "zone_south",
+      "dst_entity_id": "zone_west",
+      "edge_type": "substitutes_for",
+      "transfer_coefficient": 0.0,
+      "travel_time_sec": 420,
+      "substitutability": 0.55
+    },
+    {
+      "edge_id": "zone_concourse_north__zone_fanpark__substitutes_for",
+      "src_entity_id": "zone_concourse_north",
+      "dst_entity_id": "zone_fanpark",
+      "edge_type": "substitutes_for",
+      "transfer_coefficient": 0.0,
+      "travel_time_sec": 420,
+      "substitutability": 0.5
+    },
+    {
+      "edge_id": "gate_1__zone_west__serves",
+      "src_entity_id": "gate_1",
+      "dst_entity_id": "zone_west",
+      "edge_type": "serves",
+      "transfer_coefficient": 0.3,
+      "travel_time_sec": 240,
+      "substitutability": 0.0
+    },
+    {
+      "edge_id": "gate_2__zone_north__serves",
+      "src_entity_id": "gate_2",
+      "dst_entity_id": "zone_north",
+      "edge_type": "serves",
+      "transfer_coefficient": 0.3,
+      "travel_time_sec": 240,
+      "substitutability": 0.0
+    },
+    {
+      "edge_id": "gate_3__zone_east__serves",
+      "src_entity_id": "gate_3",
+      "dst_entity_id": "zone_east",
+      "edge_type": "serves",
+      "transfer_coefficient": 0.3,
+      "travel_time_sec": 240,
+      "substitutability": 0.0
+    },
+    {
+      "edge_id": "gate_4__zone_east__serves",
+      "src_entity_id": "gate_4",
+      "dst_entity_id": "zone_east",
+      "edge_type": "serves",
+      "transfer_coefficient": 0.3,
+      "travel_time_sec": 240,
+      "substitutability": 0.0
+    },
+    {
+      "edge_id": "gate_5__zone_south__serves",
+      "src_entity_id": "gate_5",
+      "dst_entity_id": "zone_south",
+      "edge_type": "serves",
+      "transfer_coefficient": 0.3,
+      "travel_time_sec": 240,
+      "substitutability": 0.0
+    },
+    {
+      "edge_id": "gate_6__zone_west__serves",
+      "src_entity_id": "gate_6",
+      "dst_entity_id": "zone_west",
+      "edge_type": "serves",
+      "transfer_coefficient": 0.3,
+      "travel_time_sec": 240,
+      "substitutability": 0.0
+    }
+  ],
+  "segments": [
+    {
+      "segment_id": "price_sensitive",
+      "display_name": "Price sensitive",
+      "share": 0.28,
+      "price_elasticity": 0.72,
+      "time_elasticity": 0.21,
+      "accessibility_constrained": false,
+      "compliance_base_rate": 0.55
+    },
+    {
+      "segment_id": "time_sensitive",
+      "display_name": "Time sensitive",
+      "share": 0.24,
+      "price_elasticity": 0.18,
+      "time_elasticity": 0.81,
+      "accessibility_constrained": false,
+      "compliance_base_rate": 0.48
+    },
+    {
+      "segment_id": "accessibility_constrained",
+      "display_name": "Accessibility constrained",
+      "share": 0.09,
+      "price_elasticity": 0.25,
+      "time_elasticity": 0.3,
+      "accessibility_constrained": true,
+      "compliance_base_rate": 0.35
+    },
+    {
+      "segment_id": "group",
+      "display_name": "Group",
+      "share": 0.27,
+      "price_elasticity": 0.61,
+      "time_elasticity": 0.34,
+      "accessibility_constrained": false,
+      "compliance_base_rate": 0.42
+    },
+    {
+      "segment_id": "premium",
+      "display_name": "Premium",
+      "share": 0.12,
+      "price_elasticity": 0.09,
+      "time_elasticity": 0.44,
+      "accessibility_constrained": false,
+      "compliance_base_rate": 0.3
+    }
+  ],
+  "bounds": {
+    "min_lat": 19.0525,
+    "max_lat": 19.1015,
+    "min_lon": 72.8542,
+    "max_lon": 72.9002
+  }
+}

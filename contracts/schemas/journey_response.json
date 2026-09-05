@@ -1,0 +1,109 @@
+{
+  "$defs": {
+    "Route": {
+      "additionalProperties": false,
+      "properties": {
+        "legs": {
+          "items": {
+            "$ref": "#/$defs/RouteLeg"
+          },
+          "title": "Legs",
+          "type": "array"
+        },
+        "total_duration_sec": {
+          "title": "Total Duration Sec",
+          "type": "integer"
+        },
+        "predicted_crowding_band": {
+          "enum": [
+            "low",
+            "moderate",
+            "high",
+            "critical"
+          ],
+          "title": "Predicted Crowding Band",
+          "type": "string"
+        }
+      },
+      "required": [
+        "legs",
+        "total_duration_sec",
+        "predicted_crowding_band"
+      ],
+      "title": "Route",
+      "type": "object"
+    },
+    "RouteLeg": {
+      "additionalProperties": false,
+      "properties": {
+        "from_entity_id": {
+          "title": "From Entity Id",
+          "type": "string"
+        },
+        "to_entity_id": {
+          "title": "To Entity Id",
+          "type": "string"
+        },
+        "mode": {
+          "enum": [
+            "walk",
+            "transit",
+            "shuttle",
+            "drive"
+          ],
+          "title": "Mode",
+          "type": "string"
+        },
+        "duration_sec": {
+          "title": "Duration Sec",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "from_entity_id",
+        "to_entity_id",
+        "mode",
+        "duration_sec"
+      ],
+      "title": "RouteLeg",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "journey_risk_score": {
+      "title": "Journey Risk Score",
+      "type": "integer"
+    },
+    "journey_risk_band": {
+      "enum": [
+        "low",
+        "moderate",
+        "high",
+        "critical"
+      ],
+      "title": "Journey Risk Band",
+      "type": "string"
+    },
+    "recommended_route": {
+      "$ref": "#/$defs/Route"
+    },
+    "shortest_route": {
+      "$ref": "#/$defs/Route"
+    },
+    "advice": {
+      "title": "Advice",
+      "type": "string"
+    }
+  },
+  "required": [
+    "journey_risk_score",
+    "journey_risk_band",
+    "recommended_route",
+    "shortest_route",
+    "advice"
+  ],
+  "title": "journey_response",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

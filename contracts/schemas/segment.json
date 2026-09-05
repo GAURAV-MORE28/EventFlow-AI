@@ -1,0 +1,52 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "segment_id": {
+      "enum": [
+        "price_sensitive",
+        "time_sensitive",
+        "accessibility_constrained",
+        "group",
+        "premium"
+      ],
+      "title": "Segment Id",
+      "type": "string"
+    },
+    "display_name": {
+      "title": "Display Name",
+      "type": "string"
+    },
+    "share": {
+      "title": "Share",
+      "type": "number"
+    },
+    "price_elasticity": {
+      "title": "Price Elasticity",
+      "type": "number"
+    },
+    "time_elasticity": {
+      "title": "Time Elasticity",
+      "type": "number"
+    },
+    "accessibility_constrained": {
+      "title": "Accessibility Constrained",
+      "type": "boolean"
+    },
+    "compliance_base_rate": {
+      "title": "Compliance Base Rate",
+      "type": "number"
+    }
+  },
+  "required": [
+    "segment_id",
+    "display_name",
+    "share",
+    "price_elasticity",
+    "time_elasticity",
+    "accessibility_constrained",
+    "compliance_base_rate"
+  ],
+  "title": "segment",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

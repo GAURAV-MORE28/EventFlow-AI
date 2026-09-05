@@ -1,0 +1,122 @@
+{
+  "$defs": {
+    "ComplianceSweepRow": {
+      "additionalProperties": false,
+      "properties": {
+        "compliance_rate": {
+          "title": "Compliance Rate",
+          "type": "number"
+        },
+        "max_utilisation": {
+          "title": "Max Utilisation",
+          "type": "number"
+        },
+        "verdict": {
+          "enum": [
+            "STABLE",
+            "CONDITIONAL",
+            "UNSTABLE"
+          ],
+          "title": "Verdict",
+          "type": "string"
+        }
+      },
+      "required": [
+        "compliance_rate",
+        "max_utilisation",
+        "verdict"
+      ],
+      "title": "ComplianceSweepRow",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "certificate_id": {
+      "title": "Certificate Id",
+      "type": "string"
+    },
+    "intervention_id": {
+      "title": "Intervention Id",
+      "type": "string"
+    },
+    "verdict": {
+      "enum": [
+        "STABLE",
+        "CONDITIONAL",
+        "UNSTABLE"
+      ],
+      "title": "Verdict",
+      "type": "string"
+    },
+    "converged": {
+      "title": "Converged",
+      "type": "boolean"
+    },
+    "iterations": {
+      "title": "Iterations",
+      "type": "integer"
+    },
+    "post_nudge_variance": {
+      "title": "Post Nudge Variance",
+      "type": "number"
+    },
+    "baseline_variance": {
+      "title": "Baseline Variance",
+      "type": "number"
+    },
+    "max_zone_utilisation": {
+      "title": "Max Zone Utilisation",
+      "type": "number"
+    },
+    "max_zone_entity_id": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Max Zone Entity Id"
+    },
+    "oscillation_risk": {
+      "title": "Oscillation Risk",
+      "type": "boolean"
+    },
+    "compliance_sensitivity": {
+      "title": "Compliance Sensitivity",
+      "type": "number"
+    },
+    "compliance_sweep": {
+      "items": {
+        "$ref": "#/$defs/ComplianceSweepRow"
+      },
+      "title": "Compliance Sweep",
+      "type": "array"
+    },
+    "reason": {
+      "maxLength": 140,
+      "title": "Reason",
+      "type": "string"
+    }
+  },
+  "required": [
+    "certificate_id",
+    "intervention_id",
+    "verdict",
+    "converged",
+    "iterations",
+    "post_nudge_variance",
+    "baseline_variance",
+    "max_zone_utilisation",
+    "oscillation_risk",
+    "compliance_sensitivity",
+    "compliance_sweep",
+    "reason"
+  ],
+  "title": "certificate",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

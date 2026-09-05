@@ -1,0 +1,68 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "entity_id": {
+      "title": "Entity Id",
+      "type": "string"
+    },
+    "entity_type": {
+      "enum": [
+        "venue",
+        "zone",
+        "transport_node",
+        "transport_route",
+        "road",
+        "hotel",
+        "parking",
+        "gate",
+        "emergency_facility"
+      ],
+      "title": "Entity Type",
+      "type": "string"
+    },
+    "display_name": {
+      "title": "Display Name",
+      "type": "string"
+    },
+    "lat": {
+      "title": "Lat",
+      "type": "number"
+    },
+    "lon": {
+      "title": "Lon",
+      "type": "number"
+    },
+    "nominal_capacity": {
+      "title": "Nominal Capacity",
+      "type": "number"
+    },
+    "parent_id": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Parent Id"
+    },
+    "meta": {
+      "additionalProperties": true,
+      "title": "Meta",
+      "type": "object"
+    }
+  },
+  "required": [
+    "entity_id",
+    "entity_type",
+    "display_name",
+    "lat",
+    "lon",
+    "nominal_capacity"
+  ],
+  "title": "entity",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

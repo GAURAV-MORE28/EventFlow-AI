@@ -1,0 +1,135 @@
+{
+  "$defs": {
+    "BaselineComparison": {
+      "additionalProperties": false,
+      "properties": {
+        "persistence_mae": {
+          "title": "Persistence Mae",
+          "type": "number"
+        },
+        "model_mae": {
+          "title": "Model Mae",
+          "type": "number"
+        },
+        "improvement_pct": {
+          "title": "Improvement Pct",
+          "type": "number"
+        }
+      },
+      "required": [
+        "persistence_mae",
+        "model_mae",
+        "improvement_pct"
+      ],
+      "title": "BaselineComparison",
+      "type": "object"
+    },
+    "ForecastPoint": {
+      "additionalProperties": false,
+      "properties": {
+        "horizon_sec": {
+          "title": "Horizon Sec",
+          "type": "integer"
+        },
+        "predicted_utilisation": {
+          "title": "Predicted Utilisation",
+          "type": "number"
+        },
+        "lower_90": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Lower 90"
+        },
+        "upper_90": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Upper 90"
+        }
+      },
+      "required": [
+        "horizon_sec",
+        "predicted_utilisation"
+      ],
+      "title": "ForecastPoint",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "entity_id": {
+      "title": "Entity Id",
+      "type": "string"
+    },
+    "source": {
+      "enum": [
+        "persistence",
+        "tsfm",
+        "local_model"
+      ],
+      "title": "Source",
+      "type": "string"
+    },
+    "generated_at": {
+      "title": "Generated At",
+      "type": "string"
+    },
+    "baseline_value": {
+      "title": "Baseline Value",
+      "type": "number"
+    },
+    "points": {
+      "items": {
+        "$ref": "#/$defs/ForecastPoint"
+      },
+      "title": "Points",
+      "type": "array"
+    },
+    "time_to_critical_sec": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Time To Critical Sec"
+    },
+    "baseline_comparison": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/BaselineComparison"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    }
+  },
+  "required": [
+    "entity_id",
+    "source",
+    "generated_at",
+    "baseline_value",
+    "points"
+  ],
+  "title": "forecast",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

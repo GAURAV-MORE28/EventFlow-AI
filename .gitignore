@@ -1,0 +1,21 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+*.egg-info/
+
+# Backend runtime artifacts
+Backend/eventflow.db
+Backend/.env
+
+# Node / frontend
+Frontend/node_modules/
+Frontend/dist/
+Frontend/.env
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

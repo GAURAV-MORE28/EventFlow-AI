@@ -1,0 +1,99 @@
+{
+  "$defs": {
+    "TwinFidelityHistoryPoint": {
+      "additionalProperties": false,
+      "properties": {
+        "sim_time": {
+          "title": "Sim Time",
+          "type": "string"
+        },
+        "assimilated_rmse": {
+          "title": "Assimilated Rmse",
+          "type": "number"
+        },
+        "uncorrected_rmse": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Uncorrected Rmse"
+        }
+      },
+      "required": [
+        "sim_time",
+        "assimilated_rmse"
+      ],
+      "title": "TwinFidelityHistoryPoint",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "sim_time": {
+      "title": "Sim Time",
+      "type": "string"
+    },
+    "assimilated_rmse": {
+      "title": "Assimilated Rmse",
+      "type": "number"
+    },
+    "uncorrected_rmse": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Uncorrected Rmse"
+    },
+    "improvement_pct": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Improvement Pct"
+    },
+    "ensemble_size": {
+      "title": "Ensemble Size",
+      "type": "integer"
+    },
+    "ensemble_spread": {
+      "title": "Ensemble Spread",
+      "type": "number"
+    },
+    "drift_mode_enabled": {
+      "title": "Drift Mode Enabled",
+      "type": "boolean"
+    },
+    "history": {
+      "items": {
+        "$ref": "#/$defs/TwinFidelityHistoryPoint"
+      },
+      "title": "History",
+      "type": "array"
+    }
+  },
+  "required": [
+    "sim_time",
+    "assimilated_rmse",
+    "ensemble_size",
+    "ensemble_spread",
+    "drift_mode_enabled"
+  ],
+  "title": "twin_fidelity",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

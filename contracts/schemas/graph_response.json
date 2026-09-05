@@ -1,0 +1,239 @@
+{
+  "$defs": {
+    "Bounds": {
+      "additionalProperties": false,
+      "properties": {
+        "min_lat": {
+          "title": "Min Lat",
+          "type": "number"
+        },
+        "max_lat": {
+          "title": "Max Lat",
+          "type": "number"
+        },
+        "min_lon": {
+          "title": "Min Lon",
+          "type": "number"
+        },
+        "max_lon": {
+          "title": "Max Lon",
+          "type": "number"
+        }
+      },
+      "required": [
+        "min_lat",
+        "max_lat",
+        "min_lon",
+        "max_lon"
+      ],
+      "title": "Bounds",
+      "type": "object"
+    },
+    "Entity": {
+      "additionalProperties": false,
+      "properties": {
+        "entity_id": {
+          "title": "Entity Id",
+          "type": "string"
+        },
+        "entity_type": {
+          "enum": [
+            "venue",
+            "zone",
+            "transport_node",
+            "transport_route",
+            "road",
+            "hotel",
+            "parking",
+            "gate",
+            "emergency_facility"
+          ],
+          "title": "Entity Type",
+          "type": "string"
+        },
+        "display_name": {
+          "title": "Display Name",
+          "type": "string"
+        },
+        "lat": {
+          "title": "Lat",
+          "type": "number"
+        },
+        "lon": {
+          "title": "Lon",
+          "type": "number"
+        },
+        "nominal_capacity": {
+          "title": "Nominal Capacity",
+          "type": "number"
+        },
+        "parent_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Parent Id"
+        },
+        "meta": {
+          "additionalProperties": true,
+          "title": "Meta",
+          "type": "object"
+        }
+      },
+      "required": [
+        "entity_id",
+        "entity_type",
+        "display_name",
+        "lat",
+        "lon",
+        "nominal_capacity"
+      ],
+      "title": "Entity",
+      "type": "object"
+    },
+    "GraphEdge": {
+      "additionalProperties": false,
+      "properties": {
+        "edge_id": {
+          "title": "Edge Id",
+          "type": "string"
+        },
+        "src_entity_id": {
+          "title": "Src Entity Id",
+          "type": "string"
+        },
+        "dst_entity_id": {
+          "title": "Dst Entity Id",
+          "type": "string"
+        },
+        "edge_type": {
+          "enum": [
+            "feeds",
+            "adjacent_to",
+            "serves",
+            "last_mile_to",
+            "substitutes_for",
+            "evacuates_to"
+          ],
+          "title": "Edge Type",
+          "type": "string"
+        },
+        "transfer_coefficient": {
+          "title": "Transfer Coefficient",
+          "type": "number"
+        },
+        "travel_time_sec": {
+          "title": "Travel Time Sec",
+          "type": "integer"
+        },
+        "substitutability": {
+          "default": 0.0,
+          "title": "Substitutability",
+          "type": "number"
+        }
+      },
+      "required": [
+        "edge_id",
+        "src_entity_id",
+        "dst_entity_id",
+        "edge_type",
+        "transfer_coefficient",
+        "travel_time_sec"
+      ],
+      "title": "GraphEdge",
+      "type": "object"
+    },
+    "Segment": {
+      "additionalProperties": false,
+      "properties": {
+        "segment_id": {
+          "enum": [
+            "price_sensitive",
+            "time_sensitive",
+            "accessibility_constrained",
+            "group",
+            "premium"
+          ],
+          "title": "Segment Id",
+          "type": "string"
+        },
+        "display_name": {
+          "title": "Display Name",
+          "type": "string"
+        },
+        "share": {
+          "title": "Share",
+          "type": "number"
+        },
+        "price_elasticity": {
+          "title": "Price Elasticity",
+          "type": "number"
+        },
+        "time_elasticity": {
+          "title": "Time Elasticity",
+          "type": "number"
+        },
+        "accessibility_constrained": {
+          "title": "Accessibility Constrained",
+          "type": "boolean"
+        },
+        "compliance_base_rate": {
+          "title": "Compliance Base Rate",
+          "type": "number"
+        }
+      },
+      "required": [
+        "segment_id",
+        "display_name",
+        "share",
+        "price_elasticity",
+        "time_elasticity",
+        "accessibility_constrained",
+        "compliance_base_rate"
+      ],
+      "title": "Segment",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "nodes": {
+      "items": {
+        "$ref": "#/$defs/Entity"
+      },
+      "title": "Nodes",
+      "type": "array"
+    },
+    "edges": {
+      "items": {
+        "$ref": "#/$defs/GraphEdge"
+      },
+      "title": "Edges",
+      "type": "array"
+    },
+    "segments": {
+      "items": {
+        "$ref": "#/$defs/Segment"
+      },
+      "title": "Segments",
+      "type": "array"
+    },
+    "bounds": {
+      "$ref": "#/$defs/Bounds"
+    }
+  },
+  "required": [
+    "nodes",
+    "edges",
+    "segments",
+    "bounds"
+  ],
+  "title": "graph_response",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

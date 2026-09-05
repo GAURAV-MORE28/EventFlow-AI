@@ -1,0 +1,99 @@
+{
+  "$defs": {
+    "PressureTimelineItem": {
+      "additionalProperties": false,
+      "properties": {
+        "entity_id": {
+          "title": "Entity Id",
+          "type": "string"
+        },
+        "display_name": {
+          "title": "Display Name",
+          "type": "string"
+        },
+        "current_utilisation": {
+          "title": "Current Utilisation",
+          "type": "number"
+        },
+        "current_band": {
+          "enum": [
+            "low",
+            "moderate",
+            "high",
+            "critical"
+          ],
+          "title": "Current Band",
+          "type": "string"
+        },
+        "time_to_critical_sec": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Time To Critical Sec"
+        },
+        "trajectory": {
+          "items": {
+            "$ref": "#/$defs/TrajectoryPoint"
+          },
+          "title": "Trajectory",
+          "type": "array"
+        }
+      },
+      "required": [
+        "entity_id",
+        "display_name",
+        "current_utilisation",
+        "current_band",
+        "trajectory"
+      ],
+      "title": "PressureTimelineItem",
+      "type": "object"
+    },
+    "TrajectoryPoint": {
+      "additionalProperties": false,
+      "properties": {
+        "horizon_sec": {
+          "title": "Horizon Sec",
+          "type": "integer"
+        },
+        "utilisation": {
+          "title": "Utilisation",
+          "type": "number"
+        }
+      },
+      "required": [
+        "horizon_sec",
+        "utilisation"
+      ],
+      "title": "TrajectoryPoint",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "sim_time": {
+      "title": "Sim Time",
+      "type": "string"
+    },
+    "items": {
+      "items": {
+        "$ref": "#/$defs/PressureTimelineItem"
+      },
+      "title": "Items",
+      "type": "array"
+    }
+  },
+  "required": [
+    "sim_time",
+    "items"
+  ],
+  "title": "pressure_timeline_response",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

@@ -1,0 +1,31 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "event": {
+      "title": "Event",
+      "type": "string"
+    },
+    "sim_time": {
+      "title": "Sim Time",
+      "type": "string"
+    },
+    "seq": {
+      "title": "Seq",
+      "type": "integer"
+    },
+    "payload": {
+      "additionalProperties": true,
+      "title": "Payload",
+      "type": "object"
+    }
+  },
+  "required": [
+    "event",
+    "sim_time",
+    "seq",
+    "payload"
+  ],
+  "title": "ws_message",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

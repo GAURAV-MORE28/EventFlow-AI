@@ -1,0 +1,112 @@
+{
+  "$defs": {
+    "NudgeTradeoff": {
+      "additionalProperties": false,
+      "properties": {
+        "extra_travel_sec": {
+          "title": "Extra Travel Sec",
+          "type": "integer"
+        },
+        "credit_paise": {
+          "title": "Credit Paise",
+          "type": "integer"
+        },
+        "perk": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Perk"
+        }
+      },
+      "required": [
+        "extra_travel_sec",
+        "credit_paise"
+      ],
+      "title": "NudgeTradeoff",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "nudge_id": {
+      "title": "Nudge Id",
+      "type": "string"
+    },
+    "attendee_id": {
+      "title": "Attendee Id",
+      "type": "string"
+    },
+    "intervention_id": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Intervention Id"
+    },
+    "headline": {
+      "title": "Headline",
+      "type": "string"
+    },
+    "body": {
+      "title": "Body",
+      "type": "string"
+    },
+    "tradeoff": {
+      "$ref": "#/$defs/NudgeTradeoff"
+    },
+    "target_entity_id": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Target Entity Id"
+    },
+    "status": {
+      "enum": [
+        "pending",
+        "accepted",
+        "declined",
+        "expired"
+      ],
+      "title": "Status",
+      "type": "string"
+    },
+    "issued_at": {
+      "title": "Issued At",
+      "type": "string"
+    },
+    "expires_at": {
+      "title": "Expires At",
+      "type": "string"
+    }
+  },
+  "required": [
+    "nudge_id",
+    "attendee_id",
+    "headline",
+    "body",
+    "tradeoff",
+    "status",
+    "issued_at",
+    "expires_at"
+  ],
+  "title": "nudge",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

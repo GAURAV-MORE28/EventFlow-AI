@@ -1,0 +1,225 @@
+{
+  "What is the biggest problem right now?": {
+    "response": "Metro B Station is projected to cross critical in 5 minutes. Its inbound flow rate is -58.0 per minute against a nominal capacity of 4200, at 68 risk. The forecast source is local_model. Predicted propagation reaches gate_3 in 12 minutes and emergency_north in 22 minutes, 3 downstream failures in total.",
+    "is_cached": false,
+    "tool_calls": [
+      {
+        "tool": "get_state",
+        "args": {
+          "entity_id": "all"
+        },
+        "result_digest": "overall_risk=59 load_variance=0.0106"
+      },
+      {
+        "tool": "get_state",
+        "args": {
+          "entity_id": "metro_b"
+        },
+        "result_digest": "utilisation=0.8205 risk=68"
+      },
+      {
+        "tool": "get_forecast",
+        "args": {
+          "entity_id": "metro_b"
+        },
+        "result_digest": "time_to_critical_sec=312 source=local_model"
+      },
+      {
+        "tool": "get_cascade",
+        "args": {
+          "entity_id": "metro_b"
+        },
+        "result_digest": "3 downstream failures"
+      }
+    ],
+    "grounding": {
+      "numbers_emitted": [
+        "5",
+        "-58.0",
+        "4200",
+        "68",
+        "3",
+        "12",
+        "22",
+        "3"
+      ],
+      "numbers_grounded": [
+        "5",
+        "-58.0",
+        "4200",
+        "68",
+        "3",
+        "12",
+        "22",
+        "3"
+      ],
+      "ungrounded": [],
+      "ungrounded_count": 0,
+      "passed": true
+    }
+  },
+  "Why is Metro B becoming critical?": {
+    "response": "Metro B Station is projected to cross critical in 5 minutes. Its inbound flow rate is -58.0 per minute against a nominal capacity of 4200, at 68 risk. The forecast source is local_model. Predicted propagation reaches gate_3 in 12 minutes and emergency_north in 22 minutes, 3 downstream failures in total.",
+    "is_cached": false,
+    "tool_calls": [
+      {
+        "tool": "get_state",
+        "args": {
+          "entity_id": "all"
+        },
+        "result_digest": "overall_risk=59 load_variance=0.0106"
+      },
+      {
+        "tool": "get_state",
+        "args": {
+          "entity_id": "metro_b"
+        },
+        "result_digest": "utilisation=0.8205 risk=68"
+      },
+      {
+        "tool": "get_forecast",
+        "args": {
+          "entity_id": "metro_b"
+        },
+        "result_digest": "time_to_critical_sec=312 source=local_model"
+      },
+      {
+        "tool": "get_cascade",
+        "args": {
+          "entity_id": "metro_b"
+        },
+        "result_digest": "3 downstream failures"
+      }
+    ],
+    "grounding": {
+      "numbers_emitted": [
+        "5",
+        "-58.0",
+        "4200",
+        "68",
+        "3",
+        "12",
+        "22",
+        "3"
+      ],
+      "numbers_grounded": [
+        "5",
+        "-58.0",
+        "4200",
+        "68",
+        "3",
+        "12",
+        "22",
+        "3"
+      ],
+      "ungrounded": [],
+      "ungrounded_count": 0,
+      "passed": true
+    }
+  },
+  "What happens if we do nothing?": {
+    "response": "Predicted propagation reaches gate_3 in 12 minutes and emergency_north in 22 minutes, 3 downstream failures in total. Doing nothing leaves 0 entities critical and 4 at high risk, with load variance 0.0106.",
+    "is_cached": false,
+    "tool_calls": [
+      {
+        "tool": "get_state",
+        "args": {
+          "entity_id": "all"
+        },
+        "result_digest": "overall_risk=59 load_variance=0.0106"
+      },
+      {
+        "tool": "summarize_window",
+        "args": {},
+        "result_digest": "critical=0 high=4"
+      },
+      {
+        "tool": "get_forecast",
+        "args": {
+          "entity_id": "metro_b"
+        },
+        "result_digest": "time_to_critical_sec=312 source=local_model"
+      },
+      {
+        "tool": "get_cascade",
+        "args": {
+          "entity_id": "metro_b"
+        },
+        "result_digest": "3 downstream failures"
+      }
+    ],
+    "grounding": {
+      "numbers_emitted": [
+        "3",
+        "12",
+        "22",
+        "3",
+        "0",
+        "4",
+        "0.0106"
+      ],
+      "numbers_grounded": [
+        "3",
+        "12",
+        "22",
+        "3",
+        "0",
+        "4",
+        "0.0106"
+      ],
+      "ungrounded": [],
+      "ungrounded_count": 0,
+      "passed": true
+    }
+  },
+  "Which action gives the largest safety improvement?": {
+    "response": "The highest ranked action is \"Deploy 2 shuttles on the East Shuttle Hub link\" at rank score 0.2615, estimated relief 15.0 percent. Its certificate reads CONDITIONAL. Holds below 90% compliance; East Zone reaches 52% above that. Note that \"Redirect 1,675 attendees to Metro C Station\" offers 35.3 percent relief but certifies UNSTABLE, so it ranks below the stable option.",
+    "is_cached": false,
+    "tool_calls": [
+      {
+        "tool": "get_state",
+        "args": {
+          "entity_id": "all"
+        },
+        "result_digest": "overall_risk=59 load_variance=0.0106"
+      },
+      {
+        "tool": "get_interventions",
+        "args": {
+          "status": "proposed"
+        },
+        "result_digest": "5 proposed, top rank_score=0.2615"
+      },
+      {
+        "tool": "get_certificate",
+        "args": {
+          "intervention_id": "int_7ad9d"
+        },
+        "result_digest": "verdict=CONDITIONAL max_utilisation=0.5231"
+      }
+    ],
+    "grounding": {
+      "numbers_emitted": [
+        "2",
+        "0.2615",
+        "15.0",
+        "90",
+        "52",
+        "1675",
+        "35.3"
+      ],
+      "numbers_grounded": [
+        "2",
+        "0.2615",
+        "15.0",
+        "90",
+        "52",
+        "1675",
+        "35.3"
+      ],
+      "ungrounded": [],
+      "ungrounded_count": 0,
+      "passed": true
+    }
+  }
+}

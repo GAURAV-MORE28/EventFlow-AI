@@ -1,0 +1,78 @@
+{
+  "$defs": {
+    "ModuleHealth": {
+      "additionalProperties": false,
+      "properties": {
+        "ready": {
+          "title": "Ready",
+          "type": "boolean"
+        },
+        "active_source": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Active Source"
+        },
+        "ensemble_size": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Ensemble Size"
+        }
+      },
+      "required": [
+        "ready"
+      ],
+      "title": "ModuleHealth",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "status": {
+      "title": "Status",
+      "type": "string"
+    },
+    "server_time": {
+      "title": "Server Time",
+      "type": "string"
+    },
+    "sim_time": {
+      "title": "Sim Time",
+      "type": "string"
+    },
+    "cycle_number": {
+      "title": "Cycle Number",
+      "type": "integer"
+    },
+    "modules": {
+      "additionalProperties": {
+        "$ref": "#/$defs/ModuleHealth"
+      },
+      "title": "Modules",
+      "type": "object"
+    }
+  },
+  "required": [
+    "status",
+    "server_time",
+    "sim_time",
+    "cycle_number",
+    "modules"
+  ],
+  "title": "health_response",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

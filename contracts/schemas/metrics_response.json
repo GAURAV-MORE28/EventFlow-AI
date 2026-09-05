@@ -1,0 +1,126 @@
+{
+  "$defs": {
+    "MetricValue": {
+      "additionalProperties": false,
+      "properties": {
+        "value": {
+          "title": "Value",
+          "type": "number"
+        },
+        "baseline": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Baseline"
+        },
+        "baseline_name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Baseline Name"
+        },
+        "improvement_pct": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Improvement Pct"
+        },
+        "target": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Target"
+        },
+        "target_range": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "number"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Target Range"
+        }
+      },
+      "required": [
+        "value"
+      ],
+      "title": "MetricValue",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "sim_time": {
+      "title": "Sim Time",
+      "type": "string"
+    },
+    "prediction": {
+      "additionalProperties": {
+        "$ref": "#/$defs/MetricValue"
+      },
+      "title": "Prediction",
+      "type": "object"
+    },
+    "twin": {
+      "additionalProperties": {
+        "$ref": "#/$defs/MetricValue"
+      },
+      "title": "Twin",
+      "type": "object"
+    },
+    "decision": {
+      "additionalProperties": {
+        "$ref": "#/$defs/MetricValue"
+      },
+      "title": "Decision",
+      "type": "object"
+    },
+    "system": {
+      "additionalProperties": {
+        "$ref": "#/$defs/MetricValue"
+      },
+      "title": "System",
+      "type": "object"
+    }
+  },
+  "required": [
+    "sim_time",
+    "prediction",
+    "twin",
+    "decision",
+    "system"
+  ],
+  "title": "metrics_response",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

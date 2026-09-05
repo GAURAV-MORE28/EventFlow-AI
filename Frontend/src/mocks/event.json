@@ -1,0 +1,10 @@
+{
+  "event_id": "evt_demo",
+  "name": "National Cup Final",
+  "venue_entity_id": "stadium_main",
+  "expected_attendance": 70000,
+  "start_time": "2026-09-04T16:00:00Z",
+  "end_time": "2026-09-04T18:30:00Z",
+  "sim_time": "2026-09-04T14:20:00Z",
+  "concurrent_events": []
+}

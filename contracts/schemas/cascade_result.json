@@ -1,0 +1,106 @@
+{
+  "$defs": {
+    "CascadeStep": {
+      "additionalProperties": false,
+      "properties": {
+        "step_index": {
+          "title": "Step Index",
+          "type": "integer"
+        },
+        "entity_id": {
+          "title": "Entity Id",
+          "type": "string"
+        },
+        "predicted_band": {
+          "enum": [
+            "low",
+            "moderate",
+            "high",
+            "critical"
+          ],
+          "title": "Predicted Band",
+          "type": "string"
+        },
+        "eta_sec": {
+          "title": "Eta Sec",
+          "type": "integer"
+        },
+        "failure_probability": {
+          "title": "Failure Probability",
+          "type": "number"
+        },
+        "via_edge_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Via Edge Id"
+        },
+        "depth": {
+          "title": "Depth",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "step_index",
+        "entity_id",
+        "predicted_band",
+        "eta_sec",
+        "failure_probability",
+        "depth"
+      ],
+      "title": "CascadeStep",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "root_entity_id": {
+      "title": "Root Entity Id",
+      "type": "string"
+    },
+    "source": {
+      "enum": [
+        "deterministic",
+        "gnn"
+      ],
+      "title": "Source",
+      "type": "string"
+    },
+    "generated_at": {
+      "title": "Generated At",
+      "type": "string"
+    },
+    "total_downstream_failures": {
+      "title": "Total Downstream Failures",
+      "type": "integer"
+    },
+    "max_depth": {
+      "title": "Max Depth",
+      "type": "integer"
+    },
+    "steps": {
+      "items": {
+        "$ref": "#/$defs/CascadeStep"
+      },
+      "title": "Steps",
+      "type": "array"
+    }
+  },
+  "required": [
+    "root_entity_id",
+    "source",
+    "generated_at",
+    "total_downstream_failures",
+    "max_depth",
+    "steps"
+  ],
+  "title": "cascade_result",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

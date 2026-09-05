@@ -1,0 +1,45 @@
+{
+  "root_entity_id": "metro_b",
+  "source": "deterministic",
+  "generated_at": "2026-09-04T14:20:00Z",
+  "total_downstream_failures": 3,
+  "max_depth": 3,
+  "steps": [
+    {
+      "entity_id": "metro_b",
+      "predicted_band": "critical",
+      "eta_sec": 312,
+      "failure_probability": 0.99,
+      "via_edge_id": null,
+      "depth": 0,
+      "step_index": 0
+    },
+    {
+      "entity_id": "gate_3",
+      "predicted_band": "high",
+      "eta_sec": 732,
+      "failure_probability": 0.881,
+      "via_edge_id": "metro_b__gate_3__feeds",
+      "depth": 1,
+      "step_index": 1
+    },
+    {
+      "entity_id": "road_4",
+      "predicted_band": "critical",
+      "eta_sec": 1032,
+      "failure_probability": 0.99,
+      "via_edge_id": "gate_3__road_4__adjacent_to",
+      "depth": 2,
+      "step_index": 2
+    },
+    {
+      "entity_id": "emergency_north",
+      "predicted_band": "critical",
+      "eta_sec": 1332,
+      "failure_probability": 0.99,
+      "via_edge_id": "road_4__emergency_north__evacuates_to",
+      "depth": 3,
+      "step_index": 3
+    }
+  ]
+}

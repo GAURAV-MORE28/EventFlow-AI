@@ -1,0 +1,53 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "event_id": {
+      "title": "Event Id",
+      "type": "string"
+    },
+    "name": {
+      "title": "Name",
+      "type": "string"
+    },
+    "venue_entity_id": {
+      "title": "Venue Entity Id",
+      "type": "string"
+    },
+    "expected_attendance": {
+      "title": "Expected Attendance",
+      "type": "integer"
+    },
+    "start_time": {
+      "title": "Start Time",
+      "type": "string"
+    },
+    "end_time": {
+      "title": "End Time",
+      "type": "string"
+    },
+    "sim_time": {
+      "title": "Sim Time",
+      "type": "string"
+    },
+    "concurrent_events": {
+      "items": {
+        "additionalProperties": true,
+        "type": "object"
+      },
+      "title": "Concurrent Events",
+      "type": "array"
+    }
+  },
+  "required": [
+    "event_id",
+    "name",
+    "venue_entity_id",
+    "expected_attendance",
+    "start_time",
+    "end_time",
+    "sim_time"
+  ],
+  "title": "event_response",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

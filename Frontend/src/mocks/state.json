@@ -1,0 +1,673 @@
+{
+  "sim_time": "2026-09-04T14:20:00Z",
+  "cycle_number": 40,
+  "entities": [
+    {
+      "entity_id": "stadium_main",
+      "sim_time": "2026-09-04T14:20:00Z",
+      "current_count": 17988.2,
+      "utilisation": 0.257,
+      "flow_rate_per_min": -160.9,
+      "risk_score": 18,
+      "risk_band": "low",
+      "is_observed": true
+    },
+    {
+      "entity_id": "gate_1",
+      "sim_time": "2026-09-04T14:20:00Z",
+      "current_count": 771.6,
+      "utilisation": 0.2756,
+      "flow_rate_per_min": 69.2,
+      "risk_score": 30,
+      "risk_band": "low",
+      "is_observed": true
+    },
+    {
+      "entity_id": "gate_2",
+      "sim_time": "2026-09-04T14:20:00Z",
+      "current_count": 269.4,
+      "utilisation": 0.0962,
+      "flow_rate_per_min": -10.9,
+      "risk_score": 5,
+      "risk_band": "low",
+      "is_observed": false
+    },
+    {
+      "entity_id": "gate_3",
+      "sim_time": "2026-09-04T14:20:00Z",
+      "current_count": 893.9,
+      "utilisation": 0.4063,
+      "flow_rate_per_min": -109.2,
+      "risk_score": 27,
+      "risk_band": "low",
+      "is_observed": true
+    },
+    {
+      "entity_id": "gate_4",
+      "sim_time": "2026-09-04T14:20:00Z",
+      "current_count": 783.4,
+      "utilisation": 0.3133,
+      "flow_rate_per_min": 17.1,
+      "risk_score": 37,
+      "risk_band": "moderate",
+      "is_observed": false
+    },
+    {
+      "entity_id": "gate_5",
+      "sim_time": "2026-09-04T14:20:00Z",
+      "current_count": 692.1,
+      "utilisation": 0.4614,
+      "flow_rate_per_min": -84.2,
+      "risk_score": 32,
+      "risk_band": "moderate",
+      "is_observed": true
+    },
+    {
+      "entity_id": "gate_6",
+      "sim_time": "2026-09-04T14:20:00Z",
+      "current_count": 934.7,
+      "utilisation": 0.3595,
+      "flow_rate_per_min": 29.3,
+      "risk_score": 18,
+      "risk_band": "low",
+      "is_observed": true
+    },
+    {
+      "entity_id": "metro_a",
+      "sim_time": "2026-09-04T14:20:00Z",
+      "current_count": 2257.8,
+      "utilisation": 0.5942,
+      "flow_rate_per_min": 89.8,
+      "risk_score": 62,
+      "risk_band": "high",
+      "is_observed": true
+    },
+    {
+      "entity_id": "metro_b",
+      "sim_time": "2026-09-04T14:20:00Z",
+      "current_count": 3446.3,
+      "utilisation": 0.8205,
+      "flow_rate_per_min": -58.0,
+      "risk_score": 68,
+      "risk_band": "high",
+      "is_observed": true
+    },
+    {
+      "entity_id": "metro_c",
+      "sim_time": "2026-09-04T14:20:00Z",
+      "current_count": 1637.7,
+      "utilisation": 0.4549,
+      "flow_rate_per_min": 89.7,
+      "risk_score": 44,
+      "risk_band": "moderate",
+      "is_observed": true
+    },
+    {
+      "entity_id": "metro_d",
+      "sim_time": "2026-09-04T14:20:00Z",
+      "current_count": 2167.9,
+      "utilisation": 0.6993,
+      "flow_rate_per_min": 178.7,
+      "risk_score": 52,
+      "risk_band": "moderate",
+      "is_observed": true
+    },
+    {
+      "entity_id": "metro_e",
+      "sim_time": "2026-09-04T14:20:00Z",
+      "current_count": 1508.7,
+      "utilisation": 0.5202,
+      "flow_rate_per_min": 132.3,
+      "risk_score": 37,
+      "risk_band": "moderate",
+      "is_observed": true
+    },
+    {
+      "entity_id": "bus_hub_north",
+      "sim_time": "2026-09-04T14:20:00Z",
+      "current_count": 1146.0,
+      "utilisation": 0.4775,
+      "flow_rate_per_min": -91.3,
+      "risk_score": 39,
+      "risk_band": "moderate",
+      "is_observed": true
+    },
+    {
+      "entity_id": "bus_hub_south",
+      "sim_time": "2026-09-04T14:20:00Z",
+      "current_count": 1157.9,
+      "utilisation": 0.5263,
+      "flow_rate_per_min": 40.6,
+      "risk_score": 35,
+      "risk_band": "moderate",
+      "is_observed": true
+    },
+    {
+      "entity_id": "shuttle_hub_east",
+      "sim_time": "2026-09-04T14:20:00Z",
+      "current_count": 1194.9,
+      "utilisation": 0.6638,
+      "flow_rate_per_min": 80.9,
+      "risk_score": 42,
+      "risk_band": "moderate",
+      "is_observed": true
+    },
+    {
+      "entity_id": "shuttle_hub_west",
+      "sim_time": "2026-09-04T14:20:00Z",
+      "current_count": 1210.4,
+      "utilisation": 0.6724,
+      "flow_rate_per_min": 66.6,
+      "risk_score": 45,
+      "risk_band": "moderate",
+      "is_observed": true
+    },
+    {
+      "entity_id": "line_blue",
+      "sim_time": "2026-09-04T14:20:00Z",
+      "current_count": 17675.2,
+      "utilisation": 0.7365,
+      "flow_rate_per_min": -424.9,
+      "risk_score": 75,
+      "risk_band": "high",
+      "is_observed": true
+    },
+    {
+      "entity_id": "line_red",
+      "sim_time": "2026-09-04T14:20:00Z",
+      "current_count": 3466.7,
+      "utilisation": 0.1651,
+      "flow_rate_per_min": -146.7,
+      "risk_score": 8,
+      "risk_band": "low",
+      "is_observed": false
+    },
+    {
+      "entity_id": "line_green",
+      "sim_time": "2026-09-04T14:20:00Z",
+      "current_count": 11934.7,
+      "utilisation": 0.7956,
+      "flow_rate_per_min": 155.3,
+      "risk_score": 51,
+      "risk_band": "moderate",
+      "is_observed": true
+    },
+    {
+      "entity_id": "road_1",
+      "sim_time": "2026-09-04T14:20:00Z",
+      "current_count": 421.8,
+      "utilisation": 0.3834,
+      "flow_rate_per_min": 71.9,
+      "risk_score": 29,
+      "risk_band": "low",
+      "is_observed": true
+    },
+    {
+      "entity_id": "road_2",
+      "sim_time": "2026-09-04T14:20:00Z",
+      "current_count": 525.9,
+      "utilisation": 0.5259,
+      "flow_rate_per_min": 24.6,
+      "risk_score": 31,
+      "risk_band": "moderate",
+      "is_observed": true
+    },
+    {
+      "entity_id": "road_3",
+      "sim_time": "2026-09-04T14:20:00Z",
+      "current_count": 478.8,
+      "utilisation": 0.504,
+      "flow_rate_per_min": 76.2,
+      "risk_score": 42,
+      "risk_band": "moderate",
+      "is_observed": true
+    },
+    {
+      "entity_id": "road_4",
+      "sim_time": "2026-09-04T14:20:00Z",
+      "current_count": 290.4,
+      "utilisation": 0.3227,
+      "flow_rate_per_min": -1.4,
+      "risk_score": 36,
+      "risk_band": "moderate",
+      "is_observed": true
+    },
+    {
+      "entity_id": "road_5",
+      "sim_time": "2026-09-04T14:20:00Z",
+      "current_count": 522.4,
+      "utilisation": 0.5224,
+      "flow_rate_per_min": -17.7,
+      "risk_score": 56,
+      "risk_band": "moderate",
+      "is_observed": true
+    },
+    {
+      "entity_id": "road_6",
+      "sim_time": "2026-09-04T14:20:00Z",
+      "current_count": 136.9,
+      "utilisation": 0.1304,
+      "flow_rate_per_min": -13.5,
+      "risk_score": 7,
+      "risk_band": "low",
+      "is_observed": false
+    },
+    {
+      "entity_id": "road_7",
+      "sim_time": "2026-09-04T14:20:00Z",
+      "current_count": 296.4,
+      "utilisation": 0.3487,
+      "flow_rate_per_min": 5.3,
+      "risk_score": 36,
+      "risk_band": "moderate",
+      "is_observed": false
+    },
+    {
+      "entity_id": "road_8",
+      "sim_time": "2026-09-04T14:20:00Z",
+      "current_count": 283.9,
+      "utilisation": 0.3154,
+      "flow_rate_per_min": -42.6,
+      "risk_score": 33,
+      "risk_band": "moderate",
+      "is_observed": true
+    },
+    {
+      "entity_id": "road_9",
+      "sim_time": "2026-09-04T14:20:00Z",
+      "current_count": 251.0,
+      "utilisation": 0.3218,
+      "flow_rate_per_min": -3.8,
+      "risk_score": 16,
+      "risk_band": "low",
+      "is_observed": false
+    },
+    {
+      "entity_id": "road_10",
+      "sim_time": "2026-09-04T14:20:00Z",
+      "current_count": 287.6,
+      "utilisation": 0.3507,
+      "flow_rate_per_min": 7.9,
+      "risk_score": 24,
+      "risk_band": "low",
+      "is_observed": true
+    },
+    {
+      "entity_id": "road_11",
+      "sim_time": "2026-09-04T14:20:00Z",
+      "current_count": 239.5,
+      "utilisation": 0.3236,
+      "flow_rate_per_min": 40.6,
+      "risk_score": 39,
+      "risk_band": "moderate",
+      "is_observed": true
+    },
+    {
+      "entity_id": "road_12",
+      "sim_time": "2026-09-04T14:20:00Z",
+      "current_count": 228.4,
+      "utilisation": 0.3086,
+      "flow_rate_per_min": -37.5,
+      "risk_score": 15,
+      "risk_band": "low",
+      "is_observed": true
+    },
+    {
+      "entity_id": "road_13",
+      "sim_time": "2026-09-04T14:20:00Z",
+      "current_count": 221.6,
+      "utilisation": 0.3166,
+      "flow_rate_per_min": -3.8,
+      "risk_score": 18,
+      "risk_band": "low",
+      "is_observed": false
+    },
+    {
+      "entity_id": "road_14",
+      "sim_time": "2026-09-04T14:20:00Z",
+      "current_count": 340.6,
+      "utilisation": 0.4866,
+      "flow_rate_per_min": 10.2,
+      "risk_score": 46,
+      "risk_band": "moderate",
+      "is_observed": true
+    },
+    {
+      "entity_id": "road_15",
+      "sim_time": "2026-09-04T14:20:00Z",
+      "current_count": 316.2,
+      "utilisation": 0.4791,
+      "flow_rate_per_min": 10.0,
+      "risk_score": 49,
+      "risk_band": "moderate",
+      "is_observed": true
+    },
+    {
+      "entity_id": "road_16",
+      "sim_time": "2026-09-04T14:20:00Z",
+      "current_count": 228.1,
+      "utilisation": 0.3456,
+      "flow_rate_per_min": 10.3,
+      "risk_score": 32,
+      "risk_band": "moderate",
+      "is_observed": true
+    },
+    {
+      "entity_id": "road_17",
+      "sim_time": "2026-09-04T14:20:00Z",
+      "current_count": 382.3,
+      "utilisation": 0.4901,
+      "flow_rate_per_min": 71.4,
+      "risk_score": 45,
+      "risk_band": "moderate",
+      "is_observed": true
+    },
+    {
+      "entity_id": "road_18",
+      "sim_time": "2026-09-04T14:20:00Z",
+      "current_count": 339.6,
+      "utilisation": 0.4354,
+      "flow_rate_per_min": 37.4,
+      "risk_score": 48,
+      "risk_band": "moderate",
+      "is_observed": true
+    },
+    {
+      "entity_id": "zone_north",
+      "sim_time": "2026-09-04T14:20:00Z",
+      "current_count": 7502.2,
+      "utilisation": 0.5359,
+      "flow_rate_per_min": 647.6,
+      "risk_score": 39,
+      "risk_band": "moderate",
+      "is_observed": true
+    },
+    {
+      "entity_id": "zone_south",
+      "sim_time": "2026-09-04T14:20:00Z",
+      "current_count": 8368.5,
+      "utilisation": 0.6437,
+      "flow_rate_per_min": -299.1,
+      "risk_score": 47,
+      "risk_band": "moderate",
+      "is_observed": true
+    },
+    {
+      "entity_id": "zone_east",
+      "sim_time": "2026-09-04T14:20:00Z",
+      "current_count": 7024.2,
+      "utilisation": 0.6386,
+      "flow_rate_per_min": 117.7,
+      "risk_score": 39,
+      "risk_band": "moderate",
+      "is_observed": true
+    },
+    {
+      "entity_id": "zone_west",
+      "sim_time": "2026-09-04T14:20:00Z",
+      "current_count": 4774.2,
+      "utilisation": 0.4151,
+      "flow_rate_per_min": -43.0,
+      "risk_score": 45,
+      "risk_band": "moderate",
+      "is_observed": true
+    },
+    {
+      "entity_id": "zone_core",
+      "sim_time": "2026-09-04T14:20:00Z",
+      "current_count": 9624.1,
+      "utilisation": 0.6015,
+      "flow_rate_per_min": 369.4,
+      "risk_score": 75,
+      "risk_band": "high",
+      "is_observed": false
+    },
+    {
+      "entity_id": "zone_concourse_north",
+      "sim_time": "2026-09-04T14:20:00Z",
+      "current_count": 2927.2,
+      "utilisation": 0.4879,
+      "flow_rate_per_min": 315.7,
+      "risk_score": 24,
+      "risk_band": "low",
+      "is_observed": true
+    },
+    {
+      "entity_id": "zone_concourse_south",
+      "sim_time": "2026-09-04T14:20:00Z",
+      "current_count": 3220.1,
+      "utilisation": 0.5367,
+      "flow_rate_per_min": 89.3,
+      "risk_score": 55,
+      "risk_band": "moderate",
+      "is_observed": false
+    },
+    {
+      "entity_id": "zone_fanpark",
+      "sim_time": "2026-09-04T14:20:00Z",
+      "current_count": 3888.9,
+      "utilisation": 0.4321,
+      "flow_rate_per_min": 40.8,
+      "risk_score": 31,
+      "risk_band": "moderate",
+      "is_observed": true
+    },
+    {
+      "entity_id": "zone_plaza_east",
+      "sim_time": "2026-09-04T14:20:00Z",
+      "current_count": 2358.6,
+      "utilisation": 0.4717,
+      "flow_rate_per_min": 36.4,
+      "risk_score": 26,
+      "risk_band": "low",
+      "is_observed": false
+    },
+    {
+      "entity_id": "zone_plaza_west",
+      "sim_time": "2026-09-04T14:20:00Z",
+      "current_count": 1487.4,
+      "utilisation": 0.2975,
+      "flow_rate_per_min": 28.4,
+      "risk_score": 29,
+      "risk_band": "low",
+      "is_observed": true
+    },
+    {
+      "entity_id": "hotel_north_cluster",
+      "sim_time": "2026-09-04T14:20:00Z",
+      "current_count": 952.2,
+      "utilisation": 0.6801,
+      "flow_rate_per_min": -44.5,
+      "risk_score": 41,
+      "risk_band": "moderate",
+      "is_observed": true
+    },
+    {
+      "entity_id": "hotel_core_cluster",
+      "sim_time": "2026-09-04T14:20:00Z",
+      "current_count": 936.8,
+      "utilisation": 0.5204,
+      "flow_rate_per_min": 13.1,
+      "risk_score": 35,
+      "risk_band": "moderate",
+      "is_observed": true
+    },
+    {
+      "entity_id": "hotel_east_cluster",
+      "sim_time": "2026-09-04T14:20:00Z",
+      "current_count": 649.3,
+      "utilisation": 0.5903,
+      "flow_rate_per_min": 13.0,
+      "risk_score": 44,
+      "risk_band": "moderate",
+      "is_observed": true
+    },
+    {
+      "entity_id": "hotel_south_cluster",
+      "sim_time": "2026-09-04T14:20:00Z",
+      "current_count": 713.2,
+      "utilisation": 0.7507,
+      "flow_rate_per_min": 11.6,
+      "risk_score": 41,
+      "risk_band": "moderate",
+      "is_observed": true
+    },
+    {
+      "entity_id": "hotel_west_cluster",
+      "sim_time": "2026-09-04T14:20:00Z",
+      "current_count": 388.1,
+      "utilisation": 0.3881,
+      "flow_rate_per_min": -31.6,
+      "risk_score": 22,
+      "risk_band": "low",
+      "is_observed": true
+    },
+    {
+      "entity_id": "hotel_airport_cluster",
+      "sim_time": "2026-09-04T14:20:00Z",
+      "current_count": 822.9,
+      "utilisation": 0.5143,
+      "flow_rate_per_min": 12.0,
+      "risk_score": 31,
+      "risk_band": "moderate",
+      "is_observed": true
+    },
+    {
+      "entity_id": "parking_p1",
+      "sim_time": "2026-09-04T14:20:00Z",
+      "current_count": 1126.4,
+      "utilisation": 0.512,
+      "flow_rate_per_min": 3.0,
+      "risk_score": 45,
+      "risk_band": "moderate",
+      "is_observed": true
+    },
+    {
+      "entity_id": "parking_p2",
+      "sim_time": "2026-09-04T14:20:00Z",
+      "current_count": 504.6,
+      "utilisation": 0.2656,
+      "flow_rate_per_min": -3.7,
+      "risk_score": 14,
+      "risk_band": "low",
+      "is_observed": false
+    },
+    {
+      "entity_id": "parking_p3",
+      "sim_time": "2026-09-04T14:20:00Z",
+      "current_count": 728.9,
+      "utilisation": 0.4288,
+      "flow_rate_per_min": 7.4,
+      "risk_score": 28,
+      "risk_band": "low",
+      "is_observed": false
+    },
+    {
+      "entity_id": "parking_p4",
+      "sim_time": "2026-09-04T14:20:00Z",
+      "current_count": 1049.9,
+      "utilisation": 0.525,
+      "flow_rate_per_min": 111.2,
+      "risk_score": 37,
+      "risk_band": "moderate",
+      "is_observed": true
+    },
+    {
+      "entity_id": "parking_p5",
+      "sim_time": "2026-09-04T14:20:00Z",
+      "current_count": 762.7,
+      "utilisation": 0.5085,
+      "flow_rate_per_min": 93.2,
+      "risk_score": 39,
+      "risk_band": "moderate",
+      "is_observed": true
+    },
+    {
+      "entity_id": "parking_p6",
+      "sim_time": "2026-09-04T14:20:00Z",
+      "current_count": 499.9,
+      "utilisation": 0.3571,
+      "flow_rate_per_min": -31.5,
+      "risk_score": 37,
+      "risk_band": "moderate",
+      "is_observed": true
+    },
+    {
+      "entity_id": "parking_p7",
+      "sim_time": "2026-09-04T14:20:00Z",
+      "current_count": 470.9,
+      "utilisation": 0.3622,
+      "flow_rate_per_min": 29.6,
+      "risk_score": 28,
+      "risk_band": "low",
+      "is_observed": true
+    },
+    {
+      "entity_id": "parking_p8",
+      "sim_time": "2026-09-04T14:20:00Z",
+      "current_count": 637.0,
+      "utilisation": 0.4718,
+      "flow_rate_per_min": 49.2,
+      "risk_score": 30,
+      "risk_band": "low",
+      "is_observed": true
+    },
+    {
+      "entity_id": "parking_p9",
+      "sim_time": "2026-09-04T14:20:00Z",
+      "current_count": 611.7,
+      "utilisation": 0.5561,
+      "flow_rate_per_min": -54.5,
+      "risk_score": 51,
+      "risk_band": "moderate",
+      "is_observed": true
+    },
+    {
+      "entity_id": "parking_p10",
+      "sim_time": "2026-09-04T14:20:00Z",
+      "current_count": 353.1,
+      "utilisation": 0.3363,
+      "flow_rate_per_min": -26.2,
+      "risk_score": 17,
+      "risk_band": "low",
+      "is_observed": true
+    },
+    {
+      "entity_id": "emergency_north",
+      "sim_time": "2026-09-04T14:20:00Z",
+      "current_count": 52.2,
+      "utilisation": 0.3727,
+      "flow_rate_per_min": 2.2,
+      "risk_score": 32,
+      "risk_band": "moderate",
+      "is_observed": true
+    },
+    {
+      "entity_id": "emergency_south",
+      "sim_time": "2026-09-04T14:20:00Z",
+      "current_count": 65.4,
+      "utilisation": 0.5032,
+      "flow_rate_per_min": 2.4,
+      "risk_score": 39,
+      "risk_band": "moderate",
+      "is_observed": true
+    },
+    {
+      "entity_id": "emergency_core",
+      "sim_time": "2026-09-04T14:20:00Z",
+      "current_count": 0.0,
+      "utilisation": 0.0,
+      "flow_rate_per_min": 0.0,
+      "risk_score": 0,
+      "risk_band": "low",
+      "is_observed": false
+    }
+  ],
+  "summary": {
+    "overall_risk_score": 59,
+    "overall_risk_band": "moderate",
+    "critical_count": 0,
+    "high_count": 4,
+    "load_variance": 0.0106
+  }
+}

@@ -1,0 +1,101 @@
+{
+  "$defs": {
+    "Grounding": {
+      "additionalProperties": false,
+      "properties": {
+        "numbers_emitted": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Numbers Emitted",
+          "type": "array"
+        },
+        "numbers_grounded": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Numbers Grounded",
+          "type": "array"
+        },
+        "ungrounded": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Ungrounded",
+          "type": "array"
+        },
+        "ungrounded_count": {
+          "title": "Ungrounded Count",
+          "type": "integer"
+        },
+        "passed": {
+          "title": "Passed",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "numbers_emitted",
+        "numbers_grounded",
+        "ungrounded_count",
+        "passed"
+      ],
+      "title": "Grounding",
+      "type": "object"
+    },
+    "ToolCallRecord": {
+      "additionalProperties": false,
+      "properties": {
+        "tool": {
+          "title": "Tool",
+          "type": "string"
+        },
+        "args": {
+          "additionalProperties": true,
+          "title": "Args",
+          "type": "object"
+        },
+        "result_digest": {
+          "title": "Result Digest",
+          "type": "string"
+        }
+      },
+      "required": [
+        "tool",
+        "args",
+        "result_digest"
+      ],
+      "title": "ToolCallRecord",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "response": {
+      "title": "Response",
+      "type": "string"
+    },
+    "is_cached": {
+      "title": "Is Cached",
+      "type": "boolean"
+    },
+    "tool_calls": {
+      "items": {
+        "$ref": "#/$defs/ToolCallRecord"
+      },
+      "title": "Tool Calls",
+      "type": "array"
+    },
+    "grounding": {
+      "$ref": "#/$defs/Grounding"
+    }
+  },
+  "required": [
+    "response",
+    "is_cached",
+    "tool_calls",
+    "grounding"
+  ],
+  "title": "commander_response",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

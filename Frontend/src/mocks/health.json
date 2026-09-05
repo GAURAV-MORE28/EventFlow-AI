@@ -1,0 +1,27 @@
+{
+  "status": "ok",
+  "server_time": "2026-09-04T14:20:00Z",
+  "sim_time": "2026-09-04T14:20:00Z",
+  "cycle_number": 40,
+  "modules": {
+    "forecaster": {
+      "ready": true,
+      "active_source": "local_model"
+    },
+    "cascade": {
+      "ready": true,
+      "active_source": "deterministic"
+    },
+    "twin": {
+      "ready": true,
+      "ensemble_size": 20
+    },
+    "equilibrium": {
+      "ready": true
+    },
+    "commander": {
+      "ready": true,
+      "active_source": "deterministic"
+    }
+  }
+}

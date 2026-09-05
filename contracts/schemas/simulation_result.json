@@ -1,0 +1,494 @@
+{
+  "$defs": {
+    "CascadeResult": {
+      "additionalProperties": false,
+      "properties": {
+        "root_entity_id": {
+          "title": "Root Entity Id",
+          "type": "string"
+        },
+        "source": {
+          "enum": [
+            "deterministic",
+            "gnn"
+          ],
+          "title": "Source",
+          "type": "string"
+        },
+        "generated_at": {
+          "title": "Generated At",
+          "type": "string"
+        },
+        "total_downstream_failures": {
+          "title": "Total Downstream Failures",
+          "type": "integer"
+        },
+        "max_depth": {
+          "title": "Max Depth",
+          "type": "integer"
+        },
+        "steps": {
+          "items": {
+            "$ref": "#/$defs/CascadeStep"
+          },
+          "title": "Steps",
+          "type": "array"
+        }
+      },
+      "required": [
+        "root_entity_id",
+        "source",
+        "generated_at",
+        "total_downstream_failures",
+        "max_depth",
+        "steps"
+      ],
+      "title": "CascadeResult",
+      "type": "object"
+    },
+    "CascadeStep": {
+      "additionalProperties": false,
+      "properties": {
+        "step_index": {
+          "title": "Step Index",
+          "type": "integer"
+        },
+        "entity_id": {
+          "title": "Entity Id",
+          "type": "string"
+        },
+        "predicted_band": {
+          "enum": [
+            "low",
+            "moderate",
+            "high",
+            "critical"
+          ],
+          "title": "Predicted Band",
+          "type": "string"
+        },
+        "eta_sec": {
+          "title": "Eta Sec",
+          "type": "integer"
+        },
+        "failure_probability": {
+          "title": "Failure Probability",
+          "type": "number"
+        },
+        "via_edge_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Via Edge Id"
+        },
+        "depth": {
+          "title": "Depth",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "step_index",
+        "entity_id",
+        "predicted_band",
+        "eta_sec",
+        "failure_probability",
+        "depth"
+      ],
+      "title": "CascadeStep",
+      "type": "object"
+    },
+    "Certificate": {
+      "additionalProperties": false,
+      "properties": {
+        "certificate_id": {
+          "title": "Certificate Id",
+          "type": "string"
+        },
+        "intervention_id": {
+          "title": "Intervention Id",
+          "type": "string"
+        },
+        "verdict": {
+          "enum": [
+            "STABLE",
+            "CONDITIONAL",
+            "UNSTABLE"
+          ],
+          "title": "Verdict",
+          "type": "string"
+        },
+        "converged": {
+          "title": "Converged",
+          "type": "boolean"
+        },
+        "iterations": {
+          "title": "Iterations",
+          "type": "integer"
+        },
+        "post_nudge_variance": {
+          "title": "Post Nudge Variance",
+          "type": "number"
+        },
+        "baseline_variance": {
+          "title": "Baseline Variance",
+          "type": "number"
+        },
+        "max_zone_utilisation": {
+          "title": "Max Zone Utilisation",
+          "type": "number"
+        },
+        "max_zone_entity_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Max Zone Entity Id"
+        },
+        "oscillation_risk": {
+          "title": "Oscillation Risk",
+          "type": "boolean"
+        },
+        "compliance_sensitivity": {
+          "title": "Compliance Sensitivity",
+          "type": "number"
+        },
+        "compliance_sweep": {
+          "items": {
+            "$ref": "#/$defs/ComplianceSweepRow"
+          },
+          "title": "Compliance Sweep",
+          "type": "array"
+        },
+        "reason": {
+          "maxLength": 140,
+          "title": "Reason",
+          "type": "string"
+        }
+      },
+      "required": [
+        "certificate_id",
+        "intervention_id",
+        "verdict",
+        "converged",
+        "iterations",
+        "post_nudge_variance",
+        "baseline_variance",
+        "max_zone_utilisation",
+        "oscillation_risk",
+        "compliance_sensitivity",
+        "compliance_sweep",
+        "reason"
+      ],
+      "title": "Certificate",
+      "type": "object"
+    },
+    "ComplianceSweepRow": {
+      "additionalProperties": false,
+      "properties": {
+        "compliance_rate": {
+          "title": "Compliance Rate",
+          "type": "number"
+        },
+        "max_utilisation": {
+          "title": "Max Utilisation",
+          "type": "number"
+        },
+        "verdict": {
+          "enum": [
+            "STABLE",
+            "CONDITIONAL",
+            "UNSTABLE"
+          ],
+          "title": "Verdict",
+          "type": "string"
+        }
+      },
+      "required": [
+        "compliance_rate",
+        "max_utilisation",
+        "verdict"
+      ],
+      "title": "ComplianceSweepRow",
+      "type": "object"
+    },
+    "Intervention": {
+      "additionalProperties": false,
+      "properties": {
+        "intervention_id": {
+          "title": "Intervention Id",
+          "type": "string"
+        },
+        "intervention_type": {
+          "enum": [
+            "reroute_transport",
+            "deploy_shuttle",
+            "stagger_entry",
+            "gate_redistribution",
+            "parking_redistribution",
+            "zone_incentive",
+            "accommodation_rebalance",
+            "emergency_corridor",
+            "notify_only"
+          ],
+          "title": "Intervention Type",
+          "type": "string"
+        },
+        "status": {
+          "enum": [
+            "proposed",
+            "approved",
+            "rejected",
+            "executing",
+            "completed",
+            "expired"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "target_entity_ids": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Target Entity Ids",
+          "type": "array"
+        },
+        "triggered_by_entity_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Triggered By Entity Id"
+        },
+        "title": {
+          "title": "Title",
+          "type": "string"
+        },
+        "description": {
+          "title": "Description",
+          "type": "string"
+        },
+        "estimated_relief_pct": {
+          "title": "Estimated Relief Pct",
+          "type": "number"
+        },
+        "estimated_cost_paise": {
+          "title": "Estimated Cost Paise",
+          "type": "integer"
+        },
+        "estimated_delay_sec": {
+          "title": "Estimated Delay Sec",
+          "type": "integer"
+        },
+        "feasibility": {
+          "title": "Feasibility",
+          "type": "number"
+        },
+        "rank_score": {
+          "title": "Rank Score",
+          "type": "number"
+        },
+        "certificate": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Certificate"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "created_at": {
+          "title": "Created At",
+          "type": "string"
+        },
+        "expires_at": {
+          "title": "Expires At",
+          "type": "string"
+        }
+      },
+      "required": [
+        "intervention_id",
+        "intervention_type",
+        "status",
+        "target_entity_ids",
+        "title",
+        "description",
+        "estimated_relief_pct",
+        "estimated_cost_paise",
+        "estimated_delay_sec",
+        "feasibility",
+        "rank_score",
+        "created_at",
+        "expires_at"
+      ],
+      "title": "Intervention",
+      "type": "object"
+    },
+    "SimulationDelta": {
+      "additionalProperties": false,
+      "properties": {
+        "peak_utilisation_pct": {
+          "title": "Peak Utilisation Pct",
+          "type": "number"
+        },
+        "load_variance_pct": {
+          "title": "Load Variance Pct",
+          "type": "number"
+        },
+        "new_critical_entities": {
+          "items": {
+            "type": "string"
+          },
+          "title": "New Critical Entities",
+          "type": "array"
+        }
+      },
+      "required": [
+        "peak_utilisation_pct",
+        "load_variance_pct",
+        "new_critical_entities"
+      ],
+      "title": "SimulationDelta",
+      "type": "object"
+    },
+    "SimulationSide": {
+      "additionalProperties": false,
+      "properties": {
+        "peak_utilisation": {
+          "title": "Peak Utilisation",
+          "type": "number"
+        },
+        "peak_entity_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Peak Entity Id"
+        },
+        "load_variance": {
+          "title": "Load Variance",
+          "type": "number"
+        },
+        "critical_count": {
+          "title": "Critical Count",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "peak_utilisation",
+        "load_variance",
+        "critical_count"
+      ],
+      "title": "SimulationSide",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "simulation_id": {
+      "title": "Simulation Id",
+      "type": "string"
+    },
+    "status": {
+      "enum": [
+        "running",
+        "complete",
+        "failed"
+      ],
+      "title": "Status",
+      "type": "string"
+    },
+    "label": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Label"
+    },
+    "baseline": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/SimulationSide"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "scenario": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/SimulationSide"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "delta": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/SimulationDelta"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "cascade": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/CascadeResult"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "candidate_interventions": {
+      "items": {
+        "$ref": "#/$defs/Intervention"
+      },
+      "title": "Candidate Interventions",
+      "type": "array"
+    }
+  },
+  "required": [
+    "simulation_id",
+    "status"
+  ],
+  "title": "simulation_result",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

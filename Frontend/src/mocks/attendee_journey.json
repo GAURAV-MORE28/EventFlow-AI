@@ -1,0 +1,53 @@
+{
+  "journey_risk_score": 44,
+  "journey_risk_band": "moderate",
+  "recommended_route": {
+    "legs": [
+      {
+        "from_entity_id": "hotel_core_cluster",
+        "to_entity_id": "metro_c",
+        "mode": "walk",
+        "duration_sec": 480
+      },
+      {
+        "from_entity_id": "metro_c",
+        "to_entity_id": "gate_5",
+        "mode": "transit",
+        "duration_sec": 400
+      },
+      {
+        "from_entity_id": "gate_5",
+        "to_entity_id": "stadium_main",
+        "mode": "transit",
+        "duration_sec": 180
+      }
+    ],
+    "total_duration_sec": 1060,
+    "predicted_crowding_band": "moderate"
+  },
+  "shortest_route": {
+    "legs": [
+      {
+        "from_entity_id": "hotel_core_cluster",
+        "to_entity_id": "metro_c",
+        "mode": "walk",
+        "duration_sec": 480
+      },
+      {
+        "from_entity_id": "metro_c",
+        "to_entity_id": "gate_5",
+        "mode": "transit",
+        "duration_sec": 400
+      },
+      {
+        "from_entity_id": "gate_5",
+        "to_entity_id": "stadium_main",
+        "mode": "transit",
+        "duration_sec": 180
+      }
+    ],
+    "total_duration_sec": 1060,
+    "predicted_crowding_band": "moderate"
+  },
+  "advice": "Both routes carry similar crowding right now; the faster one is fine."
+}

@@ -1,0 +1,101 @@
+{
+  "baseline": {
+    "peak_utilisation": 4.1514,
+    "peak_entity_id": "shuttle_hub_west",
+    "load_variance": 0.7026,
+    "critical_count": 16
+  },
+  "scenario": {
+    "peak_utilisation": 6.865,
+    "peak_entity_id": "road_14",
+    "load_variance": 2.4619,
+    "critical_count": 25
+  },
+  "delta": {
+    "peak_utilisation_pct": 65.4,
+    "load_variance_pct": 250.4,
+    "new_critical_entities": [
+      "gate_4",
+      "line_blue",
+      "road_7",
+      "road_9",
+      "road_13",
+      "road_15",
+      "road_16",
+      "road_17",
+      "parking_p3"
+    ]
+  },
+  "cascade": {
+    "root_entity_id": "road_14",
+    "source": "deterministic",
+    "generated_at": "2026-09-04T14:20:00Z",
+    "total_downstream_failures": 0,
+    "max_depth": 0,
+    "steps": [
+      {
+        "entity_id": "road_14",
+        "predicted_band": "critical",
+        "eta_sec": 1605,
+        "failure_probability": 0.99,
+        "via_edge_id": null,
+        "depth": 0,
+        "step_index": 0
+      }
+    ]
+  },
+  "candidate_interventions": [
+    {
+      "intervention_id": "int_05e31",
+      "intervention_type": "notify_only",
+      "status": "proposed",
+      "target_entity_ids": [
+        "road_14"
+      ],
+      "triggered_by_entity_id": "road_14",
+      "title": "Notify operations team",
+      "description": "Escalate road_14 to the operations desk for manual assessment.",
+      "estimated_relief_pct": 4.0,
+      "estimated_cost_paise": 0,
+      "estimated_delay_sec": 0,
+      "feasibility": 1.0,
+      "rank_score": 0.024,
+      "certificate": {
+        "certificate_id": "cert_047a",
+        "intervention_id": "int_05e31",
+        "verdict": "UNSTABLE",
+        "converged": true,
+        "iterations": 1,
+        "post_nudge_variance": 0.0097,
+        "baseline_variance": 0.0097,
+        "max_zone_utilisation": 0.6437,
+        "max_zone_entity_id": "zone_south",
+        "oscillation_risk": false,
+        "compliance_sensitivity": 0.0,
+        "reason": "Redistribution increases load variance from 0.010 to 0.010.",
+        "compliance_sweep": [
+          {
+            "compliance_rate": 0.4,
+            "max_utilisation": 0.6437,
+            "verdict": "UNSTABLE"
+          },
+          {
+            "compliance_rate": 0.6,
+            "max_utilisation": 0.6437,
+            "verdict": "UNSTABLE"
+          },
+          {
+            "compliance_rate": 0.9,
+            "max_utilisation": 0.6437,
+            "verdict": "UNSTABLE"
+          }
+        ]
+      },
+      "created_at": "2026-09-04T14:20:00Z",
+      "expires_at": "2026-09-04T14:35:00Z"
+    }
+  ],
+  "simulation_id": "sim_mock1",
+  "status": "complete",
+  "label": "Blue line degraded + rain"
+}

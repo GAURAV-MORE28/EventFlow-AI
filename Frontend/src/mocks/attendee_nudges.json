@@ -1,0 +1,52 @@
+{
+  "nudges": [
+    {
+      "nudge_id": "ndg_d61f",
+      "attendee_id": "att_demo_1",
+      "intervention_id": "int_2e360",
+      "headline": "Switch to Metro D Station",
+      "body": "5 minutes further, Rs 75 credit, and priority shuttle access.",
+      "tradeoff": {
+        "extra_travel_sec": 300,
+        "credit_paise": 7500,
+        "perk": "priority_shuttle"
+      },
+      "target_entity_id": "metro_d",
+      "status": "pending",
+      "issued_at": "2026-09-04T14:20:00Z",
+      "expires_at": "2026-09-04T14:35:00Z"
+    },
+    {
+      "nudge_id": "ndg_2192",
+      "attendee_id": "att_demo_2",
+      "intervention_id": "int_2e360",
+      "headline": "Switch to Metro D Station",
+      "body": "5 minutes further, Rs 75 credit, and priority shuttle access.",
+      "tradeoff": {
+        "extra_travel_sec": 300,
+        "credit_paise": 7500,
+        "perk": "priority_shuttle"
+      },
+      "target_entity_id": "metro_d",
+      "status": "pending",
+      "issued_at": "2026-09-04T14:20:00Z",
+      "expires_at": "2026-09-04T14:35:00Z"
+    },
+    {
+      "nudge_id": "ndg_a0b6",
+      "attendee_id": "att_demo_3",
+      "intervention_id": "int_2e360",
+      "headline": "Switch to Metro D Station",
+      "body": "5 minutes further, Rs 75 credit, and priority shuttle access.",
+      "tradeoff": {
+        "extra_travel_sec": 300,
+        "credit_paise": 7500,
+        "perk": "priority_shuttle"
+      },
+      "target_entity_id": "metro_d",
+      "status": "pending",
+      "issued_at": "2026-09-04T14:20:00Z",
+      "expires_at": "2026-09-04T14:35:00Z"
+    }
+  ]
+}

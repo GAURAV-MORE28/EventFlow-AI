@@ -1,0 +1,56 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "entity_id": {
+      "title": "Entity Id",
+      "type": "string"
+    },
+    "sim_time": {
+      "title": "Sim Time",
+      "type": "string"
+    },
+    "current_count": {
+      "title": "Current Count",
+      "type": "number"
+    },
+    "utilisation": {
+      "title": "Utilisation",
+      "type": "number"
+    },
+    "flow_rate_per_min": {
+      "title": "Flow Rate Per Min",
+      "type": "number"
+    },
+    "risk_score": {
+      "title": "Risk Score",
+      "type": "integer"
+    },
+    "risk_band": {
+      "enum": [
+        "low",
+        "moderate",
+        "high",
+        "critical"
+      ],
+      "title": "Risk Band",
+      "type": "string"
+    },
+    "is_observed": {
+      "title": "Is Observed",
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "entity_id",
+    "sim_time",
+    "current_count",
+    "utilisation",
+    "flow_rate_per_min",
+    "risk_score",
+    "risk_band",
+    "is_observed"
+  ],
+  "title": "entity_state",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

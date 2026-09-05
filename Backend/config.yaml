@@ -1,0 +1,77 @@
+# 01_BACKEND_CONTRACT.md §7 — authoritative runtime configuration.
+cycle_sec: 30
+demo_seed: 42
+speed_multiplier: 60
+
+thresholds:
+  critical_utilisation: 0.90
+  risk_bands: { low: 30, moderate: 60, high: 80 }
+
+forecaster:
+  horizons_sec: [900, 1800, 3600]
+  tsfm_model: "amazon/chronos-bolt-small"
+  tsfm_enabled: true
+  warm_start_after_points: 40
+  device: "cpu"
+
+cascade:
+  use_gnn: false
+  max_depth: 4
+  propagation_threshold: 0.15
+  gnn_checkpoint: "ml/checkpoints/hx_cascade.pt"
+
+twin:
+  ensemble_size: 20
+  inflation_factor: 1.05
+  obs_noise_var: 25.0
+  process_noise_var: 9.0
+  drift_mode_enabled: false
+
+equilibrium:
+  max_iterations: 40
+  convergence_tol: 0.005
+  damping: 0.5
+  compliance_sweep: [0.4, 0.6, 0.9]
+  alpha: 1.0
+  beta: 2.5
+  sigmoid_k: 3.0
+
+optimiser:
+  max_candidates: 5
+  min_feasibility: 0.3
+  weights: { relief: 0.45, stability: 0.30, cost: 0.15, delay: 0.10 }
+
+risk:
+  weights: { base: 0.5, growth: 0.3, cascade: 0.2 }
+
+anomaly:
+  z_threshold: 3.0
+  window: 20
+
+commander:
+  # No paid LLM API. The Commander answers from real tool-call results using
+  # deterministic templates, so `ungrounded_count` is structurally 0 and the
+  # demo costs nothing to run. Set LOCAL_LLM_URL (Ollama) to swap in a free
+  # local model — the grounding validator runs identically either way.
+  engine: "deterministic"        # "deterministic" | "local_llm"
+  cache_scripted_queries: true
+  strip_ungrounded_numbers: true
+
+# Latency budgets in milliseconds (01 §2).
+budgets_ms:
+  assimilate: 200
+  forecast: 300
+  cascade: 150
+  optimise: 200
+  certify: 400
+  broadcast: 50
+  total_cap: 2000
+
+event:
+  event_id: "evt_demo"
+  name: "National Cup Final"
+  venue_entity_id: "stadium_main"
+  expected_attendance: 70000
+  sim_start_time: "2026-09-04T14:00:00Z"
+  start_time: "2026-09-04T16:00:00Z"
+  end_time: "2026-09-04T18:30:00Z"

@@ -1,0 +1,108 @@
+{
+  "$defs": {
+    "RegretEntry": {
+      "additionalProperties": false,
+      "properties": {
+        "regret_id": {
+          "title": "Regret Id",
+          "type": "string"
+        },
+        "intervention_id": {
+          "title": "Intervention Id",
+          "type": "string"
+        },
+        "intervention_type": {
+          "enum": [
+            "reroute_transport",
+            "deploy_shuttle",
+            "stagger_entry",
+            "gate_redistribution",
+            "parking_redistribution",
+            "zone_incentive",
+            "accommodation_rebalance",
+            "emergency_corridor",
+            "notify_only"
+          ],
+          "title": "Intervention Type",
+          "type": "string"
+        },
+        "predicted_relief_pct": {
+          "title": "Predicted Relief Pct",
+          "type": "number"
+        },
+        "realised_relief_pct": {
+          "title": "Realised Relief Pct",
+          "type": "number"
+        },
+        "counterfactual_relief_pct": {
+          "title": "Counterfactual Relief Pct",
+          "type": "number"
+        },
+        "regret": {
+          "title": "Regret",
+          "type": "number"
+        },
+        "sim_time": {
+          "title": "Sim Time",
+          "type": "string"
+        }
+      },
+      "required": [
+        "regret_id",
+        "intervention_id",
+        "intervention_type",
+        "predicted_relief_pct",
+        "realised_relief_pct",
+        "counterfactual_relief_pct",
+        "regret",
+        "sim_time"
+      ],
+      "title": "RegretEntry",
+      "type": "object"
+    },
+    "RegretSummary": {
+      "additionalProperties": false,
+      "properties": {
+        "count": {
+          "title": "Count",
+          "type": "integer"
+        },
+        "mean_absolute_regret": {
+          "title": "Mean Absolute Regret",
+          "type": "number"
+        },
+        "trend_slope": {
+          "title": "Trend Slope",
+          "type": "number"
+        }
+      },
+      "required": [
+        "count",
+        "mean_absolute_regret",
+        "trend_slope"
+      ],
+      "title": "RegretSummary",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "entries": {
+      "items": {
+        "$ref": "#/$defs/RegretEntry"
+      },
+      "title": "Entries",
+      "type": "array"
+    },
+    "summary": {
+      "$ref": "#/$defs/RegretSummary"
+    }
+  },
+  "required": [
+    "entries",
+    "summary"
+  ],
+  "title": "regret_response",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

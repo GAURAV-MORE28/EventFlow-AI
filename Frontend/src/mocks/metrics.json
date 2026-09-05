@@ -1,0 +1,72 @@
+{
+  "sim_time": "2026-09-04T14:20:00Z",
+  "prediction": {
+    "forecast_mae": {
+      "value": 0.1205,
+      "baseline": 0.1063,
+      "baseline_name": "persistence",
+      "improvement_pct": -13.4
+    },
+    "cascade_lead_time_sec": {
+      "value": 1303.0,
+      "baseline": 0.0,
+      "baseline_name": "threshold_rule"
+    },
+    "cascade_precision": {
+      "value": 0.8,
+      "baseline": 0.31,
+      "baseline_name": "random_propagation"
+    },
+    "cascade_recall": {
+      "value": 0.75,
+      "baseline": 0.3,
+      "baseline_name": "random_propagation"
+    }
+  },
+  "twin": {
+    "rmse": {
+      "value": 1172.24,
+      "baseline": 1394.18,
+      "baseline_name": "uncorrected_abm",
+      "improvement_pct": 15.9
+    },
+    "ensemble_coverage": {
+      "value": 0.85,
+      "target_range": [
+        0.85,
+        0.95
+      ]
+    }
+  },
+  "decision": {
+    "peak_utilisation_reduction_pct": {
+      "value": -14.0,
+      "baseline_name": "do_nothing_counterfactual"
+    },
+    "load_variance_reduction_pct": {
+      "value": -19.1,
+      "baseline_name": "do_nothing_counterfactual"
+    },
+    "unstable_interventions_caught": {
+      "value": 2.0,
+      "baseline_name": "naive_optimiser_would_approve"
+    },
+    "certificate_accuracy_pct": {
+      "value": 77.8
+    }
+  },
+  "system": {
+    "cycle_latency_ms": {
+      "value": 52.0,
+      "target": 2000.0
+    },
+    "commander_ungrounded_rate": {
+      "value": 0.0,
+      "target": 0.0
+    },
+    "tool_call_correctness": {
+      "value": 0.0,
+      "target": 0.9
+    }
+  }
+}

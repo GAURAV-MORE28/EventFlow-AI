@@ -1,0 +1,53 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "edge_id": {
+      "title": "Edge Id",
+      "type": "string"
+    },
+    "src_entity_id": {
+      "title": "Src Entity Id",
+      "type": "string"
+    },
+    "dst_entity_id": {
+      "title": "Dst Entity Id",
+      "type": "string"
+    },
+    "edge_type": {
+      "enum": [
+        "feeds",
+        "adjacent_to",
+        "serves",
+        "last_mile_to",
+        "substitutes_for",
+        "evacuates_to"
+      ],
+      "title": "Edge Type",
+      "type": "string"
+    },
+    "transfer_coefficient": {
+      "title": "Transfer Coefficient",
+      "type": "number"
+    },
+    "travel_time_sec": {
+      "title": "Travel Time Sec",
+      "type": "integer"
+    },
+    "substitutability": {
+      "default": 0.0,
+      "title": "Substitutability",
+      "type": "number"
+    }
+  },
+  "required": [
+    "edge_id",
+    "src_entity_id",
+    "dst_entity_id",
+    "edge_type",
+    "transfer_coefficient",
+    "travel_time_sec"
+  ],
+  "title": "graph_edge",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}
