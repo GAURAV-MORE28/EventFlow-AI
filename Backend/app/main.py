@@ -10,7 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from .api.routes import router as api_router
 from .api.ws_routes import router as ws_router
 from .db.base import create_all
-from .db.seed import seed_topology
+from .db.seed import clear_run_tables, seed_topology
 from .errors import install_error_handlers
 from .services.commander import Commander
 from .services.engine import Engine, set_engine
@@ -26,6 +26,10 @@ log = logging.getLogger("eventflow")
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     create_all()
+    # Every server start begins the deterministic sim_time sequence over from
+    # sim_start (seed 42). Clearing here means a restart against a leftover
+    # eventflow.db never collides with the previous run's rows.
+    clear_run_tables()
     engine = Engine()
     engine.commander = Commander(engine)
     seed_topology(engine.store)

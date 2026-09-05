@@ -727,6 +727,16 @@ class Engine:
         self._init_twin()
         self.store.drift_mode_enabled = False
         CACHE.clear()
+
+        # The clock rewinds to sim_start, so persistence would otherwise
+        # re-insert entity_state rows keyed on sim_times this same process just
+        # wrote before the reset — a guaranteed UNIQUE-constraint failure on
+        # (entity_id, sim_time) from cycle 1 onward. Clear the DB-backed time
+        # series so "reproduces the identical run twice" (01 §8) holds at the
+        # persistence layer too, not just in memory.
+        from ..db.seed import clear_run_tables
+
+        await asyncio.to_thread(clear_run_tables)
         log.info("demo reset to seed %s", self.seed)
 
     def set_drift_mode(self, enabled: bool) -> dict[str, Any]:

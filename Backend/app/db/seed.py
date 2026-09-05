@@ -59,3 +59,27 @@ def seed_topology(store: Any) -> None:
         # The live path reads from StateStore, not the DB, so a seeding failure
         # degrades persistence — it must not stop the demo from starting.
         log.exception("topology seeding failed; continuing with in-memory topology")
+
+
+def clear_run_tables() -> None:
+    """Wipe the per-run time series (never the static topology).
+
+    `entity_state` and `risk_state` key on `(entity_id, sim_time)`; `sim_time`
+    is fully determined by `sim_start + cycle_number * cycle_sec` under a fixed
+    seed (01 §8: "seed 42 reproduces the identical run twice"). That means
+    *any* restart of the sim clock — a fresh process pointed at an existing
+    `eventflow.db`, or an in-process `POST /demo/control {action: reset}` —
+    recomputes the exact same `sim_time` sequence and collides with rows a
+    previous run already wrote, aborting every subsequent persist. Clearing
+    the run tables whenever the clock restarts is what makes reproducing the
+    run actually mean reproducing it, at the DB layer too.
+    """
+    try:
+        with SessionLocal() as session:
+            session.query(models.EntityState).delete()
+            session.query(models.RiskState).delete()
+            session.query(models.Forecast).delete()
+            session.commit()
+        log.info("cleared entity_state/risk_state/forecast for a fresh run")
+    except Exception:
+        log.exception("clearing run tables failed; continuing with in-memory topology")
