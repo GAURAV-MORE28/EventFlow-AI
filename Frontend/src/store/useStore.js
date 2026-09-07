@@ -55,6 +55,16 @@ export const useStore = create((set, get) => ({
   toasts: [],
   whatIf: { status: 'idle', result: null, label: null },
 
+  // --- action visualisation (TASK 2) ---------------------------------
+  // Tracked lifecycle of executed / rejected actions. Every value the HUD and
+  // map layers show is derived from live `entities` vs a T0 snapshot captured
+  // at approval — see lib/actionEffects.js.
+  trackedActions: [],
+  actionHudExpanded: false,
+  // A completed what-if projection, shown on the map in a distinct "SIMULATED"
+  // style. Never touches `entities` — it is a forked-twin result, not live.
+  whatIfOverlay: null,
+
   // --- static setters --------------------------------------------------
   setEvent: (event) => set({ event }),
   setGraph: (graph) =>
@@ -128,10 +138,104 @@ export const useStore = create((set, get) => ({
 
   appendRegret: (entry, summary) =>
     set((s) => ({
-      regret: { entries: [...s.regret.entries, entry], summary: summary || s.regret.summary },
+      regret: {
+        entries: [...s.regret.entries.filter((e) => e.regret_id !== entry.regret_id), entry],
+        summary: summary || s.regret.summary,
+      },
+      // A regret entry IS the settled result of an executed action (engine.py
+      // `_settle_executing_interventions`). Fold it into the matching tracked
+      // action so the HUD can show realised vs do-nothing.
+      trackedActions: s.trackedActions.map((a) =>
+        a.kind === 'executed' && a.interventionId === entry.intervention_id && !a.settled
+          ? { ...a, settled: entry, phase: 'settled', settledAtMs: Date.now() }
+          : a,
+      ),
     })),
 
   setRegret: (regret) => set({ regret: regret || { entries: [], summary: null } }),
+
+  // --- action visualisation reducers (TASK 2) -----------------------------
+  beginExecutedAction: ({ intervention, snapshot, t0Cascade, simTime, cycleNumber, mock }) =>
+    set((s) => {
+      const targetIds = intervention.target_entity_ids || [];
+      const action = {
+        id: `act_${intervention.intervention_id}`,
+        interventionId: intervention.intervention_id,
+        type: intervention.intervention_type,
+        title: intervention.title,
+        targetIds,
+        rootId: intervention.triggered_by_entity_id || targetIds[0] || null,
+        kind: 'executed',
+        mock: !!mock,
+        estimatedReliefPct: intervention.estimated_relief_pct,
+        verdict: intervention.certificate?.verdict || null,
+        t0: { simTime, cycleNumber, byEntity: snapshot || {}, cascade: t0Cascade || null },
+        phase: 'starting',
+        live: { deltas: [], downstream: [], cascade: null, nowCascade: null },
+        settled: null,
+        startedAtMs: Date.now(),
+        settledAtMs: null,
+      };
+      return {
+        trackedActions: [
+          ...s.trackedActions.filter((a) => a.interventionId !== action.interventionId),
+          action,
+        ],
+        actionHudExpanded: true,
+      };
+    }),
+
+  noteRejectedAction: (intervention) =>
+    set((s) => ({
+      trackedActions: [
+        ...s.trackedActions.filter((a) => a.kind !== 'rejected'),
+        {
+          id: `rej_${intervention.intervention_id}`,
+          interventionId: intervention.intervention_id,
+          title: intervention.title,
+          kind: 'rejected',
+          phase: 'rejected',
+          startedAtMs: Date.now(),
+        },
+      ],
+    })),
+
+  updateActionLive: (id, patch) =>
+    set((s) => ({
+      trackedActions: s.trackedActions.map((a) =>
+        a.id === id ? { ...a, live: { ...a.live, ...patch } } : a,
+      ),
+    })),
+
+  setActionPhase: (id, phase) =>
+    set((s) => ({
+      trackedActions: s.trackedActions.map((a) => (a.id === id ? { ...a, phase } : a)),
+    })),
+
+  dismissAction: (id) =>
+    set((s) => ({ trackedActions: s.trackedActions.filter((a) => a.id !== id) })),
+
+  /**
+   * Drop all tracked-action UI state. Used when the mock replay wraps to a new
+   * iteration (lib/mockLifecycle.js) — an action from the previous pass is
+   * stale and, in mock mode, would never settle. Regret/history is separate.
+   */
+  clearTrackedActions: () => set({ trackedActions: [], actionHudExpanded: false }),
+
+  pruneActions: (nowMs) =>
+    set((s) => {
+      const kept = s.trackedActions.filter((a) => {
+        if (a.kind === 'rejected') return nowMs - a.startedAtMs < 5000;
+        if (a.phase === 'settled') return nowMs - (a.settledAtMs || nowMs) < 30000;
+        return true;
+      });
+      return kept.length === s.trackedActions.length ? {} : { trackedActions: kept };
+    }),
+
+  setActionHudExpanded: (actionHudExpanded) => set({ actionHudExpanded }),
+
+  setWhatIfOverlay: (whatIfOverlay) => set({ whatIfOverlay }),
+  clearWhatIfOverlay: () => set({ whatIfOverlay: null }),
 
   pushAnomaly: (anomaly) =>
     set((s) => ({ anomalies: [anomaly, ...s.anomalies].slice(0, 20) })),

@@ -18,7 +18,7 @@ commander, metrics panel, attendee PWA — runs off `src/mocks/*.json`, which
 were generated **by the backend itself** and validate against the same JSON
 Schemas the backend uses. Nothing here is hand-authored fake data.
 
-## Full stack (real backend, real 30-second cycle)
+## Full stack (real backend, real 30-second cycle) — the intervention demo
 
 ```bash
 # Terminal 1
@@ -28,13 +28,26 @@ python run.py                    # http://localhost:8000, docs at /docs
 
 # Terminal 2
 cd Frontend
-echo "VITE_MOCK=0" > .env
-npm run dev                      # proxies /api and /ws to :8000
+npm run dev:live                 # VITE_MOCK=0 via .env.live; proxies /api and /ws to :8000
 ```
 
-`Frontend/.env` is gitignored, so a fresh clone has none — `lib/api.js`
-defaults `MOCK_MODE` to `true` whenever `VITE_MOCK` isn't explicitly `'0'`, so
-the zero-setup mock path above always works even without a `.env` file.
+Open the printed `localhost` URL. `npm run dev` (no suffix) stays mock mode —
+`dev:live` is the only switch, so a fresh clone still needs no `.env` file.
+
+The first ~30–45 s is the deliberate calm opening (02 §5.4): the forecaster
+warms up and entities ramp toward critical before the first intervention
+recommendation appears. To move faster during a demo:
+
+```bash
+curl -s -X POST localhost:8000/api/v1/demo/control \
+  -H 'Content-Type: application/json' -d '{"speed_multiplier": 120}'
+```
+
+Approve a recommendation and the target entity's utilisation, risk band, and
+downstream cascade prediction visibly change over the next few cycles — the
+numbers on the ActionHUD are read straight from `GET /state`, not projected.
+`POST /demo/control {"action": "reset"}` starts a fresh run (queue clears, then
+regenerates after the warm-up); the live backend has no automatic reset.
 
 No database or Redis setup needed — SQLite and an in-process cache are the
 defaults (see `Backend/.env.example` to point at real Postgres/Redis instead).

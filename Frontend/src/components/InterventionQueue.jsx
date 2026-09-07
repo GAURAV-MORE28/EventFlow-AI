@@ -9,10 +9,22 @@ import { useState } from 'react';
 
 import InterventionCard from './InterventionCard.jsx';
 import { api } from '../lib/api.js';
+import { snapshotTargets } from '../lib/actionEffects.js';
 import { useStore } from '../store/useStore.js';
 
 export default function InterventionQueue() {
-  const { interventions, updateInterventionStatus, toast } = useStore();
+  const {
+    interventions,
+    updateInterventionStatus,
+    toast,
+    entities,
+    cascades,
+    simTime,
+    cycleNumber,
+    mockMode,
+    beginExecutedAction,
+    noteRejectedAction,
+  } = useStore();
   const [busyId, setBusyId] = useState(null);
 
   const visible = interventions.filter((i) =>
@@ -29,10 +41,23 @@ export default function InterventionQueue() {
 
     try {
       if (action === 'approve') {
+        // Snapshot the targets' live state NOW, before apply_relief lands on the
+        // next cycle — this is the T0 the ActionHUD/map diff against (TASK 2).
+        const rootId = intervention.triggered_by_entity_id || intervention.target_entity_ids?.[0];
+        const snapshot = snapshotTargets(entities, intervention.target_entity_ids || []);
         const result = await api.approve(id);
+        beginExecutedAction({
+          intervention,
+          snapshot,
+          t0Cascade: rootId ? cascades[rootId] || null : null,
+          simTime,
+          cycleNumber,
+          mock: mockMode,
+        });
         toast(`Approved — ${result.nudges_issued} nudges issued`, 'success');
       } else {
         await api.reject(id, 'op_demo', 'Rejected by operator');
+        noteRejectedAction(intervention);
         toast('Intervention rejected', 'info');
       }
     } catch (error) {

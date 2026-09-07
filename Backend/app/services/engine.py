@@ -225,7 +225,7 @@ class Engine:
         # 8. interventions -------------------------------------------------------------
         new_interventions = await self._maybe_generate_interventions(node_state, sim_time)
         expired = store.expire_interventions()
-        await self._settle_executing_interventions(sim_time)
+        settled = await self._settle_executing_interventions(sim_time)
 
         # 2. persist ------------------------------------------------------------------
         await asyncio.to_thread(self._persist, sim_time)
@@ -233,7 +233,7 @@ class Engine:
 
         # 9. broadcast -------------------------------------------------------------------
         await self._broadcast(previous_states, fidelity, anomalies or [], new_cascades,
-                              new_interventions, expired, sim_time)
+                              new_interventions, expired, settled, sim_time)
 
         # 10. cycle metrics ----------------------------------------------------------------
         total_ms = (time.perf_counter() - cycle_started) * 1000.0
@@ -808,6 +808,7 @@ class Engine:
         new_cascades: list[dict],
         new_interventions: list[dict],
         expired: list[dict],
+        settled: list[dict],
         sim_time: str,
     ) -> None:
         store = self.store
@@ -839,6 +840,27 @@ class Engine:
                 {"intervention_id": i["intervention_id"], "status": "expired"},
                 sim_time,
             )
+
+        # An executing intervention that has now settled (>=900s after approval)
+        # produces a regret-ledger entry. 01 §4.1 lists `regret_update` as a live
+        # event but `_broadcast` never emitted it and the return value of
+        # `_settle_executing_interventions` was discarded — so the realised-vs-
+        # counterfactual result of an operator's decision only ever surfaced on
+        # a reconnect. `intervention_resolved{status:completed}` is emitted
+        # alongside so the operator queue can reconcile the card off `executing`.
+        if settled:
+            from .metrics import build_regret
+
+            summary = build_regret(self)["summary"]
+            for entry in settled:
+                await MANAGER.broadcast(
+                    "intervention_resolved",
+                    {"intervention_id": entry["intervention_id"], "status": "completed"},
+                    sim_time,
+                )
+                await MANAGER.broadcast(
+                    "regret_update", {"entry": entry, "summary": summary}, sim_time
+                )
 
         if fidelity:
             fidelity["sim_time"] = sim_time

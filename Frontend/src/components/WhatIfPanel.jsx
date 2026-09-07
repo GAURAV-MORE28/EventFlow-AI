@@ -123,7 +123,7 @@ function Comparison({ result }) {
 }
 
 export default function WhatIfPanel() {
-  const { whatIf, setWhatIf, toast } = useStore();
+  const { whatIf, setWhatIf, toast, setWhatIfOverlay, clearWhatIfOverlay } = useStore();
   const timers = useRef({ poll: null, timeout: null });
   const [lastRun, setLastRun] = useState(null);
 
@@ -134,9 +134,12 @@ export default function WhatIfPanel() {
   }
 
   useEffect(() => clearTimers, []);
+  // The map overlay is this panel's to own — drop it when the panel unmounts.
+  useEffect(() => () => clearWhatIfOverlay(), [clearWhatIfOverlay]);
 
   async function run(preset) {
     clearTimers();
+    clearWhatIfOverlay();
     setLastRun(preset);
     setWhatIf({ status: 'running', result: null, label: preset.label });
 
@@ -149,6 +152,9 @@ export default function WhatIfPanel() {
           if (result.status === 'complete') {
             clearTimers();
             setWhatIf({ status: 'complete', result, label: preset.label });
+            // Show the projection on the map in the distinct "SIMULATED" style.
+            // This never touches `store.entities` — it is a forked-twin result.
+            setWhatIfOverlay({ label: preset.label, result });
           } else if (result.status === 'failed') {
             clearTimers();
             setWhatIf({ status: 'failed', result: null, label: preset.label });

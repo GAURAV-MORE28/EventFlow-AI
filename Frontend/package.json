@@ -5,10 +5,11 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:live": "vite --mode live",
     "build": "vite build",
     "preview": "vite preview",
     "validate:mocks": "node scripts/validate-mocks.mjs",
-    "test": "npm run validate:mocks"
+    "test": "npm run validate:mocks && node scripts/test-mock-lifecycle.mjs"
   },
   "dependencies": {
     "@deck.gl/core": "^9.0.35",

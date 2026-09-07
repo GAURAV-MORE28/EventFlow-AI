@@ -30,6 +30,8 @@ import nudgeData from '../mocks/attendee_nudges.json';
 import simulationData from '../mocks/simulation.json';
 import healthData from '../mocks/health.json';
 
+import { advanceMockDriver } from './mockLifecycle.js';
+
 const LATENCY_MS = 120; // enough to exercise the loading states, not enough to annoy
 
 const delay = (value) =>
@@ -183,39 +185,38 @@ export const demoControl = (body) =>
 /**
  * Replay the recorded run through the real store actions.
  * Returns a stop function; the caller owns the lifetime.
+ *
+ * One full pass of the 90-frame recording is one simulation iteration. The
+ * per-tick lifecycle — including re-arming the cascade / intervention queue
+ * every iteration, not just the first — lives in lib/mockLifecycle.js.
  */
 export function startMockDriver(store, { intervalMs = 900 } = {}) {
-  let cycle = 0;
   let stopped = false;
 
   store.setMockMode(true);
   store.setWsStatus('connected');
-  interventionState = structuredClone(interventionsData);
-  nudgeState = structuredClone(nudgeData);
+
+  const ctx = {
+    cycle: 0,
+    working: null,
+    fixtures: {
+      stateSequence,
+      pressureSequence,
+      twinSequence,
+      cascadesActive,
+      cascadeMetroB,
+      interventionsData,
+      nudgeData,
+    },
+  };
 
   const tick = () => {
     if (stopped) return;
-    const frame = stateSequence[cycle % stateSequence.length];
-    const pressure = pressureSequence[cycle % pressureSequence.length];
-    const twin = twinSequence[cycle % twinSequence.length];
-
-    // Identical calls to the WS handlers in ws.js — same path, different source.
-    store.setSummary(frame.summary, frame.sim_time, frame.cycle_number);
-    store.mergeEntities(frame.entities);
-    store.setPressureTimeline(pressure.items, pressure.active_source);
-    if (twin) store.setTwinFidelity(twin);
-
-    // The cascade and the intervention pair arrive partway in, so the demo has
-    // a calm opening before the alarm — see 02 §5.4's "genuinely calm" note.
-    if (cycle === 8) {
-      store.setCascades(cascadesActive.cascades);
-      store.setCascade(cascadeMetroB);
-    }
-    if (cycle === 10) {
-      store.setInterventions(interventionState.interventions);
-    }
-
-    cycle += 1;
+    advanceMockDriver(store, ctx);
+    // Keep the mock API's mutable copies pointed at the current iteration's
+    // data, so api.approve() / api.nudges() operate on what is on screen now.
+    interventionState = ctx.working.interventions;
+    nudgeState = ctx.working.nudges;
   };
 
   tick();

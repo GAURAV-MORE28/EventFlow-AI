@@ -15,15 +15,50 @@
  */
 import DeckGL from '@deck.gl/react';
 import { ArcLayer, PathLayer, ScatterplotLayer, TextLayer } from '@deck.gl/layers';
-import { MapView } from '@deck.gl/core';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { MapView, WebMercatorViewport } from '@deck.gl/core';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { TYPE_GLYPH, riskColor, rgba } from '../lib/colors.js';
 import { minutes, percent } from '../lib/format.js';
+import { buildLabels, labelTier, nodeRadiusPx } from '../lib/labels.js';
 import { useStore } from '../store/useStore.js';
 
 const STEP_REVEAL_MS = 400; // 02 §5.3.2 — 400ms stagger between cascade steps
 const MIN_ARC_OPACITY = 0.35; // clamp so nothing is invisible
+const WHATIF_RGB = [56, 189, 248]; // sky-400 — the "simulated / not live" colour
+
+/**
+ * One shared pulse phase (0..1) for the action rings and effect edges. Mirrors
+ * `useCascadeReveal`: a single rAF loop, running ONLY while something is
+ * animating, driving one number the layers read through `updateTriggers`.
+ */
+function useActionPulse(active) {
+  const [phase, setPhase] = useState(0);
+  const frame = useRef(null);
+
+  useEffect(() => {
+    if (!active) {
+      setPhase(0);
+      return undefined;
+    }
+    const start = performance.now();
+    // ~12fps is plenty for a breathing ring and keeps React re-renders cheap.
+    let last = 0;
+    const tick = (now) => {
+      if (now - last > 80) {
+        last = now;
+        setPhase((Math.sin((now - start) / 500) + 1) / 2);
+      }
+      frame.current = requestAnimationFrame(tick);
+    };
+    frame.current = requestAnimationFrame(tick);
+    return () => {
+      if (frame.current) cancelAnimationFrame(frame.current);
+    };
+  }, [active]);
+
+  return phase;
+}
 
 function useCascadeReveal(cascade) {
   const [revealed, setRevealed] = useState(0);
@@ -56,24 +91,39 @@ function useCascadeReveal(cascade) {
   return revealed;
 }
 
-function fitViewState(bounds, width, height) {
-  if (!bounds) return { longitude: 72.8777, latitude: 19.076, zoom: 12.5, pitch: 0, bearing: 0 };
-  const { min_lat, max_lat, min_lon, max_lon } = bounds;
-  const longitude = (min_lon + max_lon) / 2;
-  const latitude = (min_lat + max_lat) / 2;
+const FALLBACK_VIEW_STATE = {
+  longitude: 72.8777,
+  latitude: 19.076,
+  zoom: 12.5,
+  pitch: 0,
+  bearing: 0,
+};
 
+function fitViewState(bounds, width = 900, height = 600) {
   // Fit-to-view from `graph.bounds` — never recomputed from node coordinates.
-  const lonSpan = Math.max(max_lon - min_lon, 1e-6);
-  const latSpan = Math.max(max_lat - min_lat, 1e-6);
-  const zoomLon = Math.log2((360 * (width || 900)) / (lonSpan * 512));
-  const zoomLat = Math.log2((180 * (height || 600)) / (latSpan * 512));
-  return {
-    longitude,
-    latitude,
-    zoom: Math.min(zoomLon, zoomLat) - 0.35,
-    pitch: 0,
-    bearing: 0,
-  };
+  // deck.gl's own WebMercatorViewport.fitBounds projects the vertical axis
+  // correctly; the previous hand-rolled `log2((180 * height) / ...)` treated
+  // latitude as linear, under-zoomed by ~1 level, and left the 66-node graph a
+  // small clump in the centre of the canvas — too tight for any label scheme.
+  if (!bounds || !width || !height) return { ...FALLBACK_VIEW_STATE };
+  try {
+    const fitted = new WebMercatorViewport({ width, height }).fitBounds(
+      [
+        [bounds.min_lon, bounds.min_lat],
+        [bounds.max_lon, bounds.max_lat],
+      ],
+      { padding: 48 },
+    );
+    return {
+      longitude: fitted.longitude,
+      latitude: fitted.latitude,
+      zoom: fitted.zoom,
+      pitch: 0,
+      bearing: 0,
+    };
+  } catch {
+    return { ...FALLBACK_VIEW_STATE };
+  }
 }
 
 export default function MapCanvas() {
@@ -87,6 +137,8 @@ export default function MapCanvas() {
     selectEntity,
     setActiveCascadeRoot,
     simTime,
+    trackedActions,
+    whatIfOverlay,
   } = useStore();
 
   const containerRef = useRef(null);
@@ -103,13 +155,97 @@ export default function MapCanvas() {
     return () => observer.disconnect();
   }, []);
 
-  const viewState = useMemo(
-    () => fitViewState(graph.bounds, size.width, size.height),
-    [graph.bounds, size.width, size.height],
-  );
+  // Controlled view state: the label tier and the declutter projection both
+  // need to read live zoom, which an uncontrolled DeckGL does not expose.
+  const [viewState, setViewState] = useState(() => fitViewState(null));
+
+  // Re-fit only when the topology or the container size changes — never on a
+  // sim tick, so a pan/zoom the operator has made is not yanked back.
+  useEffect(() => {
+    if (!size.width || !size.height) return;
+    setViewState(fitViewState(graph.bounds, size.width, size.height));
+  }, [graph.bounds, size.width, size.height]);
+
+  const handleViewStateChange = useCallback(({ viewState: next }) => {
+    setViewState(next);
+  }, []);
 
   const cascade = activeCascadeRootId ? cascades[activeCascadeRootId] : null;
   const revealed = useCascadeReveal(cascade);
+
+  // --- action visualisation (TASK 2) ------------------------------------
+  const executedActions = useMemo(
+    () => trackedActions.filter((a) => a.kind === 'executed'),
+    [trackedActions],
+  );
+  const actionPulseActive =
+    executedActions.some((a) => a.phase !== 'settled') || Boolean(whatIfOverlay);
+  const pulse = useActionPulse(actionPulseActive);
+
+  // Rings sit on the entities an action is acting on. Executed = the target
+  // set (white→risk); what-if = the projection's affected nodes (cyan).
+  const actionRings = useMemo(() => {
+    const rings = [];
+    for (const action of executedActions) {
+      for (const id of action.targetIds) {
+        const node = nodesById[id];
+        if (!node) continue;
+        rings.push({ entity_id: id, position: [node.lon, node.lat], kind: 'executed', node });
+      }
+    }
+    if (whatIfOverlay?.result) {
+      const r = whatIfOverlay.result;
+      const ids = new Set([
+        ...(r.delta?.new_critical_entities || []),
+        ...(r.scenario?.peak_entity_id ? [r.scenario.peak_entity_id] : []),
+        ...((r.cascade?.steps || []).map((s) => s.entity_id)),
+      ]);
+      for (const id of ids) {
+        const node = nodesById[id];
+        if (!node) continue;
+        rings.push({ entity_id: id, position: [node.lon, node.lat], kind: 'whatif', node });
+      }
+    }
+    return rings;
+  }, [executedActions, whatIfOverlay, nodesById]);
+
+  // Effect edges — only downstream links where the neighbour genuinely eased
+  // after the action (lib/actionEffects.downstreamEffects). Never decorative.
+  const actionEffectEdges = useMemo(() => {
+    const out = [];
+    for (const action of executedActions) {
+      for (const d of action.live.downstream || []) {
+        const src = nodesById[d.srcId];
+        const dst = nodesById[d.entity_id];
+        if (!src || !dst) continue;
+        out.push({ path: [[src.lon, src.lat], [dst.lon, dst.lat]] });
+      }
+    }
+    return out;
+  }, [executedActions, nodesById]);
+
+  // The what-if projected cascade path, drawn as cyan arcs (distinct from the
+  // live orange→red cascade), no reveal animation — it is a projection.
+  const whatIfArcs = useMemo(() => {
+    const steps = whatIfOverlay?.result?.cascade?.steps || [];
+    return steps
+      .filter((step) => step.via_edge_id)
+      .map((step) => {
+        const edge = graph.edges.find((e) => e.edge_id === step.via_edge_id);
+        const src = nodesById[edge?.src_entity_id];
+        const dst = nodesById[step.entity_id];
+        if (!src || !dst) return null;
+        return { source: [src.lon, src.lat], target: [dst.lon, dst.lat] };
+      })
+      .filter(Boolean);
+  }, [whatIfOverlay, graph.edges, nodesById]);
+
+  const actionTargetIds = useMemo(() => {
+    const ids = new Set();
+    for (const a of executedActions) a.targetIds.forEach((id) => ids.add(id));
+    for (const r of actionRings) ids.add(r.entity_id);
+    return ids;
+  }, [executedActions, actionRings]);
 
   // Join topology to live state by entity_id. `entities` is a merge target, so a
   // node missing from the latest delta keeps its previous state automatically.
@@ -179,6 +315,59 @@ export default function MapCanvas() {
       .filter(Boolean);
   }, [cascade, revealed, nodesById]);
 
+  // --- persistent entity labels (02 §5.2) --------------------------------
+  // Names visible without hover, kept readable at ~66 entities by a zoom tier
+  // plus a greedy screen-space declutter. See lib/labels.js.
+  const tier = labelTier(viewState.zoom);
+  // Bucket zoom so a smooth pinch triggers ~4 declutter passes per level, not
+  // one per animation frame.
+  const zoomBucket = Math.round(viewState.zoom * 4) / 4;
+
+  const declutterViewport = useMemo(() => {
+    const b = graph.bounds;
+    if (!b || !size.width || !size.height) return null;
+    try {
+      // Centred on the fixed graph bounds, not the live camera — placement is
+      // then pan-invariant: a pan moves every label with its node but never
+      // reshuffles which names survive.
+      return new WebMercatorViewport({
+        width: size.width,
+        height: size.height,
+        longitude: (b.min_lon + b.max_lon) / 2,
+        latitude: (b.min_lat + b.max_lat) / 2,
+        zoom: zoomBucket,
+      });
+    } catch {
+      return null;
+    }
+  }, [graph.bounds, size.width, size.height, zoomBucket]);
+
+  const pinnedIds = useMemo(() => {
+    const ids = new Set();
+    if (selectedEntityId) ids.add(selectedEntityId);
+    if (hovered?.entity_id) ids.add(hovered.entity_id);
+    // An entity an action is acting on always keeps its label.
+    actionTargetIds.forEach((id) => ids.add(id));
+    return ids;
+  }, [selectedEntityId, hovered, actionTargetIds]);
+
+  // A risk_band only changes when an entity crosses a threshold — rare. Keying
+  // the placement memo on this string (not `nodeData`, a fresh reference every
+  // tick) keeps declutter off the 30s cycle while still re-ranking when a band
+  // actually shifts.
+  const bandSignature = useMemo(
+    () => nodeData.map((n) => `${n.entity_id}:${n.risk_band}`).join(','),
+    [nodeData],
+  );
+
+  const labelData = useMemo(
+    () => buildLabels({ nodes: nodeData, viewport: declutterViewport, tier, pinnedIds }),
+    // `nodeData` is read for geometry and band rank but is deliberately not a
+    // dependency — `bandSignature` is the stable proxy. See note above.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [bandSignature, declutterViewport, tier, pinnedIds],
+  );
+
   const layers = [
     new PathLayer({
       id: 'static-edges',
@@ -193,8 +382,9 @@ export default function MapCanvas() {
       id: 'entities',
       data: nodeData,
       getPosition: (d) => [d.lon, d.lat],
-      // Radius scales with nominal_capacity so a station reads bigger than a post.
-      getRadius: (d) => 6 + Math.sqrt(d.nominal_capacity) * 0.16,
+      // Radius scales with nominal_capacity so a station reads bigger than a
+      // post. Shared with the label placement so offsets clear the dot.
+      getRadius: (d) => nodeRadiusPx(d),
       radiusUnits: 'pixels',
       getFillColor: (d) => rgba(riskColor(d.risk_band).hex, d.is_observed ? 220 : 90),
       // Estimated entities (is_observed === false) get a visible outline instead
@@ -230,6 +420,45 @@ export default function MapCanvas() {
       getAlignmentBaseline: 'center',
       pickable: false,
     }),
+    new TextLayer({
+      id: 'entity-labels',
+      data: labelData,
+      getPosition: (d) => d.position,
+      getText: (d) => {
+        if (tier !== 'detailed') return d.displayName;
+        const state = entities[d.entity_id];
+        return state && state.utilisation != null
+          ? `${d.displayName}  ${percent(state.utilisation)}`
+          : d.displayName;
+      },
+      getSize: (d) => d.size,
+      // Colour follows the risk_band string the API returned (colors.js rule):
+      // quiet slate while low/moderate, the entity's own risk colour once it is
+      // high/critical. Estimated entities dim, matching the scatterplot fill.
+      getColor: (d) => {
+        const state = entities[d.entity_id];
+        const band = state?.risk_band ?? 'low';
+        const rgb =
+          band === 'high' || band === 'critical'
+            ? rgba(riskColor(band).hex, 255)
+            : [203, 213, 225, 255];
+        const observed = state?.is_observed ?? false;
+        return observed ? rgb : [rgb[0], rgb[1], rgb[2], 178];
+      },
+      getPixelOffset: (d) => d.pixelOffset,
+      getTextAnchor: (d) => d.anchor,
+      getAlignmentBaseline: (d) => d.baseline,
+      fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
+      fontWeight: 600,
+      fontSettings: { sdf: true },
+      outlineWidth: 0.22,
+      outlineColor: [11, 15, 23, 255], // surface-900 halo, no per-node box
+      pickable: false,
+      updateTriggers: {
+        getText: [tier, simTime],
+        getColor: [simTime],
+      },
+    }),
     new ArcLayer({
       id: 'cascade',
       data: arcData,
@@ -257,6 +486,51 @@ export default function MapCanvas() {
       backgroundPadding: [4, 2],
       updateTriggers: { getText: [revealed, simTime] },
     }),
+
+    // --- action visualisation (TASK 2) --------------------------------------
+    // Downstream links where the neighbour genuinely eased after the action.
+    // Empty unless `downstreamEffects` found a real move — never decorative.
+    new PathLayer({
+      id: 'action-effect-edges',
+      data: actionEffectEdges,
+      getPath: (d) => d.path,
+      getColor: [34, 197, 94, Math.round(120 + pulse * 110)], // green, breathing
+      getWidth: 2.4,
+      widthUnits: 'pixels',
+      pickable: false,
+      updateTriggers: { getColor: [pulse] },
+    }),
+    // The what-if projected cascade — cyan arcs, no reveal (it is a projection).
+    new ArcLayer({
+      id: 'whatif-arcs',
+      data: whatIfArcs,
+      getSourcePosition: (d) => d.source,
+      getTargetPosition: (d) => d.target,
+      getSourceColor: [...WHATIF_RGB, 150],
+      getTargetColor: [...WHATIF_RGB, 210],
+      getWidth: 2,
+      getHeight: 0.35,
+      widthUnits: 'pixels',
+    }),
+    // Rings mark the entities an action is acting on. Pulsing, hollow, on top —
+    // so "THIS is the target" always reads, without hiding the dot or its label.
+    new ScatterplotLayer({
+      id: 'action-rings',
+      data: actionRings,
+      getPosition: (d) => d.position,
+      getRadius: (d) => nodeRadiusPx(d.node) + 7 + pulse * 5,
+      radiusUnits: 'pixels',
+      stroked: true,
+      filled: false,
+      getLineColor: (d) =>
+        d.kind === 'whatif'
+          ? [...WHATIF_RGB, Math.round(140 + pulse * 90)]
+          : [255, 255, 255, Math.round(150 + pulse * 90)],
+      getLineWidth: 2.5,
+      lineWidthUnits: 'pixels',
+      pickable: false,
+      updateTriggers: { getRadius: [pulse], getLineColor: [pulse] },
+    }),
   ];
 
   return (
@@ -274,8 +548,8 @@ export default function MapCanvas() {
 
       <DeckGL
         views={new MapView({ repeat: false })}
-        initialViewState={viewState}
-        viewState={undefined}
+        viewState={viewState}
+        onViewStateChange={handleViewStateChange}
         controller={{ dragRotate: false }}
         layers={layers}
         getCursor={({ isHovering }) => (isHovering ? 'pointer' : 'grab')}

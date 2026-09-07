@@ -196,6 +196,63 @@ def test_commander_grounds_every_number_it_emits(client):
         assert body["tool_calls"], "every answer must carry its sources"
 
 
+def test_settled_intervention_broadcasts_regret_update(client, monkeypatch):
+    """01 §4.1 lists `regret_update` as a live event ("on new ledger entry").
+
+    It was never emitted: `_broadcast` had no branch for it and the return value
+    of `_settle_executing_interventions` was discarded, so the realised-vs-
+    counterfactual result of an approved intervention only surfaced on a
+    reconnect. This asserts the event now fires, carrying the ledger entry, plus
+    an `intervention_resolved{status:completed}` so the queue can reconcile.
+    """
+    engine = get_engine()
+    events: list[tuple[str, dict]] = []
+
+    async def spy(event, payload, sim_time):  # instance attr — no `self`
+        events.append((event, payload))
+
+    loop = asyncio.new_event_loop()
+    try:
+        loop.run_until_complete(engine.demo_control("reset", 42, None, None, None))
+
+        iid = None
+        for _ in range(85):
+            loop.run_until_complete(engine.run_cycle())
+            proposals = engine.store.interventions_by_status("proposed", 1)
+            if proposals:
+                iid = proposals[0]["intervention_id"]
+                break
+        assert iid, "seed 42 produced no proposal to approve"
+
+        approve = client.post(
+            f"/api/v1/interventions/{iid}/approve", json={"operator_id": "op_test"}
+        )
+        assert approve.status_code == 200
+
+        monkeypatch.setattr("app.ws.manager.MANAGER.broadcast", spy)
+        # 900s settle window / 30s per cycle = 30 cycles, plus slack.
+        for _ in range(34):
+            loop.run_until_complete(engine.run_cycle())
+    finally:
+        loop.close()
+
+    regret_events = [p for e, p in events if e == "regret_update"]
+    assert regret_events, "a settled intervention must broadcast regret_update"
+    entry = regret_events[0]["entry"]
+    assert entry["intervention_id"] == iid
+    for key in ("realised_relief_pct", "counterfactual_relief_pct", "regret"):
+        assert key in entry
+    assert "summary" in regret_events[0]
+
+    completed = [
+        p for e, p in events
+        if e == "intervention_resolved" and p.get("status") == "completed"
+    ]
+    assert any(p["intervention_id"] == iid for p in completed), (
+        "settlement must also emit intervention_resolved{status:completed}"
+    )
+
+
 def test_propose_action_has_no_execution_path(client):
     engine = get_engine()
     result = engine.commander.tools.call("propose_action", {"intervention_id": "int_test"})
