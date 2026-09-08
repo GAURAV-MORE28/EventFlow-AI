@@ -66,11 +66,17 @@ function Row({ item, isHero, onSelect }) {
     <button
       type="button"
       onClick={() => onSelect(item.entity_id)}
-      className="w-full rounded-md border border-transparent px-3 py-2 text-left transition-colors hover:border-surface-600 hover:bg-surface-700/60"
+      className={`w-full text-left transition-colors ${
+        isHero
+          ? 'panel-hero-critical mb-1 px-3 py-2.5 hover:border-red-500/30'
+          : 'rounded-md border border-transparent px-3 py-2 hover:border-surface-600 hover:bg-surface-700/60'
+      }`}
     >
       <div className="flex items-center justify-between gap-3">
         <div className="min-w-0">
-          <div className="truncate text-sm font-medium text-slate-100">{item.display_name}</div>
+          <div className={`truncate font-medium ${isHero ? 'text-sm text-slate-100' : 'text-sm text-slate-300'}`}>
+            {item.display_name}
+          </div>
           <div className="mt-0.5 flex items-center gap-2 text-[11px] text-slate-400">
             <span className="tabular-nums">{percent(item.current_utilisation)} now</span>
             <span className="h-1 w-1 rounded-full" style={{ backgroundColor: band.hex }} />
@@ -84,7 +90,7 @@ function Row({ item, isHero, onSelect }) {
               <div className="text-6xl font-bold leading-none tabular-nums text-red-400">
                 {minutesValue(item.time_to_critical_sec)}
               </div>
-              <div className="mt-1 text-[11px] uppercase tracking-widest text-slate-500">
+              <div className="mt-1 text-[10px] uppercase tracking-[0.15em] text-slate-500">
                 min to critical
               </div>
             </>
@@ -101,16 +107,20 @@ function Row({ item, isHero, onSelect }) {
 }
 
 export default function PressureTimeline() {
-  const { pressureTimeline, activeForecastSource, selectEntity, setActiveCascadeRoot } = useStore();
+  // NOTE: setActiveCascadeRoot intentionally NOT destructured here.
+  // Cascade lines must only appear via the "Show cascade" button in
+  // EntityDetailPanel (02 §5.8). Selecting a timeline row opens the detail
+  // panel; the operator then clicks "Show cascade" if they want the arcs.
+  const { pressureTimeline, activeForecastSource, selectEntity } = useStore();
 
   function handleSelect(entityId) {
     selectEntity(entityId);
-    setActiveCascadeRoot(entityId);
+    // Do NOT call setActiveCascadeRoot here — that would auto-arm cascade lines.
   }
 
   return (
     <section className="panel flex min-h-0 flex-col">
-      <div className="flex items-center justify-between px-3 pt-2.5">
+      <div className="panel-header">
         <h2 className="panel-title">Pressure timeline</h2>
         <span
           className="chip bg-surface-700 text-slate-400"

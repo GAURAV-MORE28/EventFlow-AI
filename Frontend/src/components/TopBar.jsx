@@ -12,6 +12,12 @@ import { riskColor } from '../lib/colors.js';
 import { clock, countdown, decimals, secondsBetween } from '../lib/format.js';
 import { loadVarianceDelta, useStore } from '../store/useStore.js';
 
+// Display wraps at 100 so the sequence reads 1 → 2 → … → 99 → 0 → 1 → …
+// The mock recording is also 100 frames, so both the display and the state
+// reset happen at the same boundary. The backend's internal monotonic counter
+// is never touched — only the rendered number wraps.
+const CYCLE_DISPLAY_MAX = 100;
+
 function WsChip({ status }) {
   if (status === 'connected') return null;
   const label = status === 'offline' ? 'Offline' : 'Reconnecting…';
@@ -52,22 +58,30 @@ export default function TopBar() {
   const deltaGlyph = delta === null || Math.abs(delta) < 0.0005 ? '·' : delta < 0 ? '▼' : '▲';
 
   return (
-    <header className="flex items-center gap-6 border-b border-surface-600 bg-surface-800 px-5 py-2.5">
-      <div className="flex items-baseline gap-3">
-        <h1 className="text-base font-semibold tracking-tight text-white">
+    <header className="flex items-center gap-4 border-b border-surface-700 bg-surface-900 px-4 py-2">
+      {/* ── Brand zone ─────────────────────────────────────────────────── */}
+      <div className="flex items-center gap-2.5">
+        <h1 className="text-sm font-semibold tracking-tight text-white">
           {event?.name || 'EventFlow AI'}
         </h1>
-        <span className="text-[11px] uppercase tracking-widest text-slate-500">
+        {wsStatus === 'connected' && <span className="live-dot" title="Live feed active" />}
+        <span className="hidden text-[10px] uppercase tracking-[0.15em] text-slate-600 xl:block">
           Command Centre
         </span>
       </div>
 
-      <div className="flex items-center gap-6">
+      <div className="topbar-divider" />
+
+      {/* ── Time / cycle ───────────────────────────────────────────────── */}
+      <div className="flex items-center gap-5">
         <Stat label="Sim clock" value={clock(simTime)} />
         <Stat label="Kickoff in" value={countdown(toKickoff)} />
-        <Stat label="Cycle" value={cycleNumber} />
+        <Stat label="Cycle" value={cycleNumber % CYCLE_DISPLAY_MAX} />
       </div>
 
+      <div className="topbar-divider" />
+
+      {/* ── Overall risk chip ──────────────────────────────────────────── */}
       <div
         className={`chip border ${band.border} bg-opacity-15`}
         style={{ backgroundColor: `${band.hex}22`, color: band.hex }}
@@ -77,7 +91,10 @@ export default function TopBar() {
         <span className="tabular-nums opacity-80">{summary.overall_risk_score}</span>
       </div>
 
-      <div className="flex items-center gap-5">
+      <div className="topbar-divider" />
+
+      {/* ── Load variance + alert counts ───────────────────────────────── */}
+      <div className="flex items-center gap-4">
         <div className="flex flex-col">
           <span className="panel-title">Load variance</span>
           <span className="flex items-baseline gap-1.5">
@@ -102,22 +119,23 @@ export default function TopBar() {
         />
       </div>
 
-      <div className="ml-auto flex items-center gap-3">
+      {/* ── Nav / status ───────────────────────────────────────────────── */}
+      <div className="ml-auto flex items-center gap-2">
         {mockMode && (
-          <span className="chip bg-sky-500/15 text-sky-400 border border-sky-500/30">mock</span>
+          <span className="chip border border-sky-500/30 bg-sky-500/15 text-sky-400">mock</span>
         )}
         <WsChip status={wsStatus} />
         <Link
           to="/metrics"
-          className="text-xs text-slate-400 underline-offset-4 hover:text-slate-200 hover:underline"
+          className="rounded px-2 py-1 text-[11px] text-slate-400 transition-colors hover:bg-surface-700 hover:text-slate-200"
         >
           Metrics
         </Link>
         <Link
           to="/attendee"
-          className="text-xs text-slate-400 underline-offset-4 hover:text-slate-200 hover:underline"
+          className="rounded border border-sky-500/40 bg-sky-500/10 px-2.5 py-1 text-[11px] font-medium text-sky-400 transition-colors hover:bg-sky-500/20 hover:text-sky-300"
         >
-          Attendee
+          Attendee PWA
         </Link>
       </div>
     </header>

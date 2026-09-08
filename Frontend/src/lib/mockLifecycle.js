@@ -61,12 +61,12 @@ export function advanceMockDriver(store, ctx) {
       nudges: structuredClone(fixtures.nudgeData),
     };
     if (plan.isNewIteration) {
-      // A new pass is a fresh run — clear the previous iteration's ACTIVE
-      // state. Regret / history is deliberately not cleared here.
-      store.setInterventions([]);
-      store.setCascades([]);
-      store.setActiveCascadeRoot(null);
-      store.clearTrackedActions?.();
+      // A new pass is a fresh run. resetSimState clears ALL transient state
+      // (interventions, cascades, entity selection, tracked actions, what-if,
+      // load-variance history, anomalies) so the map/queue/overlays return to
+      // initial conditions. Regret and commander history are intentionally
+      // preserved — they accumulate across passes.
+      store.resetSimState?.();
     }
   }
 

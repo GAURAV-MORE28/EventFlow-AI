@@ -135,7 +135,6 @@ export default function MapCanvas() {
     activeCascadeRootId,
     selectedEntityId,
     selectEntity,
-    setActiveCascadeRoot,
     simTime,
     trackedActions,
     whatIfOverlay,
@@ -264,6 +263,20 @@ export default function MapCanvas() {
     [graph.nodes, entities],
   );
 
+  // Soft glow halos for critical/high nodes — derived from nodeData so it
+  // recomputes only when risk bands actually change, not every tick.
+  const glowNodes = useMemo(
+    () => nodeData.filter((d) => d.risk_band === 'critical' || d.risk_band === 'high'),
+    [nodeData],
+  );
+
+  // Single-element array for the selection ring layer — avoids rebuilding if
+  // the same entity is selected across multiple sim ticks.
+  const selectedNode = useMemo(
+    () => (selectedEntityId ? nodesById[selectedEntityId] : null),
+    [selectedEntityId, nodesById],
+  );
+
   const feedEdges = useMemo(
     () =>
       graph.edges
@@ -373,10 +386,28 @@ export default function MapCanvas() {
       id: 'static-edges',
       data: feedEdges,
       getPath: (d) => d.path,
-      getColor: [148, 163, 184, 51], // thin grey, 20% opacity
+      getColor: [148, 163, 184, 65], // thin grey, ~25% opacity — enough to read topology
       getWidth: 1.5,
       widthUnits: 'pixels',
       pickable: false,
+    }),
+    // Very subtle halo behind high/critical nodes — renders BEFORE the entity
+    // dot and action rings so it never obscures the teal approval indicator.
+    // Alphas are intentionally low (≤10%) so the glow reads as ambiance, not
+    // a competing visual element.
+    new ScatterplotLayer({
+      id: 'entity-glow',
+      data: glowNodes,
+      getPosition: (d) => [d.lon, d.lat],
+      getRadius: (d) => nodeRadiusPx(d) * 3.0,
+      radiusUnits: 'pixels',
+      getFillColor: (d) =>
+        d.risk_band === 'critical'
+          ? rgba(riskColor('critical').hex, 25)
+          : rgba(riskColor('high').hex, 14),
+      stroked: false,
+      pickable: false,
+      updateTriggers: { getFillColor: [simTime], getRadius: [simTime] },
     }),
     new ScatterplotLayer({
       id: 'entities',
@@ -399,8 +430,10 @@ export default function MapCanvas() {
       onHover: ({ object }) => setHovered(object || null),
       onClick: ({ object }) => {
         if (!object) return;
+        // Only open the detail panel — cascade lines are NOT armed automatically.
+        // The operator must click "Show cascade" in the EntityDetailPanel to see
+        // cascade prediction lines (02 §5.8 "Show cascade" button).
         selectEntity(object.entity_id);
-        setActiveCascadeRoot(object.entity_id);
       },
       updateTriggers: {
         getFillColor: [simTime],
@@ -525,24 +558,46 @@ export default function MapCanvas() {
       getLineColor: (d) =>
         d.kind === 'whatif'
           ? [...WHATIF_RGB, Math.round(140 + pulse * 90)]
-          : [255, 255, 255, Math.round(150 + pulse * 90)],
-      getLineWidth: 2.5,
+          : [20, 184, 166, Math.round(170 + pulse * 85)], // teal-500 — intervention applied
+      getLineWidth: 3,
       lineWidthUnits: 'pixels',
       pickable: false,
       updateTriggers: { getRadius: [pulse], getLineColor: [pulse] },
+    }),
+    // Crisp selection ring — marks the currently-selected entity regardless of
+    // action state. Topmost layer so it reads over glows and action rings.
+    new ScatterplotLayer({
+      id: 'selection-ring',
+      data: selectedNode ? [selectedNode] : [],
+      getPosition: (d) => [d.lon, d.lat],
+      getRadius: (d) => nodeRadiusPx(d) + 5,
+      radiusUnits: 'pixels',
+      stroked: true,
+      filled: false,
+      getLineColor: [226, 232, 240, 210], // slate-200 — neutral, never clashes with risk colors
+      getLineWidth: 1.5,
+      lineWidthUnits: 'pixels',
+      pickable: false,
     }),
   ];
 
   return (
     <div ref={containerRef} className="relative h-full w-full overflow-hidden rounded-lg bg-surface-900">
-      {/* A faint grid stands in for a base map: enough spatial reference to read
-          the layout, no external tiles and no token to expire mid-demo. */}
+      {/* Subtle grid as spatial reference — no map tiles needed for the demo. */}
       <div
-        className="pointer-events-none absolute inset-0 opacity-[0.13]"
+        className="pointer-events-none absolute inset-0 opacity-[0.10]"
         style={{
           backgroundImage:
             'linear-gradient(#334155 1px, transparent 1px), linear-gradient(90deg, #334155 1px, transparent 1px)',
-          backgroundSize: '48px 48px',
+          backgroundSize: '52px 52px',
+        }}
+      />
+      {/* Vignette — draws the eye towards the graph and gives the canvas depth. */}
+      <div
+        className="pointer-events-none absolute inset-0 rounded-lg"
+        style={{
+          background:
+            'radial-gradient(ellipse at 50% 46%, transparent 42%, rgba(7,10,18,0.62) 100%)',
         }}
       />
 
@@ -556,41 +611,62 @@ export default function MapCanvas() {
       />
 
       {hovered && (
-        <div className="pointer-events-none absolute left-3 top-3 rounded-md border border-surface-600 bg-surface-800/95 px-3 py-2 shadow-lg">
-          <div className="text-sm font-semibold text-slate-100">{hovered.display_name}</div>
-          <div className="mt-0.5 flex items-center gap-2 text-[11px]">
-            <span className="tabular-nums text-slate-300">{percent(hovered.utilisation)}</span>
-            <span style={{ color: riskColor(hovered.risk_band).hex }}>{hovered.risk_band}</span>
-            {!hovered.is_observed && <span className="text-slate-500">estimated</span>}
+        <div className="pointer-events-none absolute left-3 top-3 rounded border border-surface-700 bg-surface-900/96 px-3 py-2 shadow-xl">
+          <div className="text-[9px] uppercase tracking-[0.12em] text-slate-500">
+            {hovered.entity_type?.replace(/_/g, ' ')}
+          </div>
+          <div className="mt-0.5 text-sm font-semibold text-slate-100">{hovered.display_name}</div>
+          <div className="mt-1.5 h-px bg-surface-700" />
+          <div className="mt-1.5 flex items-center gap-3 text-[11px]">
+            <div>
+              <div className="text-slate-500">Util</div>
+              <div className="tabular-nums text-slate-200">{percent(hovered.utilisation)}</div>
+            </div>
+            <div>
+              <div className="text-slate-500">Risk</div>
+              <div className="font-medium capitalize" style={{ color: riskColor(hovered.risk_band).hex }}>
+                {hovered.risk_band}
+              </div>
+            </div>
+            {!hovered.is_observed && (
+              <div>
+                <div className="text-slate-500">Source</div>
+                <div className="text-slate-400">estimated</div>
+              </div>
+            )}
           </div>
         </div>
       )}
 
       {cascade && cascade.total_downstream_failures === 0 && (
-        <div className="pointer-events-none absolute bottom-3 left-1/2 -translate-x-1/2 rounded-md border border-surface-600 bg-surface-800/95 px-3 py-1.5 text-[11px] text-slate-400">
+        <div className="pointer-events-none absolute bottom-3 left-1/2 -translate-x-1/2 rounded border border-green-500/25 bg-surface-900/90 px-3 py-1.5 text-[11px] text-green-400">
           No downstream propagation predicted.
         </div>
       )}
 
-      <div className="pointer-events-none absolute bottom-3 right-3 flex flex-col gap-1 rounded-md border border-surface-600 bg-surface-800/90 px-2.5 py-2 text-[10px]">
-        {['low', 'moderate', 'high', 'critical'].map((band) => (
-          <div key={band} className="flex items-center gap-1.5">
-            <span
-              className="h-2 w-2 rounded-full"
-              style={{ backgroundColor: riskColor(band).hex }}
-            />
-            <span className="capitalize text-slate-400">{band}</span>
-          </div>
-        ))}
-        <div className="mt-1 flex items-center gap-1.5 border-t border-surface-600 pt-1">
-          <span className="h-2 w-2 rounded-full border border-slate-300 bg-transparent" />
+      <div className="pointer-events-none absolute bottom-3 right-3 rounded border border-surface-700 bg-surface-900/90 px-2.5 py-2 text-[10px]">
+        <div className="mb-1.5 text-[9px] uppercase tracking-[0.12em] text-slate-600">Risk</div>
+        <div className="flex flex-col gap-0.5">
+          {['low', 'moderate', 'high', 'critical'].map((band) => (
+            <div key={band} className="flex items-center gap-1.5 py-px">
+              <span
+                className="h-1.5 w-1.5 flex-shrink-0 rounded-full"
+                style={{ backgroundColor: riskColor(band).hex }}
+              />
+              <span className="capitalize text-slate-400">{band}</span>
+            </div>
+          ))}
+        </div>
+        <div className="mt-1.5 flex items-center gap-1.5 border-t border-surface-700 pt-1.5">
+          <span className="h-1.5 w-1.5 flex-shrink-0 rounded-full border border-slate-500 bg-transparent" />
           <span className="text-slate-500">estimated</span>
         </div>
       </div>
 
       {selectedEntityId && (
-        <div className="pointer-events-none absolute right-3 top-3 rounded bg-surface-800/90 px-2 py-1 text-[10px] text-slate-400">
-          tracking {selectedEntityId}
+        <div className="pointer-events-none absolute right-3 top-3 rounded border border-surface-700 bg-surface-900/90 px-2 py-1 text-[10px] text-slate-500">
+          <span className="text-slate-600">tracking</span>{' '}
+          <span className="font-medium text-slate-400">{selectedEntityId}</span>
         </div>
       )}
     </div>

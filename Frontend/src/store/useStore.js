@@ -100,8 +100,9 @@ export const useStore = create((set, get) => ({
   setCascade: (cascade) =>
     set((s) => ({
       cascades: { ...s.cascades, [cascade.root_entity_id]: cascade },
-      // Arm the newest cascade only if the operator has not pinned one.
-      activeCascadeRootId: s.activeCascadeRootId || cascade.root_entity_id,
+      // Do NOT auto-arm activeCascadeRootId here. Cascade lines only appear
+      // when the operator explicitly clicks "Show cascade" (02 §5.8) or
+      // "Show cascade" in the EntityDetailPanel — never automatically.
     })),
 
   setCascades: (list) =>
@@ -222,6 +223,27 @@ export const useStore = create((set, get) => ({
    */
   clearTrackedActions: () => set({ trackedActions: [], actionHudExpanded: false }),
 
+  /**
+   * Full reset of transient simulation state at an iteration boundary.
+   * Called by the mock driver when the recording loops. Does NOT reset
+   * entities/summary/twinFidelity/pressureTimeline because those are
+   * immediately overwritten by the first frame of the new iteration.
+   */
+  resetSimState: () =>
+    set({
+      loadVarianceHistory: [],
+      interventions: [],
+      cascades: {},
+      activeCascadeRootId: null,
+      selectedEntityId: null,
+      entityDetail: null,
+      trackedActions: [],
+      actionHudExpanded: false,
+      whatIfOverlay: null,
+      whatIf: { status: 'idle', result: null, label: null },
+      anomalies: [],
+    }),
+
   pruneActions: (nowMs) =>
     set((s) => {
       const kept = s.trackedActions.filter((a) => {
@@ -287,9 +309,14 @@ export const useStore = create((set, get) => ({
     })),
 
   // --- ui ----------------------------------------------------------------
-  selectEntity: (selectedEntityId) => set({ selectedEntityId, entityDetail: null }),
+  // Selecting a different entity clears the cascade overlay so stale lines
+  // from the previous selection do not persist on the map.
+  selectEntity: (selectedEntityId) =>
+    set({ selectedEntityId, entityDetail: null, activeCascadeRootId: null }),
   setEntityDetail: (entityDetail) => set({ entityDetail }),
-  clearSelection: () => set({ selectedEntityId: null, entityDetail: null }),
+  // Closing the detail panel also clears the cascade overlay.
+  clearSelection: () =>
+    set({ selectedEntityId: null, entityDetail: null, activeCascadeRootId: null }),
 
   pushCommanderMessage: (message) =>
     set((s) => ({ commanderMessages: [...s.commanderMessages, message] })),

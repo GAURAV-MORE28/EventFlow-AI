@@ -24,6 +24,7 @@ export default function InterventionQueue() {
     mockMode,
     beginExecutedAction,
     noteRejectedAction,
+    setActiveCascadeRoot,
   } = useStore();
   const [busyId, setBusyId] = useState(null);
 
@@ -54,6 +55,11 @@ export default function InterventionQueue() {
           cycleNumber,
           mock: mockMode,
         });
+        // Clear any active cascade overlay so the map shows a clean view.
+        // The backend's apply_relief will reduce demand on the next cycle,
+        // and the resulting entity-state changes will be visible as updated
+        // node colours once the next state_update WS event arrives.
+        setActiveCascadeRoot(null);
         toast(`Approved — ${result.nudges_issued} nudges issued`, 'success');
       } else {
         await api.reject(id, 'op_demo', 'Rejected by operator');
@@ -76,9 +82,15 @@ export default function InterventionQueue() {
 
   return (
     <section className="panel flex min-h-0 flex-col">
-      <div className="flex items-center justify-between px-3 pt-2.5">
+      <div className="panel-header">
         <h2 className="panel-title">Intervention queue</h2>
-        <span className="text-[11px] tabular-nums text-slate-500">{visible.length}</span>
+        {visible.length > 0 ? (
+          <span className="chip border border-amber-500/30 bg-amber-500/10 tabular-nums text-amber-400">
+            {visible.length}
+          </span>
+        ) : (
+          <span className="text-[11px] tabular-nums text-slate-600">0</span>
+        )}
       </div>
 
       {visible.length === 0 ? (

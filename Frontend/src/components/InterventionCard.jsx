@@ -111,11 +111,19 @@ export default function InterventionCard({ intervention, onApprove, onReject, bu
   const unstable = certificate?.verdict === 'UNSTABLE';
   const resolved = intervention.status !== 'proposed';
 
+  // Left border communicates verdict at a glance — the contrast between a
+  // green STABLE card and a red UNSTABLE card is the key demo moment.
+  const borderClass = unstable
+    ? 'border-l-red-500 opacity-60'
+    : certificate?.verdict === 'STABLE'
+      ? 'border-l-green-500/70'
+      : certificate?.verdict === 'CONDITIONAL'
+        ? 'border-l-yellow-500/60'
+        : 'border-l-surface-600';
+
   return (
     <article
-      className={`panel border-l-2 p-3 transition-opacity ${
-        unstable ? 'border-l-red-500 opacity-60' : 'border-l-surface-600'
-      }`}
+      className={`panel border-l-2 p-3 transition-opacity ${borderClass}`}
     >
       <div className="flex items-start justify-between gap-2">
         {certificate ? (

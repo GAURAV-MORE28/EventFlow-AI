@@ -133,8 +133,8 @@ export default function CommanderBar() {
   }
 
   return (
-    <section className="panel flex flex-col">
-      <div className="flex items-center justify-between px-3 py-1.5">
+    <section className="panel flex min-h-0 flex-col">
+      <div className="panel-header">
         <h2 className="panel-title">Commander</h2>
         <button
           type="button"
@@ -148,12 +148,11 @@ export default function CommanderBar() {
       {!collapsed && (
         <div
           ref={scrollRef}
-          className="max-h-44 min-h-[3.5rem] space-y-2 overflow-y-auto border-t border-surface-600 px-3 py-2"
+          className="min-h-0 flex-1 space-y-2 overflow-y-auto px-3 py-2"
         >
           {commanderMessages.length === 0 ? (
             <p className="text-[11px] text-slate-500">
-              Ask about any entity, forecast, cascade or certificate. Every number in an answer is
-              traceable to a tool call.
+              Ask about any entity, forecast, cascade or certificate.
             </p>
           ) : (
             commanderMessages.map((message, index) => <Message key={index} message={message} />)
@@ -161,14 +160,15 @@ export default function CommanderBar() {
         </div>
       )}
 
-      <div className="flex flex-wrap items-center gap-1.5 border-t border-surface-600 px-3 py-2">
+      {/* Scripted prompts — compact pill buttons that wrap in narrow sidebar */}
+      <div className="flex flex-wrap items-center gap-1 border-t border-surface-700 px-2.5 py-1.5">
         {SCRIPTED.map((question) => (
           <button
             key={question}
             type="button"
             disabled={busy}
             onClick={() => ask(question)}
-            className="rounded-full border border-surface-600 px-2.5 py-1 text-[11px] text-slate-400 transition-colors hover:border-sky-500/40 hover:text-sky-300 disabled:opacity-40"
+            className="rounded-full border border-surface-600 px-2 py-0.5 text-[10px] text-slate-400 transition-colors hover:border-sky-500/40 hover:text-sky-300 disabled:opacity-40"
           >
             {question}
           </button>
@@ -180,15 +180,15 @@ export default function CommanderBar() {
           event.preventDefault();
           ask(input);
         }}
-        className="flex gap-2 border-t border-surface-600 px-3 py-2"
+        className="flex gap-1.5 border-t border-surface-700 px-2.5 py-2"
       >
         <input
           value={input}
           onChange={(event) => setInput(event.target.value)}
           placeholder="Ask the commander…"
-          className="flex-1 rounded bg-surface-900 px-3 py-1.5 text-sm text-slate-200 outline-none ring-1 ring-surface-600 focus:ring-sky-500"
+          className="flex-1 rounded bg-surface-900 px-2.5 py-1.5 text-[12px] text-slate-200 outline-none ring-1 ring-surface-600 focus:ring-sky-500"
         />
-        <button type="submit" className="btn-primary" disabled={busy || !input.trim()}>
+        <button type="submit" className="btn-primary text-[11px]" disabled={busy || !input.trim()}>
           Ask
         </button>
       </form>

@@ -177,57 +177,61 @@ export default function WhatIfPanel() {
   }
 
   return (
-    <section className="panel flex min-h-0 flex-col p-3">
-      <h2 className="panel-title">What if</h2>
-
-      <div className="mt-1.5 flex flex-wrap gap-1.5">
-        {PRESETS.map((preset) => (
-          <button
-            key={preset.label}
-            type="button"
-            disabled={whatIf.status === 'running'}
-            onClick={() => run(preset)}
-            className={`rounded-full border px-2.5 py-1 text-[11px] transition-colors disabled:opacity-40 ${
-              whatIf.label === preset.label
-                ? 'border-sky-500/50 text-sky-300'
-                : 'border-surface-600 text-slate-400 hover:border-sky-500/40 hover:text-sky-300'
-            }`}
-          >
-            {preset.label}
-          </button>
-        ))}
+    <section className="panel flex min-h-0 flex-col">
+      <div className="panel-header">
+        <h2 className="panel-title">What if</h2>
       </div>
 
-      <div className="mt-2 min-h-0 flex-1 overflow-y-auto">
-        {whatIf.status === 'idle' && (
-          <p className="text-[11px] text-slate-500">
-            Run a scenario against a forked twin. The live run is never touched.
-          </p>
-        )}
-
-        {whatIf.status === 'running' && (
-          <div className="space-y-1.5">
-            <div className="skeleton h-3 w-2/3" />
-            <div className="skeleton h-3 w-1/2" />
-            <div className="skeleton h-3 w-3/4" />
-            <p className="text-[11px] text-slate-500">Simulating {whatIf.label}…</p>
-          </div>
-        )}
-
-        {whatIf.status === 'failed' && (
-          <div className="text-[11px]">
-            <p className="text-red-400">Simulation did not complete.</p>
+      <div className="flex min-h-0 flex-1 flex-col p-3">
+        <div className="flex flex-wrap gap-1.5">
+          {PRESETS.map((preset) => (
             <button
+              key={preset.label}
               type="button"
-              onClick={() => lastRun && run(lastRun)}
-              className="btn-secondary mt-1.5"
+              disabled={whatIf.status === 'running'}
+              onClick={() => run(preset)}
+              className={`rounded-full border px-2.5 py-1 text-[11px] transition-colors disabled:opacity-40 ${
+                whatIf.label === preset.label
+                  ? 'border-sky-500/50 text-sky-300'
+                  : 'border-surface-600 text-slate-400 hover:border-sky-500/40 hover:text-sky-300'
+              }`}
             >
-              Retry
+              {preset.label}
             </button>
-          </div>
-        )}
+          ))}
+        </div>
 
-        {whatIf.status === 'complete' && whatIf.result && <Comparison result={whatIf.result} />}
+        <div className="mt-2 min-h-0 flex-1 overflow-y-auto">
+          {whatIf.status === 'idle' && (
+            <p className="text-[11px] text-slate-500">
+              Run a scenario against a forked twin. The live run is never touched.
+            </p>
+          )}
+
+          {whatIf.status === 'running' && (
+            <div className="space-y-1.5">
+              <div className="skeleton h-3 w-2/3" />
+              <div className="skeleton h-3 w-1/2" />
+              <div className="skeleton h-3 w-3/4" />
+              <p className="text-[11px] text-slate-500">Simulating {whatIf.label}…</p>
+            </div>
+          )}
+
+          {whatIf.status === 'failed' && (
+            <div className="text-[11px]">
+              <p className="text-red-400">Simulation did not complete.</p>
+              <button
+                type="button"
+                onClick={() => lastRun && run(lastRun)}
+                className="btn-secondary mt-1.5"
+              >
+                Retry
+              </button>
+            </div>
+          )}
+
+          {whatIf.status === 'complete' && whatIf.result && <Comparison result={whatIf.result} />}
+        </div>
       </div>
     </section>
   );

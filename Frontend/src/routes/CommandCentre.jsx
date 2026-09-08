@@ -1,8 +1,18 @@
 /**
- * Command Centre — the layout in 02_FRONTEND_CONTRACT.md §4.
+ * Command Centre — 02_FRONTEND_CONTRACT.md §4.
  *
- * Single screen, no page scrolling. The map is dominant; the right rail carries
- * the pressure timeline (hero), the intervention queue, and the twin gauge.
+ * Layout:
+ *   TopBar
+ *   ┌──────────────────────────┬──────────┐
+ *   │  MAP (flex-1)            │ Commander│  right sidebar 300px
+ *   │                          │ WhatIf   │
+ *   └──────────────────────────┴──────────┘
+ *   [Ops Intelligence label]
+ *   ┌──────────────┬──────────────┬────────┐  bottom panels, items-start
+ *   │ Pressure TL  │ Intervention │ Twin   │  PT/IQ fixed 248px, Twin auto
+ *   └──────────────┴──────────────┴────────┘
+ *
+ * TwinFidelityGauge is items-start so collapsing it actually shrinks the row.
  */
 import ActionHUD from '../components/ActionHUD.jsx';
 import CommanderBar from '../components/CommanderBar.jsx';
@@ -16,30 +26,55 @@ import WhatIfPanel from '../components/WhatIfPanel.jsx';
 import { useActionTracking } from '../lib/useActionTracking.js';
 
 export default function CommandCentre() {
-  // Derives the action lifecycle from live state (TASK 2). No render output.
   useActionTracking();
 
   return (
     <div className="flex h-screen flex-col overflow-hidden bg-surface-900">
       <TopBar />
 
-      <main className="grid min-h-0 flex-1 grid-cols-[1fr_400px] gap-2 p-2">
-        <section className="relative min-h-0">
-          <MapCanvas />
-          <EntityDetailPanel />
-          <ActionHUD />
-        </section>
+      <div className="flex min-h-0 flex-1 flex-col gap-1.5 overflow-hidden p-1.5">
 
-        <aside className="grid min-h-0 grid-rows-[minmax(0,1.05fr)_minmax(0,1.35fr)_auto_auto] gap-2">
-          <PressureTimeline />
-          <InterventionQueue />
-          <TwinFidelityGauge />
-          <WhatIfPanel />
-        </aside>
-      </main>
+        {/* ── Top row: map (flex-1) + right sidebar (300px) ───────────────── */}
+        <div className="grid min-h-0 flex-1 grid-cols-[1fr_300px] gap-1.5">
 
-      <div className="px-2 pb-2">
-        <CommanderBar />
+          {/* Live venue map */}
+          <section className="relative min-h-0">
+            <MapCanvas />
+            <EntityDetailPanel />
+            <ActionHUD />
+          </section>
+
+          {/* Right sidebar: Commander fills top, What-If sits at bottom */}
+          <aside className="grid min-h-0 grid-rows-[1fr_auto] gap-1.5">
+            <CommanderBar />
+            <WhatIfPanel />
+          </aside>
+        </div>
+
+        {/* ── Bottom: Operations Intelligence (3 panels) ───────────────────── */}
+        <div className="shrink-0">
+          <div className="mb-1 flex items-center gap-2 px-0.5">
+            <span className="text-[9px] font-semibold uppercase tracking-[0.15em] text-slate-600">
+              Operations Intelligence
+            </span>
+            <div className="h-px flex-1 bg-surface-700" />
+          </div>
+
+          {/*
+            items-start: each flex child sizes to its OWN height.
+            PT and IQ are wrapped in fixed-height (248px) divs so their
+            internal overflow-y-auto works. TwinFidelityGauge has no height
+            wrapper — when collapsed it's ~44px (header only), not 248px.
+          */}
+          <div className="grid h-[248px] grid-cols-3 gap-1.5">
+            <PressureTimeline />
+            <InterventionQueue />
+            <div className="self-start">
+              <TwinFidelityGauge />
+            </div>
+          </div>
+        </div>
+
       </div>
     </div>
   );
