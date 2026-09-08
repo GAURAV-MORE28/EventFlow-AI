@@ -118,18 +118,30 @@ class AssimilatedTwin:
             HA = A[rows, :]
 
             denom = max(self.m - 1, 1)
-            PHt = (A @ HA.T) / denom                    # (2N, k)
-            HPHt = (HA @ HA.T) / denom                  # (k, k)
-            R = np.eye(k) * self.obs_noise_var
+            # NumPy 2.2.1 on macOS (Accelerate BLAS) raises spurious FP-exception
+            # flags from `@` on perfectly finite operands (numpy#28024, fixed in
+            # 2.2.2). The arithmetic is correct — silence the flags for this block
+            # and assert finiteness explicitly so a *real* blow-up still trips the
+            # fallback in assimilate().
+            with np.errstate(divide="ignore", over="ignore", invalid="ignore"):
+                PHt = (A @ HA.T) / denom                    # (2N, k)
+                HPHt = (HA @ HA.T) / denom                  # (k, k)
+                R = np.eye(k) * self.obs_noise_var
 
-            try:
-                K = PHt @ np.linalg.inv(HPHt + R)
-            except np.linalg.LinAlgError:
-                log.warning("HPH^T + R singular; using pseudo-inverse")
-                K = PHt @ np.linalg.pinv(HPHt + R)
+                try:
+                    K = PHt @ np.linalg.inv(HPHt + R)
+                except np.linalg.LinAlgError:
+                    log.warning("HPH^T + R singular; using pseudo-inverse")
+                    K = PHt @ np.linalg.pinv(HPHt + R)
 
-            perturbed = y[:, None] + self._rng.normal(0.0, self.obs_noise_var ** 0.5, size=(k, self.m))
-            self._X = self._X + K @ (perturbed - HX)
+                perturbed = y[:, None] + self._rng.normal(
+                    0.0, self.obs_noise_var ** 0.5, size=(k, self.m)
+                )
+                update = K @ (perturbed - HX)
+
+            if not np.isfinite(update).all():
+                raise FloatingPointError("EnKF analysis update is non-finite")
+            self._X = self._X + update
             self._X[:n] = np.maximum(self._X[:n], 0.0)
 
             # Flow is the observable's rate of change; keep it consistent post-update.
