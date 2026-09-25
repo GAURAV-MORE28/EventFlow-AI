@@ -3,17 +3,16 @@
  *
  * Layout:
  *   TopBar
- *   ┌──────────────────────────┬──────────┐
- *   │  MAP (flex-1)            │ Commander│  right sidebar 300px
- *   │                          │ WhatIf   │
- *   └──────────────────────────┴──────────┘
- *   [Ops Intelligence label]
- *   ┌──────────────┬──────────────┬────────┐  bottom panels, items-start
- *   │ Pressure TL  │ Intervention │ Twin   │  PT/IQ fixed 248px, Twin auto
- *   └──────────────┴──────────────┴────────┘
- *
- * TwinFidelityGauge is items-start so collapsing it actually shrinks the row.
+ *   ┌──────────────────────────┬──────────────┐
+ *   │  MAP (flex-1)            │ Commander    │  right sidebar 320px
+ *   │                          │ What-If      │
+ *   └──────────────────────────┴──────────────┘
+ *   [Operations Intelligence Workspace Header]
+ *   ┌──────────────┬──────────────┬───────────┐  bottom panels
+ *   │ Pressure TL  │ Intervention │ Twin      │  PT/IQ fixed 252px, Twin auto
+ *   └──────────────┴──────────────┴───────────┘
  */
+import { Activity, ShieldAlert, Cpu } from 'lucide-react';
 import ActionHUD from '../components/ActionHUD.jsx';
 import CommanderBar from '../components/CommanderBar.jsx';
 import EntityDetailPanel from '../components/EntityDetailPanel.jsx';
@@ -29,53 +28,63 @@ export default function CommandCentre() {
   useActionTracking();
 
   return (
-    <div className="flex h-screen flex-col overflow-hidden bg-surface-900">
+    <div className="flex h-screen flex-col overflow-hidden bg-surface-950 font-sans">
       <TopBar />
 
-      <div className="flex min-h-0 flex-1 flex-col gap-1.5 overflow-hidden p-1.5">
+      <main className="flex min-h-0 flex-1 flex-col gap-2 overflow-hidden p-2">
 
-        {/* ── Top row: map (flex-1) + right sidebar (300px) ───────────────── */}
-        <div className="grid min-h-0 flex-1 grid-cols-[1fr_300px] gap-1.5">
+        {/* ── Top row: Interactive Map (flex-1) + C2 Intelligence Sidebar ───────────────── */}
+        <div className="grid min-h-0 flex-1 grid-cols-1 lg:grid-cols-[1fr_320px] xl:grid-cols-[1fr_340px] gap-2">
 
-          {/* Live venue map */}
-          <section className="relative min-h-0">
+          {/* Live venue map viewport */}
+          <section className="relative min-h-0 overflow-hidden rounded-md border border-surface-700/60 bg-surface-950 shadow-panel">
             <MapCanvas />
             <EntityDetailPanel />
             <ActionHUD />
           </section>
 
-          {/* Right sidebar: Commander fills top, What-If sits at bottom */}
-          <aside className="grid min-h-0 grid-rows-[1fr_auto] gap-1.5">
+          {/* Right sidebar: AI Commander Assistant + What-If Simulation */}
+          <aside className="grid min-h-0 grid-rows-[1fr_auto] gap-2 overflow-hidden">
             <CommanderBar />
             <WhatIfPanel />
           </aside>
         </div>
 
-        {/* ── Bottom: Operations Intelligence (3 panels) ───────────────────── */}
-        <div className="shrink-0">
-          <div className="mb-1 flex items-center gap-2 px-0.5">
-            <span className="text-[9px] font-semibold uppercase tracking-[0.15em] text-slate-600">
-              Operations Intelligence
-            </span>
-            <div className="h-px flex-1 bg-surface-700" />
+        {/* ── Bottom: Unified Operations Intelligence Workspace ─────────────────────────── */}
+        <section className="shrink-0 flex flex-col">
+          <div className="mb-1.5 flex items-center justify-between px-1">
+            <div className="flex items-center gap-2">
+              <span className="flex h-2 w-2 rounded-full bg-sky-500 animate-pulse" />
+              <span className="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400">
+                Operations Intelligence
+              </span>
+              <span className="rounded bg-surface-800/80 px-1.5 py-0.5 text-[9px] font-mono font-medium text-slate-400 border border-surface-700/60">
+                DECISION SUPPORT & REASONING
+              </span>
+            </div>
+            <div className="flex items-center gap-3 text-[10px] text-slate-400 font-mono">
+              <span className="hidden sm:inline">30s Pacing Cycle</span>
+              <span className="hidden sm:inline">·</span>
+              <span>Autonomous Dispatch Ready</span>
+            </div>
           </div>
 
           {/*
-            items-start: each flex child sizes to its OWN height.
-            PT and IQ are wrapped in fixed-height (248px) divs so their
-            internal overflow-y-auto works. TwinFidelityGauge has no height
-            wrapper — when collapsed it's ~44px (header only), not 248px.
+            Three panels side by side:
+            - Pressure Timeline (fixed height for scrollable items)
+            - Intervention Queue (fixed height for scrollable items)
+            - Digital Twin Gauge (collapses gracefully)
           */}
-          <div className="grid h-[248px] grid-cols-3 gap-1.5">
+          <div className="grid h-[252px] grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
             <PressureTimeline />
             <InterventionQueue />
-            <div className="self-start">
+            <div className="self-start h-full">
               <TwinFidelityGauge />
             </div>
           </div>
-        </div>
+        </section>
 
-      </div>
+      </main>
     </div>
   );
 }

@@ -79,6 +79,12 @@ function makeFakeStore() {
     clearTrackedActions() {
       this.trackedActions = [];
     },
+    resetSimState() {
+      this.interventions = [];
+      this.cascades = {};
+      this.activeCascadeRootId = null;
+      this.trackedActions = [];
+    },
     setMockMode() {},
     setWsStatus() {},
     setSummary() {},
