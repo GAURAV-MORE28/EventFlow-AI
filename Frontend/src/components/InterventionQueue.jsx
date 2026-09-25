@@ -6,6 +6,7 @@
  * showing them de-emphasised is the point.
  */
 import { useState } from 'react';
+import { Sliders, CheckCircle2 } from 'lucide-react';
 
 import InterventionCard from './InterventionCard.jsx';
 import { api } from '../lib/api.js';
@@ -81,24 +82,44 @@ export default function InterventionQueue() {
   }
 
   return (
-    <section className="panel flex min-h-0 flex-col">
+    <section className="panel flex min-h-0 flex-col overflow-hidden">
+      {/* Header */}
       <div className="panel-header">
-        <h2 className="panel-title">Intervention queue</h2>
+        <div className="flex items-center gap-2">
+          <div className="flex h-5 w-5 items-center justify-center rounded bg-amber-500/15 text-amber-400">
+            <Sliders className="h-3 w-3" />
+          </div>
+          <div>
+            <h2 className="panel-title">Intervention Queue</h2>
+            <div className="text-[9px] font-mono text-slate-400 leading-none">
+              DECISION-SUPPORT & EQUILIBRIUM
+            </div>
+          </div>
+        </div>
+
         {visible.length > 0 ? (
-          <span className="chip border border-amber-500/30 bg-amber-500/10 tabular-nums text-amber-400">
-            {visible.length}
+          <span className="chip border border-amber-500/40 bg-amber-500/10 font-mono text-[10px] text-amber-300">
+            {visible.length} PENDING
           </span>
         ) : (
-          <span className="text-[11px] tabular-nums text-slate-600">0</span>
+          <span className="rounded bg-surface-750 px-2 py-0.5 font-mono text-[9px] text-slate-400 border border-surface-650">
+            0 ACTIVE
+          </span>
         )}
       </div>
 
       {visible.length === 0 ? (
-        <div className="m-3 flex flex-1 items-center justify-center rounded-md border border-green-500/25 bg-green-500/10 px-4 py-6 text-center">
-          <p className="text-sm text-green-300">No interventions required. System nominal.</p>
+        <div className="m-3 flex flex-1 flex-col items-center justify-center rounded-md border border-emerald-500/25 bg-emerald-500/[0.04] p-4 text-center">
+          <CheckCircle2 className="h-6 w-6 text-emerald-400 mb-1.5" />
+          <p className="text-xs font-semibold text-emerald-300">
+            No Interventions Required
+          </p>
+          <p className="mt-0.5 text-[10px] text-slate-400">
+            Equilibrium solver confirms system is within safe operating margins.
+          </p>
         </div>
       ) : (
-        <div className="mt-2 flex-1 space-y-2 overflow-y-auto px-2.5 pb-2.5">
+        <div className="flex-1 space-y-2 overflow-y-auto p-2">
           {visible.map((intervention) => (
             <InterventionCard
               key={intervention.intervention_id}

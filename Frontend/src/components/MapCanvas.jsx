@@ -25,7 +25,7 @@ import { useStore } from '../store/useStore.js';
 
 const STEP_REVEAL_MS = 400; // 02 §5.3.2 — 400ms stagger between cascade steps
 const MIN_ARC_OPACITY = 0.35; // clamp so nothing is invisible
-const WHATIF_RGB = [56, 189, 248]; // sky-400 — the "simulated / not live" colour
+const WHATIF_RGB = [45, 212, 191]; // teal-400 — the "simulated / not live" colour (Mint)
 
 /**
  * One shared pulse phase (0..1) for the action rings and effect edges. Mirrors
@@ -386,7 +386,7 @@ export default function MapCanvas() {
       id: 'static-edges',
       data: feedEdges,
       getPath: (d) => d.path,
-      getColor: [148, 163, 184, 65], // thin grey, ~25% opacity — enough to read topology
+      getColor: [148, 163, 184, 160], // slate-400
       getWidth: 1.5,
       widthUnits: 'pixels',
       pickable: false,
@@ -474,7 +474,7 @@ export default function MapCanvas() {
         const rgb =
           band === 'high' || band === 'critical'
             ? rgba(riskColor(band).hex, 255)
-            : [203, 213, 225, 255];
+            : [0, 0, 0, 255];
         const observed = state?.is_observed ?? false;
         return observed ? rgb : [rgb[0], rgb[1], rgb[2], 178];
       },
@@ -485,7 +485,7 @@ export default function MapCanvas() {
       fontWeight: 600,
       fontSettings: { sdf: true },
       outlineWidth: 0.22,
-      outlineColor: [11, 15, 23, 255], // surface-900 halo, no per-node box
+      outlineColor: [241, 245, 249, 255], // slate-100 halo
       pickable: false,
       updateTriggers: {
         getText: [tier, simTime],
@@ -510,12 +510,12 @@ export default function MapCanvas() {
       getPosition: (d) => d.position,
       getText: (d) => d.text,
       getSize: 12,
-      getColor: (d) => (d.isRoot ? [252, 165, 165, 255] : [248, 250, 252, 230]),
+      getColor: (d) => (d.isRoot ? [220, 38, 38, 255] : [15, 23, 42, 230]),
       getPixelOffset: [0, -22], // offset above the node
       getTextAnchor: 'middle',
       fontWeight: 700,
       background: true,
-      getBackgroundColor: [11, 15, 23, 190],
+      getBackgroundColor: [255, 255, 255, 220],
       backgroundPadding: [4, 2],
       updateTriggers: { getText: [revealed, simTime] },
     }),
@@ -574,7 +574,7 @@ export default function MapCanvas() {
       radiusUnits: 'pixels',
       stroked: true,
       filled: false,
-      getLineColor: [226, 232, 240, 210], // slate-200 — neutral, never clashes with risk colors
+      getLineColor: [30, 41, 59, 210], // slate-800
       getLineWidth: 1.5,
       lineWidthUnits: 'pixels',
       pickable: false,
@@ -582,24 +582,43 @@ export default function MapCanvas() {
   ];
 
   return (
-    <div ref={containerRef} className="relative h-full w-full overflow-hidden rounded-lg bg-surface-900">
-      {/* Subtle grid as spatial reference — no map tiles needed for the demo. */}
+    <div ref={containerRef} className="relative h-full w-full overflow-hidden rounded-md bg-surface-950">
+      {/* Subtle tactical grid as spatial coordinate reference */}
       <div
-        className="pointer-events-none absolute inset-0 opacity-[0.10]"
+        className="pointer-events-none absolute inset-0 opacity-[0.5]"
         style={{
           backgroundImage:
-            'linear-gradient(#334155 1px, transparent 1px), linear-gradient(90deg, #334155 1px, transparent 1px)',
-          backgroundSize: '52px 52px',
+            'linear-gradient(rgba(0, 0, 0, 0.35) 1px, transparent 1px), linear-gradient(90deg, rgba(0, 0, 0, 0.35) 1px, transparent 1px)',
+          backgroundSize: '48px 48px',
         }}
       />
-      {/* Vignette — draws the eye towards the graph and gives the canvas depth. */}
-      <div
-        className="pointer-events-none absolute inset-0 rounded-lg"
-        style={{
-          background:
-            'radial-gradient(ellipse at 50% 46%, transparent 42%, rgba(7,10,18,0.62) 100%)',
-        }}
-      />
+      {/* Precision crosshairs in corners */}
+      <div className="pointer-events-none absolute top-2 left-2 text-[10px] font-mono text-slate-700 select-none">
+        +
+      </div>
+      <div className="pointer-events-none absolute top-2 right-2 text-[10px] font-mono text-slate-700 select-none">
+        +
+      </div>
+      <div className="pointer-events-none absolute bottom-2 left-2 text-[10px] font-mono text-slate-700 select-none">
+        +
+      </div>
+      <div className="pointer-events-none absolute bottom-2 right-2 text-[10px] font-mono text-slate-700 select-none">
+        +
+      </div>
+
+
+
+      {/* Map Header Status Banner */}
+      <div className="pointer-events-none absolute left-3 top-3 z-10 flex items-center gap-2 rounded border border-surface-700/60 bg-surface-950/85 px-2.5 py-1 text-[10px] backdrop-blur select-none">
+        <span className="h-1.5 w-1.5 rounded-full bg-teal-400" />
+        <span className="font-semibold uppercase tracking-wider text-slate-300">
+          Live Network Topology
+        </span>
+        <span className="text-slate-600">·</span>
+        <span className="font-mono text-slate-400">{nodeData.length} Nodes</span>
+        <span className="text-slate-600">·</span>
+        <span className="font-mono text-slate-400">{feedEdges.length} Feeds</span>
+      </div>
 
       <DeckGL
         views={new MapView({ repeat: false })}
@@ -610,63 +629,113 @@ export default function MapCanvas() {
         getCursor={({ isHovering }) => (isHovering ? 'pointer' : 'grab')}
       />
 
+      {/* Enhanced Hover HUD Tooltip */}
       {hovered && (
-        <div className="pointer-events-none absolute left-3 top-3 rounded border border-surface-700 bg-surface-900/96 px-3 py-2 shadow-xl">
-          <div className="text-[9px] uppercase tracking-[0.12em] text-slate-500">
-            {hovered.entity_type?.replace(/_/g, ' ')}
+        <div className="pointer-events-none absolute left-3 top-10 z-20 w-64 rounded-md border border-surface-600/80 bg-surface-900/98 p-3 shadow-2xl backdrop-blur transition-all">
+          <div className="flex items-center justify-between gap-1">
+            <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400">
+              {hovered.entity_type?.replace(/_/g, ' ')}
+            </span>
+            <span
+              className={`rounded px-1.5 py-0.2 text-[9px] font-medium tracking-wide ${
+                hovered.is_observed
+                  ? 'border border-emerald-500/30 bg-emerald-500/10 text-emerald-300'
+                  : 'border border-slate-600/40 bg-slate-800/40 text-slate-400'
+              }`}
+            >
+              {hovered.is_observed ? 'LIVE SENSOR' : 'TWIN ESTIMATE'}
+            </span>
           </div>
-          <div className="mt-0.5 text-sm font-semibold text-slate-100">{hovered.display_name}</div>
-          <div className="mt-1.5 h-px bg-surface-700" />
-          <div className="mt-1.5 flex items-center gap-3 text-[11px]">
-            <div>
-              <div className="text-slate-500">Util</div>
-              <div className="tabular-nums text-slate-200">{percent(hovered.utilisation)}</div>
+
+          <div className="mt-1 text-sm font-semibold text-white tracking-tight">
+            {hovered.display_name}
+          </div>
+          <div className="text-[10px] font-mono text-slate-400">
+            {hovered.entity_id}
+          </div>
+
+          <div className="my-2 h-px bg-surface-700/60" />
+
+          {/* Load progress bar */}
+          <div className="mb-2">
+            <div className="flex items-center justify-between text-[10px]">
+              <span className="text-slate-400">Current Load</span>
+              <span className="font-bold tabular-nums" style={{ color: riskColor(hovered.risk_band).hex }}>
+                {percent(hovered.utilisation)}
+              </span>
             </div>
-            <div>
-              <div className="text-slate-500">Risk</div>
-              <div className="font-medium capitalize" style={{ color: riskColor(hovered.risk_band).hex }}>
-                {hovered.risk_band}
+            <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-surface-700/50">
+              <div
+                className="h-full rounded-full transition-all"
+                style={{
+                  width: `${Math.min(100, Math.round(hovered.utilisation * 100))}%`,
+                  backgroundColor: riskColor(hovered.risk_band).hex,
+                }}
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2 text-[10px]">
+            <div className="rounded bg-surface-800/70 p-1.5 border border-surface-700/40">
+              <span className="text-slate-400">Risk Assessment</span>
+              <div className="mt-0.5 flex items-center gap-1 font-semibold uppercase" style={{ color: riskColor(hovered.risk_band).hex }}>
+                <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: riskColor(hovered.risk_band).hex }} />
+                <span>{hovered.risk_band}</span>
+                <span className="font-mono opacity-80 text-[10px]">({hovered.risk_score})</span>
               </div>
             </div>
-            {!hovered.is_observed && (
-              <div>
-                <div className="text-slate-500">Source</div>
-                <div className="text-slate-400">estimated</div>
+
+            <div className="rounded bg-surface-800/70 p-1.5 border border-surface-700/40">
+              <span className="text-slate-400">Nominal Capacity</span>
+              <div className="mt-0.5 font-mono font-medium text-slate-200">
+                {hovered.nominal_capacity ? hovered.nominal_capacity.toLocaleString() : '—'}
               </div>
-            )}
+            </div>
           </div>
         </div>
       )}
 
+      {/* Calm state message when cascade is benign */}
       {cascade && cascade.total_downstream_failures === 0 && (
-        <div className="pointer-events-none absolute bottom-3 left-1/2 -translate-x-1/2 rounded border border-green-500/25 bg-surface-900/90 px-3 py-1.5 text-[11px] text-green-400">
-          No downstream propagation predicted.
+        <div className="pointer-events-none absolute bottom-3 left-1/2 -translate-x-1/2 z-10 flex items-center gap-2 rounded-md border border-emerald-500/30 bg-surface-950/90 px-3 py-1.5 text-xs text-emerald-400 backdrop-blur shadow-md">
+          <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+          <span>System Stable · No downstream propagation predicted</span>
         </div>
       )}
 
-      <div className="pointer-events-none absolute bottom-3 right-3 rounded border border-surface-700 bg-surface-900/90 px-2.5 py-2 text-[10px]">
-        <div className="mb-1.5 text-[9px] uppercase tracking-[0.12em] text-slate-600">Risk</div>
-        <div className="flex flex-col gap-0.5">
-          {['low', 'moderate', 'high', 'critical'].map((band) => (
-            <div key={band} className="flex items-center gap-1.5 py-px">
+      {/* Sleek Floating Risk Legend Overlay */}
+      <div className="pointer-events-none absolute bottom-3 right-3 z-10 rounded-md border border-surface-700/80 bg-surface-950/85 px-3 py-2 backdrop-blur shadow-panel text-[10px] select-none">
+        <div className="mb-1 text-[9px] font-bold uppercase tracking-wider text-slate-400">
+          Network Risk
+        </div>
+        <div className="flex items-center gap-3">
+          {[
+            { label: 'Low', band: 'low' },
+            { label: 'Moderate', band: 'moderate' },
+            { label: 'High', band: 'high' },
+            { label: 'Critical', band: 'critical' },
+          ].map(({ label, band }) => (
+            <div key={band} className="flex items-center gap-1.5">
               <span
-                className="h-1.5 w-1.5 flex-shrink-0 rounded-full"
+                className="h-2 w-2 rounded-full shrink-0"
                 style={{ backgroundColor: riskColor(band).hex }}
               />
-              <span className="capitalize text-slate-400">{band}</span>
+              <span className="text-slate-300 font-medium">{label}</span>
             </div>
           ))}
-        </div>
-        <div className="mt-1.5 flex items-center gap-1.5 border-t border-surface-700 pt-1.5">
-          <span className="h-1.5 w-1.5 flex-shrink-0 rounded-full border border-slate-500 bg-transparent" />
-          <span className="text-slate-500">estimated</span>
+          <div className="flex items-center gap-1.5 border-l border-surface-700/60 pl-2.5">
+            <span className="h-2 w-2 rounded-full border border-slate-400 bg-transparent shrink-0" />
+            <span className="text-slate-400">Estimated</span>
+          </div>
         </div>
       </div>
 
+      {/* Selected Entity Tracking Pill */}
       {selectedEntityId && (
-        <div className="pointer-events-none absolute right-3 top-3 rounded border border-surface-700 bg-surface-900/90 px-2 py-1 text-[10px] text-slate-500">
-          <span className="text-slate-600">tracking</span>{' '}
-          <span className="font-medium text-slate-400">{selectedEntityId}</span>
+        <div className="pointer-events-none absolute right-3 top-3 z-10 flex items-center gap-2 rounded border border-teal-500/40 bg-surface-950/90 px-2.5 py-1 text-[10px] backdrop-blur">
+          <span className="h-1.5 w-1.5 rounded-full bg-teal-400 animate-ping" />
+          <span className="text-slate-400 uppercase tracking-wider">Tracking</span>
+          <span className="font-mono font-semibold text-teal-300">{selectedEntityId}</span>
         </div>
       )}
     </div>

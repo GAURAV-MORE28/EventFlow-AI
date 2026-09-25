@@ -1,20 +1,23 @@
 /**
  * PressureTimeline — 02_FRONTEND_CONTRACT.md §5.4.
  *
- * The hero-number rule: the top row's `time_to_critical_sec` renders at
- * `text-6xl font-bold`. It is the largest text on the screen at all times and
- * nothing else competes with it.
+ * Cards render with balanced hierarchy:
+ *   ENTITY: Display name & type
+ *   CURRENT LOAD: percentage with risk color
+ *   STATUS: risk band pill
+ *   FORECAST: Min to critical (prominent but not oversized)
  *
  * Rows arrive already sorted by urgency. Render in order — re-sorting breaks the
  * animation contract shared with the cascade overlay.
  */
+import { AlertTriangle, Clock, TrendingUp, CheckCircle2 } from 'lucide-react';
 import { riskColor } from '../lib/colors.js';
-import { minutesValue, percent } from '../lib/format.js';
+import { minutes, minutesValue, percent } from '../lib/format.js';
 import { useStore } from '../store/useStore.js';
 
-const OFFSETS = [0, 300, 600, 900, 1200, 1800]; // fixed x positions, never recomputed
-const SPARK_W = 132;
-const SPARK_H = 34;
+const OFFSETS = [0, 300, 600, 900, 1200, 1800];
+const SPARK_W = 140;
+const SPARK_H = 38;
 const CRITICAL = 0.9;
 
 /**
@@ -24,7 +27,7 @@ const CRITICAL = 0.9;
 function Sparkline({ trajectory }) {
   const max = Math.max(1.05, ...trajectory.map((p) => p.utilisation));
   const x = (h) => (OFFSETS.indexOf(h) / (OFFSETS.length - 1)) * SPARK_W;
-  const y = (u) => SPARK_H - (u / max) * SPARK_H;
+  const y = (u) => Math.max(2, Math.min(SPARK_H - 2, SPARK_H - (u / max) * SPARK_H));
 
   const points = trajectory.map((p) => ({ x: x(p.horizon_sec), y: y(p.utilisation), u: p.utilisation }));
   const line = points.map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ');
@@ -48,58 +51,88 @@ function Sparkline({ trajectory }) {
         y2={y(CRITICAL)}
         stroke="#EF4444"
         strokeWidth="1"
-        strokeDasharray="3 3"
-        opacity="0.45"
+        strokeDasharray="2 2"
+        opacity="0.5"
       />
-      <path d={line} fill="none" stroke="#60A5FA" strokeWidth="1.75" strokeLinecap="round" />
+      <path d={line} fill="none" stroke="#2DD4BF" strokeWidth="1.75" strokeLinecap="round" />
       {hot.map((d, i) => (
         <path key={i} d={d} fill="none" stroke="#EF4444" strokeWidth="2.25" strokeLinecap="round" />
       ))}
-      <circle cx={points[0].x} cy={points[0].y} r="2.5" fill="#60A5FA" />
+      <circle cx={points[0].x} cy={points[0].y} r="2.5" fill="#2DD4BF" />
     </svg>
   );
 }
 
 function Row({ item, isHero, onSelect }) {
   const band = riskColor(item.current_band);
+  const minToCritical = minutes(item.time_to_critical_sec);
+  const isCritical = item.current_band === 'critical' || item.time_to_critical_sec < 180;
+
   return (
     <button
       type="button"
       onClick={() => onSelect(item.entity_id)}
-      className={`w-full text-left transition-colors ${
+      className={`group w-full text-left transition-all rounded-md p-2.5 mb-1.5 border select-none ${
         isHero
-          ? 'panel-hero-critical mb-1 px-3 py-2.5 hover:border-red-500/30'
-          : 'rounded-md border border-transparent px-3 py-2 hover:border-surface-600 hover:bg-surface-700/60'
+          ? 'panel-hero-critical hover:border-red-500/50'
+          : 'border-surface-700/60 bg-surface-850/60 hover:border-slate-500/50 hover:bg-surface-800'
       }`}
     >
       <div className="flex items-center justify-between gap-3">
-        <div className="min-w-0">
-          <div className={`truncate font-medium ${isHero ? 'text-sm text-slate-100' : 'text-sm text-slate-300'}`}>
-            {item.display_name}
+        {/* Entity info & current status */}
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-1.5">
+            <span
+              className="h-1.5 w-1.5 rounded-full shrink-0"
+              style={{ backgroundColor: band.hex }}
+            />
+            <span className="truncate text-xs font-semibold text-slate-100 group-hover:text-slate-50">
+              {item.display_name}
+            </span>
           </div>
-          <div className="mt-0.5 flex items-center gap-2 text-[11px] text-slate-400">
-            <span className="tabular-nums">{percent(item.current_utilisation)} now</span>
-            <span className="h-1 w-1 rounded-full" style={{ backgroundColor: band.hex }} />
-            <span style={{ color: band.hex }}>{item.current_band}</span>
+
+          <div className="mt-1 flex items-center gap-2.5 text-[10px]">
+            <div className="flex items-center gap-1 font-mono">
+              <span className="text-slate-400">LOAD:</span>
+              <span className="font-bold tabular-nums" style={{ color: band.hex }}>
+                {percent(item.current_utilisation)}
+              </span>
+            </div>
+
+            <span className="text-slate-600">·</span>
+
+            <div className="flex items-center gap-1">
+              <span className="text-slate-400 text-[9px] uppercase">STATUS:</span>
+              <span
+                className="font-bold uppercase tracking-wider text-[9px]"
+                style={{ color: band.hex }}
+              >
+                {item.current_band}
+              </span>
+            </div>
           </div>
         </div>
-        <Sparkline trajectory={item.trajectory} />
-        <div className="shrink-0 text-right">
-          {isHero ? (
-            <>
-              <div className="text-6xl font-bold leading-none tabular-nums text-red-400">
-                {minutesValue(item.time_to_critical_sec)}
-              </div>
-              <div className="mt-1 text-[10px] uppercase tracking-[0.15em] text-slate-500">
-                min to critical
-              </div>
-            </>
-          ) : (
-            <div className="text-lg font-semibold tabular-nums text-orange-300">
-              {minutesValue(item.time_to_critical_sec)}
-              <span className="ml-1 text-[11px] font-normal text-slate-500">min</span>
-            </div>
-          )}
+
+        {/* Trajectory Sparkline */}
+        <div className="hidden sm:block">
+          <Sparkline trajectory={item.trajectory} />
+        </div>
+
+        {/* Min to Critical Countdown Pill */}
+        <div className="shrink-0 flex flex-col items-end justify-center pl-2">
+          <span className="text-[8px] font-bold uppercase tracking-wider text-slate-400">
+            Min To Critical
+          </span>
+          <div
+            className={`mt-0.5 flex items-center gap-1 rounded px-2 py-0.5 text-xs font-bold font-mono tabular-nums border ${
+              isCritical
+                ? 'border-red-500/50 bg-red-500/15 text-red-300 shadow-sm'
+                : 'border-orange-500/40 bg-orange-500/10 text-orange-300'
+            }`}
+          >
+            {isCritical && <AlertTriangle className="h-3 w-3 text-red-400 shrink-0" />}
+            <span>{minToCritical}</span>
+          </div>
         </div>
       </div>
     </button>
@@ -107,38 +140,48 @@ function Row({ item, isHero, onSelect }) {
 }
 
 export default function PressureTimeline() {
-  // NOTE: setActiveCascadeRoot intentionally NOT destructured here.
-  // Cascade lines must only appear via the "Show cascade" button in
-  // EntityDetailPanel (02 §5.8). Selecting a timeline row opens the detail
-  // panel; the operator then clicks "Show cascade" if they want the arcs.
   const { pressureTimeline, activeForecastSource, selectEntity } = useStore();
 
   function handleSelect(entityId) {
     selectEntity(entityId);
-    // Do NOT call setActiveCascadeRoot here — that would auto-arm cascade lines.
   }
 
   return (
-    <section className="panel flex min-h-0 flex-col">
+    <section className="panel flex min-h-0 flex-col overflow-hidden">
+      {/* Header */}
       <div className="panel-header">
-        <h2 className="panel-title">Pressure timeline</h2>
+        <div className="flex items-center gap-2">
+          <div className="flex h-5 w-5 items-center justify-center rounded bg-red-500/15 text-red-400">
+            <TrendingUp className="h-3 w-3" />
+          </div>
+          <div>
+            <h2 className="panel-title">Pressure Timeline</h2>
+            <div className="text-[9px] font-mono text-slate-400 leading-none">
+              URGENCY RANKED SURGE FORECAST
+            </div>
+          </div>
+        </div>
+
         <span
-          className="chip bg-surface-700 text-slate-400"
-          title="Which model produced this forecast (00 §4 degradation contract)"
+          className="rounded bg-surface-750 px-2 py-0.5 font-mono text-[9px] text-slate-400 border border-surface-650"
+          title="Active forecast generator (00 §4 degradation contract)"
         >
-          {activeForecastSource}
+          {activeForecastSource || 'persistence'}
         </span>
       </div>
 
       {pressureTimeline.length === 0 ? (
-        // The calm opening of the demo — it should look genuinely calm (02 §5.4).
-        <div className="m-3 flex flex-1 items-center justify-center rounded-md border border-green-500/25 bg-green-500/10 px-4 py-8 text-center">
-          <p className="text-sm text-green-300">
-            No entity predicted to reach critical within 60 minutes.
+        <div className="m-3 flex flex-1 flex-col items-center justify-center rounded-md border border-emerald-500/25 bg-emerald-500/[0.04] p-4 text-center">
+          <CheckCircle2 className="h-6 w-6 text-emerald-400 mb-1.5" />
+          <p className="text-xs font-semibold text-emerald-300">
+            All Venues Operating Nominally
+          </p>
+          <p className="mt-0.5 text-[10px] text-slate-400">
+            No venue entity is forecasted to breach critical threshold within 60 minutes.
           </p>
         </div>
       ) : (
-        <div className="mt-1 flex-1 overflow-y-auto px-1 pb-2">
+        <div className="flex-1 overflow-y-auto p-2">
           {pressureTimeline.map((item, index) => (
             <Row
               key={item.entity_id}

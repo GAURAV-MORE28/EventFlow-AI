@@ -51,14 +51,14 @@ function ExecutedCard({ action, expanded, onToggle, onDismiss, nodesById, mockMo
     : summarizeExecuted(action, deltas, downstream, cascade);
 
   return (
-    <div className="pointer-events-auto rounded-lg border border-surface-600 bg-surface-800/95 shadow-2xl backdrop-blur">
+    <div className="pointer-events-auto rounded-md border border-surface-700/80 bg-surface-900/98 shadow-panel backdrop-blur select-none">
       <div className="flex items-center gap-2 px-3 py-2">
-        <span className="chip border border-green-500/40 bg-green-500/15 font-semibold text-green-300">
-          {action.phase === 'settled' ? 'EXECUTED · SETTLED' : 'EXECUTED'}
+        <span className="chip border border-emerald-500/40 bg-emerald-500/15 font-semibold text-emerald-300 font-mono text-[9px]">
+          {action.phase === 'settled' ? 'EXECUTED · SETTLED' : 'EXECUTED · DISPATCHED'}
         </span>
         {action.verdict && (
           <span
-            className="chip border font-semibold"
+            className="chip border font-semibold font-mono text-[9px]"
             style={{
               color: verdictStyle(action.verdict).hex,
               borderColor: `${verdictStyle(action.verdict).hex}66`,
@@ -67,15 +67,15 @@ function ExecutedCard({ action, expanded, onToggle, onDismiss, nodesById, mockMo
             {verdictStyle(action.verdict).label}
           </span>
         )}
-        <span className="truncate text-[12px] font-medium text-slate-200">{action.title}</span>
-        <span className="mx-1 hidden text-[11px] text-slate-400 sm:inline">·</span>
-        <span className="hidden flex-1 truncate text-[11px] text-slate-400 sm:inline">
+        <span className="truncate text-xs font-semibold text-white">{action.title}</span>
+        <span className="mx-1 hidden text-[11px] text-slate-500 sm:inline">·</span>
+        <span className="hidden flex-1 truncate text-[11px] text-slate-300 sm:inline">
           {headline}
         </span>
         <button
           type="button"
           onClick={onToggle}
-          className="ml-auto text-[11px] text-slate-500 hover:text-slate-200"
+          className="ml-auto rounded p-0.5 text-slate-400 hover:text-white"
           aria-label={expanded ? 'Collapse' : 'Expand'}
         >
           {expanded ? '▾' : '▸'}
@@ -83,7 +83,7 @@ function ExecutedCard({ action, expanded, onToggle, onDismiss, nodesById, mockMo
         <button
           type="button"
           onClick={onDismiss}
-          className="text-slate-500 hover:text-slate-200"
+          className="rounded p-0.5 text-slate-400 hover:text-white"
           aria-label="Dismiss"
         >
           ✕
@@ -91,13 +91,13 @@ function ExecutedCard({ action, expanded, onToggle, onDismiss, nodesById, mockMo
       </div>
 
       {expanded && (
-        <div className="max-h-[190px] space-y-2 overflow-y-auto border-t border-surface-700 px-3 py-2 text-[11px]">
+        <div className="max-h-[190px] space-y-2 overflow-y-auto border-t border-surface-700/60 px-3 py-2 text-[11px]">
           {mockMode ? (
             <p className="text-slate-400">
               Projected relief{' '}
-              <span className="text-slate-200">{pct(action.estimatedReliefPct)}</span> on{' '}
+              <span className="text-slate-200 font-semibold">{pct(action.estimatedReliefPct)}</span> on{' '}
               {action.targetIds.map(name).join(', ')} (optimiser estimate). Run{' '}
-              <span className="text-slate-300">npm run dev:live</span> against the backend to see
+              <span className="text-slate-300 font-mono">npm run dev:live</span> against the backend to see
               the measured simulation effect.
             </p>
           ) : (
@@ -105,16 +105,16 @@ function ExecutedCard({ action, expanded, onToggle, onDismiss, nodesById, mockMo
               <table className="w-full">
                 <tbody>
                   {deltas.map((d) => (
-                    <tr key={d.entity_id} className="border-b border-surface-700/60 last:border-0">
-                      <td className="py-1 pr-2 text-slate-300">{name(d.entity_id)}</td>
-                      <td className="py-1 pr-2 tabular-nums text-slate-400">
+                    <tr key={d.entity_id} className="border-b border-surface-800 last:border-0">
+                      <td className="py-1 pr-2 text-slate-300 font-medium">{name(d.entity_id)}</td>
+                      <td className="py-1 pr-2 tabular-nums text-slate-400 font-mono">
                         {percent(d.utilFrom)} <span className="text-slate-600">→</span>{' '}
                         <span className="text-slate-200">{percent(d.utilTo)}</span>
                       </td>
-                      <td className="py-1 pr-2 tabular-nums">
+                      <td className="py-1 pr-2 tabular-nums font-mono font-semibold">
                         <DeltaPp pp={d.deltaPp} />
                       </td>
-                      <td className="py-1 text-[10px]">
+                      <td className="py-1 text-[10px] font-mono">
                         <BandArrow from={d.bandFrom} to={d.bandTo} />
                       </td>
                     </tr>
@@ -122,8 +122,8 @@ function ExecutedCard({ action, expanded, onToggle, onDismiss, nodesById, mockMo
                 </tbody>
               </table>
 
-              <div className="text-slate-400">
-                <span className="text-slate-500">downstream:</span>{' '}
+              <div className="text-slate-400 text-[10px]">
+                <span className="text-slate-500 font-bold uppercase tracking-wider">downstream:</span>{' '}
                 {downstream.length === 0 ? (
                   <span className="text-slate-500">no downstream change detected</span>
                 ) : (
@@ -138,9 +138,9 @@ function ExecutedCard({ action, expanded, onToggle, onDismiss, nodesById, mockMo
               </div>
 
               {cascade && cascade.from !== null && (
-                <div className="text-slate-400">
-                  <span className="text-slate-500">cascade:</span>{' '}
-                  <span className={cascade.reduced ? 'text-green-400' : 'text-slate-300'}>
+                <div className="text-slate-400 text-[10px]">
+                  <span className="text-slate-500 font-bold uppercase tracking-wider">cascade:</span>{' '}
+                  <span className={cascade.reduced ? 'text-emerald-400 font-semibold' : 'text-slate-300'}>
                     {cascade.from} → {cascade.to} predicted downstream failures
                   </span>
                   {cascade.removedSteps.length > 0 && (
@@ -153,7 +153,7 @@ function ExecutedCard({ action, expanded, onToggle, onDismiss, nodesById, mockMo
               )}
 
               {settled && (
-                <div className="rounded border border-surface-600 bg-surface-900/60 px-2 py-1">
+                <div className="rounded border border-surface-700/80 bg-surface-950/80 px-2 py-1 font-mono text-[10px]">
                   <span className="text-slate-500">settled:</span>{' '}
                   <span className="text-slate-200">
                     realised {settled.realised_relief_pct}pp
@@ -162,7 +162,7 @@ function ExecutedCard({ action, expanded, onToggle, onDismiss, nodesById, mockMo
                   <span className="text-slate-300">{settled.counterfactual_relief_pct}pp</span>{' '}
                   <span className="text-slate-500">· regret</span>{' '}
                   <span
-                    className={settled.regret > 0 ? 'text-orange-400' : 'text-green-400'}
+                    className={settled.regret > 0 ? 'text-orange-400' : 'text-emerald-400'}
                   >
                     {settled.regret > 0 ? '+' : ''}
                     {settled.regret}
@@ -182,43 +182,43 @@ function WhatIfCard({ overlay, onDismiss, nodesById }) {
   const result = overlay.result || {};
   const delta = result.delta || {};
   return (
-    <div className="pointer-events-auto rounded-lg border border-sky-500/40 bg-surface-800/95 shadow-2xl backdrop-blur">
+    <div className="pointer-events-auto rounded-md border border-teal-500/40 bg-surface-900/98 shadow-panel backdrop-blur select-none">
       <div className="flex items-center gap-2 px-3 py-2">
-        <span className="chip border border-sky-500/40 bg-sky-500/15 font-semibold text-sky-300">
+        <span className="chip border border-teal-500/40 bg-teal-500/15 font-semibold text-teal-300 font-mono text-[9px]">
           SIMULATED · WHAT-IF
         </span>
-        <span className="truncate text-[12px] font-medium text-slate-200">{overlay.label}</span>
-        <span className="hidden flex-1 truncate text-[11px] text-sky-200/80 sm:inline">
+        <span className="truncate text-xs font-semibold text-white">{overlay.label}</span>
+        <span className="hidden flex-1 truncate text-[11px] text-teal-300/80 sm:inline">
           projection on a forked twin — not applied to the live world
         </span>
         <button
           type="button"
           onClick={onDismiss}
-          className="ml-auto text-slate-500 hover:text-slate-200"
+          className="ml-auto rounded p-0.5 text-slate-400 hover:text-white"
           aria-label="Dismiss"
         >
           ✕
         </button>
       </div>
-      <div className="flex flex-wrap gap-x-4 gap-y-1 border-t border-surface-700 px-3 py-2 text-[11px]">
+      <div className="flex flex-wrap gap-x-4 gap-y-1 border-t border-surface-700/60 px-3 py-2 text-[11px] font-mono">
         <span className="text-slate-400">
           peak util Δ{' '}
-          <span className={delta.peak_utilisation_pct > 0 ? 'text-red-400' : 'text-green-400'}>
+          <span className={delta.peak_utilisation_pct > 0 ? 'text-red-400 font-semibold' : 'text-emerald-400 font-semibold'}>
             {delta.peak_utilisation_pct > 0 ? '+' : ''}
             {delta.peak_utilisation_pct}%
           </span>
         </span>
         <span className="text-slate-400">
           load variance Δ{' '}
-          <span className={delta.load_variance_pct > 0 ? 'text-red-400' : 'text-green-400'}>
+          <span className={delta.load_variance_pct > 0 ? 'text-red-400 font-semibold' : 'text-emerald-400 font-semibold'}>
             {delta.load_variance_pct > 0 ? '+' : ''}
             {delta.load_variance_pct}%
           </span>
         </span>
         {delta.new_critical_entities?.length > 0 && (
-          <span className="text-slate-400">
+          <span className="text-slate-400 font-sans">
             new critical:{' '}
-            <span className="text-red-300">
+            <span className="text-red-300 font-mono">
               {delta.new_critical_entities.slice(0, 4).map(name).join(', ')}
             </span>
           </span>
@@ -260,8 +260,8 @@ export default function ActionHUD() {
         />
       ))}
       {rejected && (
-        <div className="pointer-events-auto rounded-lg border border-surface-600 bg-surface-800/95 px-3 py-2 text-[12px] text-slate-300 shadow-2xl backdrop-blur">
-          <span className="chip mr-2 border border-slate-500/40 bg-slate-500/15 font-semibold text-slate-300">
+        <div className="pointer-events-auto rounded-md border border-surface-700/80 bg-surface-900/98 px-3 py-2 text-xs text-slate-300 shadow-panel backdrop-blur">
+          <span className="chip mr-2 border border-slate-600/50 bg-slate-800 text-[10px] font-semibold text-slate-300">
             REJECTED
           </span>
           {rejected.title} — simulation unchanged
