@@ -459,3 +459,65 @@ def test_reset_returns_the_initial_city_even_when_paused(client):
     assert state["summary"]["critical_count"] <= before_reset["critical_count"]
     assert engine.paused, "reset keeps the paused/playing choice"
     _run(engine, 170)  # restore the module's arrival-wave state for later tests
+
+
+def test_cancelled_event_empties_its_venue():
+    g = _generator()
+    for _ in range(150):  # 15:15 — fan festival live
+        g.tick(30)
+    inside = g.event_states()["evt_fanfest"]["inside"]
+    assert inside > 1000
+    events = [dict(e) for e in get_config().raw["events"]]
+    for e in events:
+        if e["event_id"] == "evt_fanfest":
+            e["status"] = "cancelled"
+    g.set_events(events)
+    for _ in range(90):  # 45 minutes later
+        g.tick(30)
+    assert g.event_states()["evt_fanfest"]["inside"] < inside * 0.05
+
+
+def _approve_synthetic(client, engine, iid, itype, targets, action):
+    from app.simtime import shift
+
+    engine.store.interventions[iid] = {
+        "intervention_id": iid, "intervention_type": itype, "status": "proposed",
+        "target_entity_ids": targets, "triggered_by_entity_id": targets[0], "title": "t", "description": "d",
+        "estimated_relief_pct": 10.0, "estimated_cost_paise": 25_000, "estimated_delay_sec": 240,
+        "feasibility": 0.9, "rank_score": 0.5, "certificate": None, "created_at": engine.store.sim_time,
+        "expires_at": shift(engine.store.sim_time, 1200), "_action": action,
+    }
+    return client.post(f"{API}/interventions/{iid}/approve", json={"operator_id": "op_test"}).json()
+
+
+def test_declining_a_nudge_lowers_compliance_and_keeps_the_plan(client):
+    engine = get_engine()
+    client.post(f"{API}/attendee/journey", json={"attendee_id": "att_decline", "segment_id": "group",
+                                                  "origin_entity_id": "metro_a", "destination_entity_id": "stadium_main"})
+    r = _approve_synthetic(client, engine, "int_testdecline", "reroute_transport", ["metro_a", "metro_e"],
+                           {"source": "metro_a", "destination": "metro_e", "fraction": 0.3})
+    assert r["nudges_issued"] >= 1
+    nudge = client.get(f"{API}/attendee/nudges?attendee_id=att_decline").json()["nudges"][0]
+    before = engine.current_compliance()
+    body = client.post(f"{API}/attendee/nudges/{nudge['nudge_id']}/respond", json={"accepted": False}).json()
+    assert body["status"] == "declined" and "avoid_entity_id" not in body["plan_change"]
+    assert engine.current_compliance() < before
+    assert not engine.store.attendees["att_decline"]["avoid"]
+
+
+def test_accepting_a_hotel_transfer_moves_the_attendee(client):
+    engine = get_engine()
+    client.post(f"{API}/attendee/journey", json={"attendee_id": "att_hotel", "segment_id": "price_sensitive",
+                                                  "origin_entity_id": "htl_central_budget", "destination_entity_id": "stadium_main"})
+    r = _approve_synthetic(client, engine, "int_testhotel", "accommodation_rebalance",
+                           ["hotel_core_cluster", "hotel_airport_cluster"],
+                           {"source": "hotel_core_cluster", "destination": "hotel_airport_cluster", "fraction": 0.2})
+    assert r["nudges_issued"] >= 1
+    nudge = client.get(f"{API}/attendee/nudges?attendee_id=att_hotel").json()["nudges"][0]
+    body = client.post(f"{API}/attendee/nudges/{nudge['nudge_id']}/respond", json={"accepted": True}).json()
+    new_pid = body["plan_change"]["new_origin_property_id"]
+    prop = client.get(f"{API}/accommodation/hotels/{new_pid}").json()
+    assert prop["cluster_entity_id"] == "hotel_airport_cluster"
+    j = client.post(f"{API}/attendee/journey", json={"attendee_id": "att_hotel", "segment_id": "price_sensitive",
+                                                      "origin_entity_id": new_pid, "destination_entity_id": "stadium_main"})
+    assert j.status_code == 200

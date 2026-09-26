@@ -136,6 +136,7 @@ projection:
 attendee:
   departure_offsets_sec: [0, 900, 1800, 2700]
   arrival_buffer_sec: 600       # aim to arrive this long before an event starts
+  min_crowding_gain: 0.05       # a later departure is advised only if it cuts peak crowding by this much
 
 # The event schedule. `event` below stays the primary event (GET /event).
 events:

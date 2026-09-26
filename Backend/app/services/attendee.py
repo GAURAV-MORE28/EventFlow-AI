@@ -300,12 +300,18 @@ def build_journey(engine: Any, request: dict) -> dict:
             (o for o in eligible if o["travel_time_sec"] <= best_travel * 1.25 + 120),
             key=lambda o: (round(o["peak_utilisation"], 2), o["travel_time_sec"], o["offset_sec"]),
         )
+        # Waiting has a cost: only advise a later departure when it lowers peak
+        # crowding meaningfully; otherwise the earliest option wins.
+        earliest = eligible[0]
+        min_gain = float(cfg.get("attendee", {}).get("min_crowding_gain", 0.05))
+        if pick is not earliest and earliest["peak_utilisation"] - pick["peak_utilisation"] < min_gain:
+            pick = earliest
         pick["recommended"] = True
         rec_offset = pick["offset_sec"]
         first = options[0]
         if pick is first:
             departure_advice = (
-                f"Leave now: later departures are not less crowded "
+                f"Leave now: waiting does not meaningfully reduce crowding "
                 f"(peak {int(round(first['peak_utilisation'] * 100))}% on your route)."
             )
         else:
@@ -461,20 +467,38 @@ def issue_nudges(engine: Any, item: dict) -> list[dict]:
     return issued
 
 
-def apply_nudge_response(engine: Any, nudge: dict, accepted: bool) -> None:
-    """An accepted nudge changes this attendee's plan; every answer updates the
-    compliance estimate the simulator applies to active interventions."""
+def apply_nudge_response(engine: Any, nudge: dict, accepted: bool) -> dict:
+    """An accepted nudge changes this attendee's plan; every answer (accept or
+    decline) updates the compliance estimate the simulator applies to active
+    interventions. Returns the concrete plan change so the client can re-plan."""
     store = engine.store
     a = store.attendees.get(nudge["attendee_id"])
+    change: dict = {}
     if accepted and a is not None:
         src = nudge.get("_source_entity_id")
         if nudge.get("_type") == "stagger_entry":
             a["depart_offset_sec"] = max(float(a.get("depart_offset_sec", 0.0)), float(nudge["tradeoff"]["extra_travel_sec"]))
+            change["depart_offset_sec"] = int(a["depart_offset_sec"])
         elif nudge.get("_type") == "accommodation_rebalance":
-            a["hotel_cluster"] = nudge.get("target_entity_id")
+            dst = nudge.get("target_entity_id")
+            a["hotel_cluster"] = dst
+            # The concrete room: the best-scoring property with space in the
+            # destination district, for this attendee's segment.
+            from .accommodation import recommend
+
+            options = recommend(engine, destination_entity_id=a.get("destination"), segment_id=a.get("segment_id"),
+                                limit=20)["options"]
+            pick = next((o["property"] for o in options if o["property"]["cluster_entity_id"] == dst), None)
+            if pick:
+                a["property_id"] = pick["property_id"]
+                change["new_origin_property_id"] = pick["property_id"]
+                change["new_origin_name"] = pick["name"]
         elif src:
             a.setdefault("avoid", set()).add(src)
+            change["avoid_entity_id"] = src
     engine.record_compliance(accepted)
+    change["compliance"] = engine.current_compliance()
+    return change
 
 
 def public_nudge(n: dict) -> dict:

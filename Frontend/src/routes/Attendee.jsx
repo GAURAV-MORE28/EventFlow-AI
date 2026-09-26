@@ -211,8 +211,14 @@ export default function Attendee() {
   async function respond(nudge, accepted) {
     setBusy(true);
     try {
-      await api.respondToNudge(nudge.nudge_id, accepted);
-      toast(accepted ? 'Accepted — your plan is updated' : 'Noted — keeping your plan', 'success');
+      const result = await api.respondToNudge(nudge.nudge_id, accepted);
+      const change = result?.plan_change || {};
+      if (change.new_origin_property_id) {
+        setPlan((p) => ({ ...p, origin: change.new_origin_property_id }));
+        toast(`Accepted — you are now staying at ${change.new_origin_name}; journey re-planned`, 'success');
+      } else {
+        toast(accepted ? 'Accepted — your plan is updated' : 'Noted — keeping your plan', 'success');
+      }
       nudges.reload();
       journey.reload();
     } catch (error) {

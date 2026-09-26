@@ -407,6 +407,7 @@ class NudgeRespondResponse(Base):
     nudge_id: str
     status: NudgeStatus
     compliance_recorded: bool
+    plan_change: dict[str, Any] = Field(default_factory=dict)
 
 
 # --- 01 §3.1 health ------------------------------------------------------

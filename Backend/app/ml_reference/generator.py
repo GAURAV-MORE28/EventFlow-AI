@@ -60,6 +60,7 @@ BOARDING_DWELL_MIN = 2.0
 EMERGENCY_TRIGGER_UTIL = 0.60
 EMERGENCY_GAIN = 2.0
 PARKING_FULL = 0.97
+CANCEL_EGRESS_MIN = 20.0    # a cancelled event empties over this many minutes
 # Physical density limits: a space cannot hold more than this multiple of its
 # nominal capacity. Demand beyond it waits upstream (it is still counted in the
 # queues that drive delays), it does not pile up as impossible occupancy.
@@ -825,8 +826,17 @@ class SyntheticGenerator:
                 st["arrived"] += arr
                 arr_rate = arr / dt
             # Egress: after the event ends, or immediately if cancelled.
-            end = t if ev["cancelled"] else ev["end"]
-            eg_target = _phi((t - (end + float(d["egress_lag_min"]))) / float(d["egress_sd_min"])) * st["arrived"]
+            # A cancelled event ends when it was cancelled (recorded once), and
+            # people leave promptly; a restored event returns to its schedule.
+            if ev["cancelled"]:
+                st.setdefault("cancel_min", t)
+                # Evacuation-style departure: a steady outflow over 20 minutes,
+                # not a wave that is already half gone at the moment of cancellation.
+                eg_frac = clamp((t - st["cancel_min"]) / CANCEL_EGRESS_MIN, 0.0, 1.0)
+            else:
+                st.pop("cancel_min", None)
+                eg_frac = _phi((t - (ev["end"] + float(d["egress_lag_min"]))) / float(d["egress_sd_min"]))
+            eg_target = eg_frac * st["arrived"]
             eg = clamp(eg_target - st["egressed"], 0.0, st["inside"]) if dt_sec > 0 else 0.0
             st["egressed"] += eg
             st["inside"] -= eg

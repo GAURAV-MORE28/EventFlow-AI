@@ -395,11 +395,11 @@ async def respond(nudge_id: str, body: S.NudgeRespondRequest) -> S.NudgeRespondR
     nudge["status"] = "accepted" if body.accepted else "declined"
     # The answer changes this attendee's plan and the compliance every active
     # intervention runs at in the simulator (engine.record_compliance).
-    await asyncio.to_thread(apply_nudge_response, engine, nudge, bool(body.accepted))
+    plan_change = await asyncio.to_thread(apply_nudge_response, engine, nudge, bool(body.accepted))
     _audit(engine, "attendee", "nudge_response", nudge_id,
            {"accepted": body.accepted, "compliance": engine.current_compliance()})
     return S.NudgeRespondResponse(
-        nudge_id=nudge_id, status=nudge["status"], compliance_recorded=True
+        nudge_id=nudge_id, status=nudge["status"], compliance_recorded=True, plan_change=plan_change
     )
 
 

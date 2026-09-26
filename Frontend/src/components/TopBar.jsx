@@ -23,8 +23,6 @@ import { riskColor } from '../lib/colors.js';
 import { clock, countdown, decimals, secondsBetween } from '../lib/format.js';
 import { loadVarianceDelta, useStore } from '../store/useStore.js';
 
-const CYCLE_DISPLAY_MAX = 100;
-
 function WsChip({ status }) {
   if (status === 'connected') return null;
   const isOffline = status === 'offline';
@@ -120,8 +118,8 @@ export default function TopBar() {
         <MetricBlock
           icon={Layers}
           label="Cycle"
-          value={cycleNumber % CYCLE_DISPLAY_MAX}
-          sub="/ 100"
+          value={cycleNumber}
+          sub="× 30s"
         />
 
         <div className="topbar-divider" />
