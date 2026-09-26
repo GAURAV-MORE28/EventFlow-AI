@@ -92,6 +92,9 @@ class StateStore:
         # a genuine counterfactual instead of a before/after-the-event-ramped-up
         # temporal diff (which is what `load_variance_reduction_pct` used to be).
         self.counterfactual_utilisation: dict[str, float] = {}
+        # Phase 1B: per settled intervention, actual vs matched-do-nothing peak
+        # and zone variance from the same world model (read by metrics.py).
+        self.settlements: list[dict] = []
         self.anomalies: deque[dict] = deque(maxlen=ANOMALY_LIMIT)
         self.nudges: dict[str, dict] = {}
 
@@ -111,10 +114,9 @@ class StateStore:
         self.commander_tool_calls_ok = 0
         self.commander_tool_calls_total = 0
         self.unstable_caught = 0
-        # 03 §5.6 "certificate accuracy": whether the certificate's predicted
-        # equilibrium agreed (within 15%) with an independent twin.branch()
-        # rollout of the same scenario — populated in
-        # Engine._maybe_generate_interventions, read in metrics.build_metrics.
+        # 03 §5.6 "certificate accuracy": at settlement, whether the certified
+        # projection made at approval agreed (within 15%) with the realised
+        # source utilisation — written in Engine._settle_executing_interventions.
         self.certificates_scored: list[bool] = []
         self.cascade_lead_times: list[float] = []
         self.observed_compliance: list[bool] = []
@@ -243,6 +245,7 @@ class StateStore:
         self.twin_history.clear()
         self.regret_entries.clear()
         self.counterfactual_utilisation.clear()
+        self.settlements.clear()
         self.anomalies.clear()
         self.nudges.clear()
         self.cycle_latency_ms.clear()

@@ -112,4 +112,7 @@ export const api = {
       ? mocks.respondToNudge(nudgeId, accepted)
       : post(`/attendee/nudges/${nudgeId}/respond`, { accepted }),
   demoControl: (body) => (MOCK_MODE ? mocks.demoControl(body) : post('/demo/control', body)),
+  // Observer mode is live-only: mock mode replays a recording and has no
+  // simulation to pause, so this is never faked.
+  demoStatus: () => (MOCK_MODE ? Promise.resolve(null) : get('/demo/status')),
 };

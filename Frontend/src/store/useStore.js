@@ -52,6 +52,9 @@ export const useStore = create((set, get) => ({
   commanderMessages: [],
   wsStatus: 'connecting',
   mockMode: false,
+  // Observer / judge mode (Phase 0). Mirrors `GET /demo/status` and the
+  // `demo_status` WS event; null until the live backend reports it.
+  demo: null,
   toasts: [],
   whatIf: { status: 'idle', result: null, label: null },
 
@@ -262,6 +265,8 @@ export const useStore = create((set, get) => ({
   pushAnomaly: (anomaly) =>
     set((s) => ({ anomalies: [anomaly, ...s.anomalies].slice(0, 20) })),
 
+  setDemo: (demo) => set({ demo: demo || null }),
+
   /** Full replace — only ever called from the `resync` handler (02 §6 rule 3). */
   replaceAll: (payload) =>
     set((s) => {
@@ -269,7 +274,31 @@ export const useStore = create((set, get) => ({
       const entities = Object.fromEntries(
         (state.entities || []).map((e) => [e.entity_id, e]),
       );
+      // A resync from a DIFFERENT timeline (demo reset -> new run_id, backend
+      // restart or seek -> the cycle went backwards) invalidates per-timeline
+      // UI state: tracked actions would never settle, a what-if overlay and a
+      // selected cascade describe a world that no longer exists.
+      const nextRun = payload.demo?.run_id;
+      const nextCycle = state.cycle_number;
+      const timelineChanged =
+        (nextRun != null && s.demo?.run_id != null && nextRun !== s.demo.run_id) ||
+        (nextCycle != null && nextCycle < s.cycleNumber);
+      const cleared = timelineChanged
+        ? {
+            trackedActions: [],
+            actionHudExpanded: false,
+            whatIfOverlay: null,
+            whatIf: { status: 'idle', result: null, label: null },
+            activeCascadeRootId: null,
+            selectedEntityId: null,
+            entityDetail: null,
+            loadVarianceHistory: [],
+            anomalies: [],
+          }
+        : {};
       return {
+        ...cleared,
+        demo: payload.demo || s.demo,
         entities,
         simTime: state.sim_time || s.simTime,
         cycleNumber: state.cycle_number ?? s.cycleNumber,

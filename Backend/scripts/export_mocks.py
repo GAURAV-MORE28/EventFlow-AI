@@ -171,7 +171,9 @@ async def build(out: Path, cycles: int) -> None:
         "destination_entity_id": "stadium_main",
     }))
 
-    target = pair[0] if pair else (all_interventions[0] if all_interventions else None)
+    # Nudges exist only for actions that move people to a destination (Phase 1C).
+    pool = list(pair or []) + list(all_interventions or [])
+    target = next((i for i in pool if i.get("effect_model") == "transfer"), pool[0] if pool else None)
     nudges = issue_nudges(engine, target) if target else []
     write(out, "attendee_nudges.json", {"nudges": nudges})
 
@@ -181,6 +183,7 @@ async def build(out: Path, cycles: int) -> None:
          {"scenario_type": "weather_rain", "params": {"intensity": "heavy"}}],
         3600,
     )
+    simulation = {k: v for k, v in simulation.items() if not k.startswith("_")}
     simulation.update({
         "simulation_id": "sim_mock1",
         "status": "complete",

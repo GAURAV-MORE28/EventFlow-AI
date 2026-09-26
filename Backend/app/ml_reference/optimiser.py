@@ -86,6 +86,7 @@ class InterventionOptimiser:
                     relief=clamp(18.0 + share * 24.0, 5.0, 45.0),
                     cost_paise=120_000, delay_sec=540,
                     feasibility=clamp(0.55 + share * 0.4, 0.0, 0.98),
+                    moves=[(root, dst)],
                 )
             )
 
@@ -104,6 +105,7 @@ class InterventionOptimiser:
                     relief=clamp(6.0 + count * 4.5, 5.0, 32.0),
                     cost_paise=45_000 * count, delay_sec=300,
                     feasibility=0.88,
+                    moves=[(root, dst)],
                 )
             )
 
@@ -124,6 +126,8 @@ class InterventionOptimiser:
                     relief=clamp(22.0 + len(targets) * 4.0, 8.0, 38.0),
                     cost_paise=180_000, delay_sec=720,
                     feasibility=0.85,
+                    moves=[(g, None) for g in targets],
+                    deferral_sec=720,
                 )
             )
 
@@ -143,11 +147,12 @@ class InterventionOptimiser:
                         risk_context, "gate_redistribution", hot + cool,
                         title=f"Reassign entry share to {self._name(cool[0], node_state)}",
                         description=(
-                            f"Move 20% of ticket-scan share from "
+                            f"Move 16.5% of ticket-scan share from "
                             f"{', '.join(self._name(g, node_state) for g in hot)} to "
                             f"{self._name(cool[0], node_state)}."
                         ),
                         relief=16.5, cost_paise=25_000, delay_sec=240, feasibility=0.9,
+                        moves=[(g, cool[0]) for g in hot],
                     )
                 )
 
@@ -172,6 +177,7 @@ class InterventionOptimiser:
                             f"{self._name(alt, node_state)} with free transfer."
                         ),
                         relief=11.0, cost_paise=30_000, delay_sec=480, feasibility=0.82,
+                        moves=[(src, alt)],
                     )
                 )
 
@@ -189,6 +195,7 @@ class InterventionOptimiser:
                         f"relocate from {self._name(hot_zone[0], node_state)} to {self._name(cold[0], node_state)}."
                     ),
                     relief=14.0, cost_paise=250_000, delay_sec=900, feasibility=0.7,
+                    moves=[(hot_zone[0], cold[0])],
                 )
             )
 
@@ -213,6 +220,7 @@ class InterventionOptimiser:
                             f"to {self._name(alt, node_state)}."
                         ),
                         relief=9.0, cost_paise=320_000, delay_sec=1200, feasibility=0.55,
+                        moves=[(src, alt)],
                     )
                 )
 
@@ -281,6 +289,8 @@ class InterventionOptimiser:
         cost_paise: int,
         delay_sec: int,
         feasibility: float,
+        moves: list[tuple[str, str | None]] | None = None,
+        deferral_sec: int | None = None,
     ) -> dict:
         root = risk_context.get("root_entity_id")
         sim_time = risk_context.get("sim_time")
@@ -303,4 +313,19 @@ class InterventionOptimiser:
             "created_at": sim_time,
             "expires_at": None,          # backend stamps this from sim_time + ttl
             "_ttl_sec": self.ttl_sec,
+            # Phase 1C: explicit physics. Each (source, destination) pair moves
+            # `relief%` of the source's people (x response, see the engine);
+            # destination None = deferral for `deferral_sec`.
+            "effect_model": ("none" if not moves else "deferral" if deferral_sec else "transfer"),
+            "action_effects": [
+                {
+                    "source_entity_id": src,
+                    "destination_entity_id": dst,
+                    # From the DISPLAYED (rounded) relief, so plan and card agree.
+                    "planned_fraction": round(round(float(relief), 1) / 100.0, 4),
+                    "ramp_sec": int(delay_sec) if not deferral_sec else 0,
+                    "duration_sec": int(deferral_sec) if deferral_sec else None,
+                }
+                for src, dst in (moves or [])
+            ],
         }

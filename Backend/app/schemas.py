@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from typing import Any, Literal, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 # --- 00 §1 enums (frozen) ------------------------------------------------
 EntityType = Literal[
@@ -258,9 +258,26 @@ class Certificate(Base):
     compliance_sensitivity: float
     compliance_sweep: list[ComplianceSweepRow]
     reason: str = Field(max_length=140)
+    # Phase 1D (additive): share of the offered move attendees take at the
+    # nominal (0.6) compliance row — the equilibrium m*. Execution uses it.
+    response_rate: Optional[float] = None
 
 
 # --- 00 §2.7 -------------------------------------------------------------
+class ActionEffect(Base):
+    """Phase 1C: what an approved intervention physically does, explicitly.
+
+    `planned_fraction` of the SOURCE's people are offered the move; the share
+    that actually moves is planned_fraction x the certificate's response rate.
+    destination_entity_id = null means they leave the modelled area (a
+    deferral: e.g. staggered entry holds people back for `duration_sec`)."""
+    source_entity_id: str
+    destination_entity_id: Optional[str] = None
+    planned_fraction: float
+    ramp_sec: int = 0
+    duration_sec: Optional[int] = None
+
+
 class Intervention(Base):
     intervention_id: str
     intervention_type: InterventionType
@@ -277,6 +294,11 @@ class Intervention(Base):
     certificate: Optional[Certificate] = None
     created_at: str
     expires_at: str
+    # Phase 1C (additive): "transfer" (source -> destination), "deferral"
+    # (source -> held back for a window) or "none" (operational action with no
+    # modelled crowd effect: notify_only, emergency_corridor).
+    effect_model: Literal["transfer", "deferral", "none"] = "none"
+    action_effects: list[ActionEffect] = Field(default_factory=list)
 
 
 class InterventionListResponse(Base):
@@ -321,6 +343,10 @@ class TwinFidelity(Base):
     improvement_pct: Optional[float] = None
     ensemble_size: int
     ensemble_spread: float
+    # Phase 1A (additive): fraction of entities whose simulated ground-truth
+    # count lies inside the ensemble 90% interval. Measured each cycle; null
+    # when no reference is available.
+    ensemble_coverage: Optional[float] = None
     drift_mode_enabled: bool
     history: list[TwinFidelityHistoryPoint] = Field(default_factory=list)
 
@@ -339,9 +365,10 @@ class RegretEntry(Base):
     intervention_id: str
     intervention_type: InterventionType
     predicted_relief_pct: float
-    realised_relief_pct: float
-    counterfactual_relief_pct: float
-    regret: float
+    # Phase 1B: null when unavailable (source utilisation ~0), never clamped.
+    realised_relief_pct: Optional[float] = None
+    counterfactual_relief_pct: Optional[float] = None
+    regret: Optional[float] = None
     sim_time: str
 
 
@@ -523,19 +550,55 @@ class JourneyResponse(Base):
 
 
 # --- 01 §3.13 demo control ----------------------------------------------
+# Sim-seconds per wall-second. Must be finite and > 0: 0 or a negative value
+# used to reach `sleep(cycle_sec / 1e-6)` and freeze the loop (audit P1-01).
+# Above 150x the engine's 0.2 s wall floor makes every value identical, so the
+# accepted range stops there rather than implying a speed that cannot happen.
+SPEED_MIN_EXCLUSIVE = 0.0
+SPEED_MAX = 150.0
+
+
 class DemoControlRequest(Base):
-    action: Optional[Literal["play", "pause", "reset", "seek", "set_speed"]] = None
+    action: Optional[Literal["play", "pause", "reset", "seek", "set_speed", "step", "next_decision"]] = None
     seed: Optional[int] = None
-    speed_multiplier: Optional[float] = None
+    speed_multiplier: Optional[float] = Field(
+        default=None, gt=SPEED_MIN_EXCLUSIVE, le=SPEED_MAX, allow_inf_nan=False
+    )
     seek_to_sim_time: Optional[str] = None
     inject: Optional[ScenarioSpec] = None
+    # Observer mode: pause automatically when a real proposal batch is queued.
+    auto_pause_on_intervention: Optional[bool] = None
+
+    @model_validator(mode="after")
+    def _set_speed_needs_a_speed(self) -> "DemoControlRequest":
+        if self.action == "set_speed" and self.speed_multiplier is None:
+            raise ValueError("action 'set_speed' requires speed_multiplier")
+        return self
+
+
+class PauseReason(Base):
+    kind: Literal["operator", "intervention_proposed", "step"]
+    intervention_id: Optional[str] = None
+    entity_id: Optional[str] = None
+    cycle_number: Optional[int] = None
+    sim_time: Optional[str] = None
 
 
 class DemoControlResponse(Base):
+    """Also the `GET /demo/status` body and the `demo_status` WS payload.
+
+    Fields after `speed_multiplier` are Phase 0 additions (additive only)."""
     status: Literal["playing", "paused"]
     sim_time: str
     seed: int
     speed_multiplier: float
+    cycle_number: int
+    run_id: int
+    cycle_sec: int
+    wall_seconds_per_cycle: float
+    auto_pause_on_intervention: bool
+    pause_on_next_decision: bool
+    pause_reason: Optional[PauseReason] = None
 
 
 # --- 00 §3 error envelope ------------------------------------------------

@@ -1,5 +1,20 @@
 # EventFlow AI — Contract Set
 
+> **Engineering status (2026-09-26):** Phase 0 (demo safety & observer mode) and Phase 1
+> (numerical core correctness) are complete — see `plot.md` for the roadmap, `CLAUDE.md` §32–§33
+> for what changed, and `PHASE0_VALIDATION_REPORT.md` / `PHASE1_VALIDATION_REPORT.md` for evidence.
+> User-visible behaviour that changed in Phase 1:
+> - **What-if** compares two clones of the live simulation (do-nothing vs scenario, same horizon);
+>   unknown or mismatched entity IDs are rejected with `400 INVALID_SCENARIO`.
+> - **Approving** a redistribution moves people from its source to its destination (conserved);
+>   `notify_only` no longer changes crowd demand.
+> - **Settlement / regret** is measured against the same world with the action removed, at the same
+>   instant (no ±100% clamp; unavailable values are `null`).
+> - **Risk:** anything at or above 100% utilisation is CRITICAL.
+> - For demos run the backend with `python run_demo.py` (no auto-reload).
+> The additions to the contract are additive only (`effect_model`, `action_effects`,
+> `response_rate`, `ensemble_coverage`; regret fields nullable).
+
 Four files. Read them in order. **Nobody writes code before reading `00`.**
 
 | File | Owner | Everyone else's relationship to it |

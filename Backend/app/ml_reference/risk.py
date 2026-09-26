@@ -3,14 +3,30 @@
 Deliberately not machine learning. The operator has to be able to ask "why 72?"
 and get an arithmetic answer, which a learned score cannot give. 03 §7.1 is
 explicit that this is a considered downgrade — do not "upgrade" it.
+
+Phase 1E — capacity invariant (FINAL_AUDIT_REPORT P0-06). The 03 §7.1 formula
+caps the utilisation term at 50 points, so an entity at 100-120% of capacity
+with a flat forecast scored 50-60 ("moderate") and 150% scored 75 ("high").
+The formula is unchanged; one rule is added on top of it:
+
+    utilisation >= 1.0  =>  score = max(formula, first CRITICAL score = high + 1)
+
+so the band is CRITICAL and the score agrees with it. Below capacity the
+formula is untouched, so pre-capacity states stay differentiated. Non-finite
+inputs are treated as missing (0) and logged — a NaN reading used to clamp
+silently to 100 / critical.
 """
 from __future__ import annotations
 
 import logging
+import math
 
 from .common import band_from_score, clamp
 
 log = logging.getLogger("eventflow.ml.risk")
+
+# At or above this utilisation an entity is over capacity: always CRITICAL.
+CAPACITY_UTILISATION = 1.0
 
 
 class RiskScorer:
@@ -50,7 +66,10 @@ class RiskScorer:
     ) -> dict[str, dict]:
         out = {}
         for eid, st in node_state.items():
-            score = int(round(clamp(100.0 * float(st.get("utilisation", 0.0)), 0, 100)))
+            util = self._finite(eid, "utilisation", st.get("utilisation", 0.0))
+            score = int(round(clamp(100.0 * util, 0, 100)))
+            if util >= CAPACITY_UTILISATION:
+                score = max(score, int(self.bands["high"]) + 1)
             out[eid] = {
                 "risk_score": score,
                 "risk_band": band_from_score(score, self.bands),
@@ -58,18 +77,31 @@ class RiskScorer:
             }
         return out
 
+    def _finite(self, entity_id: str, name: str, value, default: float = 0.0) -> float:
+        try:
+            v = float(value)
+        except (TypeError, ValueError):
+            v = math.nan
+        if not math.isfinite(v):
+            log.warning("risk: non-finite %s for %s treated as missing", name, entity_id)
+            return default
+        return v
+
     def _score_one(self, entity_id: str, state: dict, forecast: dict | None, exposure: float) -> dict:
-        util = float(state.get("utilisation", 0.0))
+        util = self._finite(entity_id, "utilisation", state.get("utilisation", 0.0))
         forecast_1800 = util
         if forecast:
             for p in forecast.get("points", []):
                 if p["horizon_sec"] == 1800:
-                    forecast_1800 = float(p["predicted_utilisation"])
+                    forecast_1800 = self._finite(entity_id, "forecast_1800", p["predicted_utilisation"], util)
 
         base = 100.0 * util
         growth = 100.0 * max(0.0, forecast_1800 - util) * 1.5
-        cascade_x = 100.0 * clamp(exposure, 0.0, 1.0)
+        cascade_x = 100.0 * clamp(self._finite(entity_id, "cascade_exposure", exposure), 0.0, 1.0)
         score = int(round(clamp(self.w_base * base + self.w_growth * growth + self.w_cascade * cascade_x, 0, 100)))
+        if util >= CAPACITY_UTILISATION:
+            # Capacity invariant (Phase 1E): at or over capacity is CRITICAL.
+            score = max(score, int(self.bands["high"]) + 1)
 
         return {
             "risk_score": score,

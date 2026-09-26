@@ -13,11 +13,36 @@ with per-entity constants derived from a hash of the entity id, so they are
 stable across runs and independent of call order. `metro_b` is tuned by hand so
 its forecast reads ~18 minutes to critical about twelve cycles in — that is the
 demo's hero number and it is not left to chance.
+
+Phase 1B/1C additions (the curves and the noise are unchanged):
+
+* DEMAND vs CAPACITY. `demand_util` is people relative to NOMINAL capacity;
+  people present = demand x nominal capacity; utilisation = people / EFFECTIVE
+  capacity. A capacity cut therefore makes an entity MORE utilised (before this,
+  count = util x reduced capacity, so a -50% capacity scenario HALVED the people
+  and the entity looked emptier — audit C060).
+* EFFECTS. Time-stamped, removable transfers of people between entities:
+      {id, source, destination (or None = leaves the modelled area), fraction,
+       start_sec, ramp_sec, end_sec}
+  moved(t) = fraction x ramp(t) x source's pre-transfer people at t;
+  source -= moved, destination += moved — conserved by construction. Used by
+  approved interventions (source -> destination), gate closures and transport
+  outages (-> siblings / substitutes).
+* PURE EVALUATION. People and utilisation at any time are a function of
+  (elapsed, profiles, multipliers, effects) — there is no hidden history — so
+  `clone()` + `evaluate()` give an exact what-if branch, and
+  `evaluate(t, exclude={effect_id})` is the exact same-world counterfactual of
+  "this effect never happened".
+
+Limitation (later crowd-flow phase): entities still follow independent
+scripted curves. Transfers move people between them, but there is no network
+flow — demand does not propagate along edges on its own.
 """
 from __future__ import annotations
 
 import math
-from typing import Any
+from collections import defaultdict
+from typing import Any, Iterable
 
 from .common import clamp, stable_unit
 
@@ -75,6 +100,8 @@ class SyntheticGenerator:
         self._global_intensity = 1.0
         self._closed: set[str] = set()
         self._injected: list[dict[str, Any]] = []
+        self._effects: list[dict[str, Any]] = []
+        self._effect_seq = 0
 
         self._profiles = {eid: self._profile_for(eid) for eid in self.nodes}
         self._observed = {
@@ -112,17 +139,15 @@ class SyntheticGenerator:
         return base
 
     def _seed_initial_counts(self) -> None:
-        for eid in self.nodes:
-            self._prev_counts[eid] = self._true_count(eid, 0.0)
+        self._prev_counts = dict(self._counts(self._elapsed_sec))
 
     def capacity(self, entity_id: str) -> float:
         cap = float(self.nodes[entity_id]["nominal_capacity"])
         return max(1.0, cap * self._capacity_mult.get(entity_id, 1.0))
 
     # --- the curve --------------------------------------------------------
-    def _true_utilisation(self, entity_id: str, elapsed_sec: float) -> float:
-        if entity_id in self._closed:
-            return 0.0
+    def _demand_util(self, entity_id: str, elapsed_sec: float) -> float:
+        """People wanting to be at the entity, relative to NOMINAL capacity."""
         p = self._profiles[entity_id]
         minutes = elapsed_sec / 60.0
         ramp = _logistic((minutes - p["t_mid_min"]) / max(p["tau_min"], 1e-6))
@@ -143,16 +168,135 @@ class SyntheticGenerator:
         noise = (stable_unit(self.seed, entity_id, bucket) - 0.5) * 2.0 * p["noise"]
         return clamp(util + noise, 0.0, 1.6)
 
+    def _nominal(self, entity_id: str) -> float:
+        return max(1.0, float(self.nodes[entity_id]["nominal_capacity"]))
+
+    def _effect_weight(self, effect: dict[str, Any], elapsed_sec: float) -> float:
+        if elapsed_sec < effect["start_sec"]:
+            return 0.0
+        end = effect.get("end_sec")
+        if end is not None and elapsed_sec >= end:
+            return 0.0
+        ramp = float(effect.get("ramp_sec") or 0.0)
+        if ramp <= 0.0:
+            return 1.0
+        return clamp((elapsed_sec - effect["start_sec"]) / ramp, 0.0, 1.0)
+
+    def _counts(self, elapsed_sec: float, exclude: Iterable[str] = (),
+                only: Iterable[str] | None = None) -> dict[str, float]:
+        """People present at every entity (or just `only`) at `elapsed_sec` (pure function)."""
+        excluded = set(exclude)
+        candidates = [
+            (eff, eff["fraction"] * self._effect_weight(eff, elapsed_sec))
+            for eff in self._effects
+            if eff["id"] not in excluded
+        ]
+        if only is None:
+            wanted = set(self.nodes)
+        else:
+            wanted = set(only)
+            # a transfer touching a wanted entity needs its source's people too
+            wanted |= {eff["source"] for eff, _ in candidates
+                       if eff["source"] in wanted or eff.get("destination") in wanted}
+        base = {eid: self._demand_util(eid, elapsed_sec) * self._nominal(eid) for eid in wanted}
+        active = [(eff, f) for eff, f in candidates if eff["source"] in base]
+        active = [(eff, f) for eff, f in active if f > 0.0]
+        if not active:
+            return base
+        # A source cannot give away more than all of its people.
+        total: dict[str, float] = defaultdict(float)
+        for eff, f in active:
+            total[eff["source"]] += f
+        counts = dict(base)
+        for eff, f in active:
+            src = eff["source"]
+            if total[src] > 1.0:
+                f = f / total[src]
+            moved = base[src] * f
+            counts[src] -= moved
+            dst = eff.get("destination")
+            if dst is not None and dst in counts:
+                counts[dst] += moved
+        return {eid: max(0.0, c) for eid, c in counts.items() if only is None or eid in set(only)}
+
+    def evaluate(self, elapsed_sec: float | None = None, exclude: Iterable[str] = (),
+                 only: Iterable[str] | None = None) -> dict[str, dict[str, float]]:
+        """People and utilisation (vs EFFECTIVE capacity) at a time, optionally
+        pretending some effects never happened. Never mutates the generator."""
+        t = self._elapsed_sec if elapsed_sec is None else float(elapsed_sec)
+        counts = self._counts(t, exclude, only)
+        return {
+            eid: {"current_count": c, "utilisation": c / self.capacity(eid)}
+            for eid, c in counts.items()
+        }
+
     def _true_count(self, entity_id: str, elapsed_sec: float) -> float:
-        return self._true_utilisation(entity_id, elapsed_sec) * self.capacity(entity_id)
+        return self._counts(elapsed_sec)[entity_id]
+
+    # --- effects (Phase 1B/1C) ------------------------------------------------------
+    def add_transfer(
+        self,
+        source: str,
+        destination: str | None,
+        fraction: float,
+        *,
+        ramp_sec: float = 0.0,
+        duration_sec: float | None = None,
+        tag: str | None = None,
+    ) -> str:
+        """Move `fraction` of `source`'s people to `destination` (None = they
+        leave the modelled area) from now on, ramping in over `ramp_sec`."""
+        if source not in self.nodes or (destination is not None and destination not in self.nodes):
+            raise KeyError(f"unknown entity in transfer {source!r} -> {destination!r}")
+        fraction = clamp(float(fraction), 0.0, 1.0)
+        self._effect_seq += 1
+        effect_id = f"eff_{self._effect_seq:04d}"
+        start = self._elapsed_sec
+        self._effects.append({
+            "id": effect_id,
+            "tag": tag,
+            "source": source,
+            "destination": destination,
+            "fraction": fraction,
+            "start_sec": start,
+            "ramp_sec": max(0.0, float(ramp_sec)),
+            "end_sec": None if duration_sec is None else start + float(duration_sec),
+        })
+        return effect_id
+
+    def active_transfers(self, elapsed_sec: float | None = None) -> list[tuple[str, str | None, float]]:
+        """(source, destination, fraction in force now) for every active effect."""
+        t = self._elapsed_sec if elapsed_sec is None else float(elapsed_sec)
+        out = []
+        for eff in self._effects:
+            f = eff["fraction"] * self._effect_weight(eff, t)
+            if f > 0:
+                out.append((eff["source"], eff.get("destination"), f))
+        return out
+
+    def effects(self) -> list[dict[str, Any]]:
+        return [dict(e) for e in self._effects]
+
+    def clone(self) -> "SyntheticGenerator":
+        """Independent copy for what-if / counterfactual branches. Profiles and
+        topology are immutable and shared; every mutable field is copied."""
+        other = object.__new__(SyntheticGenerator)
+        other.__dict__.update(self.__dict__)
+        other._prev_counts = dict(self._prev_counts)
+        other._capacity_mult = dict(self._capacity_mult)
+        other._intensity_mult = dict(self._intensity_mult)
+        other._closed = set(self._closed)
+        other._injected = [dict(i) for i in self._injected]
+        other._effects = [dict(e) for e in self._effects]
+        return other
 
     # --- 03 §8.1 interface -------------------------------------------------
     def tick(self, dt_sec: int = 30) -> dict[str, float]:
         """Advance the world and return observed counts (observed entities only)."""
         self._elapsed_sec += dt_sec
+        counts = self._counts(self._elapsed_sec)
         observations: dict[str, float] = {}
-        for eid in self.nodes:
-            true_count = self._true_count(eid, self._elapsed_sec)
+        for eid, true_count in counts.items():
             self._prev_counts[eid] = true_count
             if self._observed[eid]:
                 # Sensor noise: ±1.5%, deterministic.
@@ -165,14 +309,15 @@ class SyntheticGenerator:
         """Full true state. Evaluation only — never exposed through the API."""
         out: dict[str, dict[str, Any]] = {}
         prev_sec = max(0.0, self._elapsed_sec - 30.0)
+        now = self._counts(self._elapsed_sec)
+        prev = self._counts(prev_sec)
         for eid in self.nodes:
-            count = self._true_count(eid, self._elapsed_sec)
-            prev = self._true_count(eid, prev_sec)
+            count = now[eid]
             cap = self.capacity(eid)
             out[eid] = {
                 "current_count": count,
                 "utilisation": count / cap,
-                "flow_rate_per_min": (count - prev) / 0.5,  # 30 sim-sec window
+                "flow_rate_per_min": (count - prev[eid]) / 0.5,  # 30 sim-sec window
                 "is_observed": self._observed[eid],
                 "capacity": cap,
             }
@@ -205,20 +350,23 @@ class SyntheticGenerator:
                     self._intensity_mult[nid] = self._intensity_mult.get(nid, 1.0) * factor
         elif scenario_type == "gate_closure":
             if eid in self.nodes:
-                self._closed.add(eid)
+                self._close(eid)
                 siblings = [
                     n for n, nd in self.nodes.items()
                     if nd["entity_type"] == "gate" and n != eid and n not in self._closed
                 ]
-                for s in siblings:
-                    self._intensity_mult[s] = self._intensity_mult.get(s, 1.0) * (1.0 + 1.0 / max(len(siblings), 1))
+                # Its people are turned away to the open gates, by capacity share.
+                self._redistribute(eid, {s: self._nominal(s) for s in siblings}, tag="gate_closure")
         elif scenario_type == "transport_outage":
             if eid in self.nodes:
-                self._closed.add(eid)
-                for e in self.topology["edges"]:
-                    if e["src_entity_id"] == eid and e["edge_type"] == "substitutes_for":
-                        dst = e["dst_entity_id"]
-                        self._intensity_mult[dst] = self._intensity_mult.get(dst, 1.0) * (1.0 + e["substitutability"])
+                self._close(eid)
+                subs = {
+                    e["dst_entity_id"]: float(e["substitutability"])
+                    for e in self.topology["edges"]
+                    if e["src_entity_id"] == eid and e["edge_type"] == "substitutes_for"
+                    and e["dst_entity_id"] not in self._closed
+                }
+                self._redistribute(eid, subs, tag="transport_outage")
         elif scenario_type == "parking_loss":
             if eid in self.nodes:
                 self._capacity_mult[eid] = self._capacity_mult.get(eid, 1.0) * (1.0 + delta)
@@ -232,21 +380,29 @@ class SyntheticGenerator:
             for sub in p.get("scenarios", []):
                 self.inject(sub.get("scenario_type", ""), sub.get("params", {}))
 
-    def apply_relief(self, entity_ids: list[str], relief_fraction: float) -> None:
-        """An approved intervention's real effect on the world (01 §3.6 approve gate).
+    def _close(self, entity_id: str) -> None:
+        self._closed.add(entity_id)
+        self._capacity_mult[entity_id] = 0.01  # closed: effectively no capacity
 
-        Approving an intervention used to only flip a status flag — nothing an
-        operator did ever touched the simulation, so `load_variance` could not
-        visibly respond to a real decision. This is the other half of `inject()`:
-        same persist-until-reset multiplier mechanism, just driven by an
-        approval instead of a demo-control scenario. `relief_fraction` is the
-        optimiser's own `estimated_relief_pct / 100`, applied directly as a
-        demand reduction on the entities the intervention targets.
-        """
-        factor = clamp(1.0 - relief_fraction, 0.05, 1.0)
-        for eid in entity_ids:
-            if eid in self.nodes:
-                self._intensity_mult[eid] = self._intensity_mult.get(eid, 1.0) * factor
+    def _redistribute(self, source: str, weights: dict[str, float], tag: str) -> None:
+        """Send ALL of `source`'s people to `weights` destinations (normalised);
+        with no destination they leave the modelled area."""
+        weights = {k: v for k, v in weights.items() if v > 0}
+        total = sum(weights.values())
+        if not total:
+            self.add_transfer(source, None, 1.0, tag=tag)
+            return
+        for dst, w in weights.items():
+            self.add_transfer(source, dst, w / total, tag=tag)
+
+    def apply_relief(self, entity_ids: list[str], relief_fraction: float) -> list[str]:
+        """Legacy relief: remove `relief_fraction` of each target's people from
+        the modelled area (as removable effects). Kept for callers that have no
+        source -> destination semantics."""
+        return [
+            self.add_transfer(eid, None, relief_fraction, tag="relief")
+            for eid in entity_ids if eid in self.nodes
+        ]
 
     def reset(self, seed: int | None = None) -> None:
         if seed is not None:
@@ -256,6 +412,8 @@ class SyntheticGenerator:
         self._intensity_mult.clear()
         self._closed.clear()
         self._injected.clear()
+        self._effects.clear()
+        self._effect_seq = 0
         self._global_intensity = 1.0
         self._profiles = {eid: self._profile_for(eid) for eid in self.nodes}
         self._observed = {

@@ -1,34 +1,34 @@
 {
-  "sim_time": "2026-09-04T14:45:00Z",
+  "sim_time": "2026-09-04T14:50:00Z",
   "prediction": {
     "forecast_mae": {
-      "value": 0.0756,
-      "baseline": 0.122,
+      "value": 0.0523,
+      "baseline": 0.1054,
       "baseline_name": "persistence",
-      "improvement_pct": 38.0
+      "improvement_pct": 50.4
     },
     "cascade_lead_time_sec": {
-      "value": 1903.0,
+      "value": 2096.0,
       "baseline": 0.0,
       "baseline_name": "threshold_rule"
     },
     "cascade_precision": {
-      "value": 0.429,
+      "value": 0.364,
       "baseline": 0.31,
       "baseline_name": "random_propagation"
     },
     "cascade_recall": {
-      "value": 0.032,
+      "value": 0.031,
       "baseline": 0.3,
       "baseline_name": "random_propagation"
     }
   },
   "twin": {
     "rmse": {
-      "value": 1014.57,
-      "baseline": 2140.4,
+      "value": 890.7,
+      "baseline": 3907.07,
       "baseline_name": "uncorrected_abm",
-      "improvement_pct": 52.6
+      "improvement_pct": 77.2
     },
     "ensemble_coverage": {
       "value": 0.85,
@@ -44,26 +44,26 @@
       "baseline_name": "do_nothing_counterfactual"
     },
     "load_variance_reduction_pct": {
-      "value": -0.0,
+      "value": 0.0,
       "baseline_name": "do_nothing_counterfactual"
     },
     "unstable_interventions_caught": {
-      "value": 2.0,
+      "value": 1.0,
       "baseline_name": "naive_optimiser_would_approve"
     },
     "certificate_accuracy_pct": {
       "value": 0.0,
       "target": 85.0,
-      "baseline_name": "twin_branch_ground_truth"
+      "baseline_name": "realised_at_settlement"
     },
     "convergence_rate_pct": {
-      "value": 38.5,
+      "value": 100.0,
       "target": 85.0
     }
   },
   "system": {
     "cycle_latency_ms": {
-      "value": 95.0,
+      "value": 18.0,
       "target": 2000.0
     },
     "commander_ungrounded_rate": {

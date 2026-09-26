@@ -74,6 +74,18 @@
       "title": "Ensemble Spread",
       "type": "number"
     },
+    "ensemble_coverage": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Ensemble Coverage"
+    },
     "drift_mode_enabled": {
       "title": "Drift Mode Enabled",
       "type": "boolean"

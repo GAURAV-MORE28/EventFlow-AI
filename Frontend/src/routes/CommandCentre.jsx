@@ -3,6 +3,7 @@
  *
  * Layout:
  *   TopBar
+ *   ObserverBar (observer / judge controls — live mode)
  *   ┌──────────────────────────┬──────────────┐
  *   │  MAP (flex-1)            │ Commander    │  right sidebar 320px
  *   │                          │ What-If      │
@@ -18,6 +19,8 @@ import CommanderBar from '../components/CommanderBar.jsx';
 import EntityDetailPanel from '../components/EntityDetailPanel.jsx';
 import InterventionQueue from '../components/InterventionQueue.jsx';
 import MapCanvas from '../components/MapCanvas.jsx';
+import ObserverBar from '../components/ObserverBar.jsx';
+import ObserverDecisionBanner from '../components/ObserverDecisionBanner.jsx';
 import PressureTimeline from '../components/PressureTimeline.jsx';
 import TopBar from '../components/TopBar.jsx';
 import TwinFidelityGauge from '../components/TwinFidelityGauge.jsx';
@@ -30,6 +33,7 @@ export default function CommandCentre() {
   return (
     <div className="flex h-screen flex-col overflow-hidden bg-surface-950 font-sans">
       <TopBar />
+      <ObserverBar />
 
       <main className="flex min-h-0 flex-1 flex-col gap-2 overflow-hidden p-2">
 
@@ -41,6 +45,7 @@ export default function CommandCentre() {
             <MapCanvas />
             <EntityDetailPanel />
             <ActionHUD />
+            <ObserverDecisionBanner />
           </section>
 
           {/* Right sidebar: AI Commander Assistant + What-If Simulation */}
@@ -63,9 +68,9 @@ export default function CommandCentre() {
               </span>
             </div>
             <div className="flex items-center gap-3 text-[10px] text-slate-400 font-mono">
-              <span className="hidden sm:inline">30s Pacing Cycle</span>
+              <span className="hidden sm:inline">30 sim-s per cycle</span>
               <span className="hidden sm:inline">·</span>
-              <span>Autonomous Dispatch Ready</span>
+              <span>Human approval required</span>
             </div>
           </div>
 

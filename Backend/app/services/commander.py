@@ -296,7 +296,7 @@ class Commander:
         store = self.engine.store
         cache_key = query.strip().lower()
         cached_entry = self._cache.get(cache_key) if self.cache_scripted else None
-        if cached_entry and store.cycle_number - cached_entry["cycle_number"] <= self.CACHE_STALE_AFTER_CYCLES:
+        if cached_entry and self._is_fresh(cached_entry):
             cached = dict(cached_entry["payload"])
             cached["is_cached"] = True
             store.commander_calls += 1
@@ -333,8 +333,31 @@ class Commander:
         }
         self._log(session_id, query, payload)
         if self.cache_scripted:
-            self._cache[cache_key] = {"payload": payload, "cycle_number": store.cycle_number}
+            self._cache[cache_key] = {
+                "payload": payload,
+                "cycle_number": store.cycle_number,
+                "run_id": self._run_id(),
+            }
         return payload
+
+    # --- cache validity -------------------------------------------------------------
+    def _run_id(self) -> int:
+        return int(getattr(self.engine, "run_id", 0))
+
+    def _is_fresh(self, entry: dict) -> bool:
+        """Same timeline AND 0 <= age <= CACHE_STALE_AFTER_CYCLES.
+
+        A negative age means the clock went backwards (reset / seek): the entry
+        describes a different timeline and must never be served as current.
+        """
+        if entry.get("run_id") != self._run_id():
+            return False
+        age = self.engine.store.cycle_number - entry["cycle_number"]
+        return 0 <= age <= self.CACHE_STALE_AFTER_CYCLES
+
+    def clear_cache(self) -> None:
+        """Called by Engine._reset — answers about the old timeline are void."""
+        self._cache.clear()
 
     def _digest(self, name: str, result: Any) -> str:
         """Short, human-readable evidence line for the frontend's sources tray."""

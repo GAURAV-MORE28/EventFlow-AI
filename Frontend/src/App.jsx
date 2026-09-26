@@ -49,13 +49,15 @@ export default function App() {
         // Seed from REST so the first frame is populated, then let the socket
         // take over with deltas.
         try {
-          const [state, timeline, interventions, cascades] = await Promise.all([
+          const [state, timeline, interventions, cascades, demo] = await Promise.all([
             api.state(),
             api.pressureTimeline().catch(() => ({ items: [] })),
             api.interventions('proposed', 10).catch(() => ({ interventions: [] })),
             api.activeCascades().catch(() => ({ cascades: [] })),
+            api.demoStatus().catch(() => null),
           ]);
           if (cancelled) return;
+          store.setDemo(demo);
           store.setSummary(state.summary, state.sim_time, state.cycle_number);
           store.mergeEntities(state.entities);
           store.setPressureTimeline(timeline.items, timeline.active_source);

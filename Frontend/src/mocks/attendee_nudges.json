@@ -1,52 +1,52 @@
 {
   "nudges": [
     {
-      "nudge_id": "ndg_e738",
+      "nudge_id": "ndg_77d5",
       "attendee_id": "att_demo_1",
-      "intervention_id": "int_d781e",
-      "headline": "Switch to Arterial 13",
-      "body": "1 minutes further, Rs 0 credit, and priority shuttle access.",
+      "intervention_id": "int_965a3",
+      "headline": "Switch to Metro C Station",
+      "body": "9 minutes further, Rs 200 credit, and priority shuttle access.",
       "tradeoff": {
-        "extra_travel_sec": 0,
-        "credit_paise": 0,
+        "extra_travel_sec": 540,
+        "credit_paise": 20000,
         "perk": "priority_shuttle"
       },
-      "target_entity_id": "road_13",
+      "target_entity_id": "metro_c",
       "status": "pending",
-      "issued_at": "2026-09-04T14:45:00Z",
-      "expires_at": "2026-09-04T15:00:00Z"
+      "issued_at": "2026-09-04T14:50:00Z",
+      "expires_at": "2026-09-04T15:05:00Z"
     },
     {
-      "nudge_id": "ndg_b484",
+      "nudge_id": "ndg_6d14",
       "attendee_id": "att_demo_2",
-      "intervention_id": "int_d781e",
-      "headline": "Switch to Arterial 13",
-      "body": "1 minutes further, Rs 0 credit, and priority shuttle access.",
+      "intervention_id": "int_965a3",
+      "headline": "Switch to Metro C Station",
+      "body": "9 minutes further, Rs 200 credit, and priority shuttle access.",
       "tradeoff": {
-        "extra_travel_sec": 0,
-        "credit_paise": 0,
+        "extra_travel_sec": 540,
+        "credit_paise": 20000,
         "perk": "priority_shuttle"
       },
-      "target_entity_id": "road_13",
+      "target_entity_id": "metro_c",
       "status": "pending",
-      "issued_at": "2026-09-04T14:45:00Z",
-      "expires_at": "2026-09-04T15:00:00Z"
+      "issued_at": "2026-09-04T14:50:00Z",
+      "expires_at": "2026-09-04T15:05:00Z"
     },
     {
-      "nudge_id": "ndg_8097",
+      "nudge_id": "ndg_d31c",
       "attendee_id": "att_demo_3",
-      "intervention_id": "int_d781e",
-      "headline": "Switch to Arterial 13",
-      "body": "1 minutes further, Rs 0 credit, and priority shuttle access.",
+      "intervention_id": "int_965a3",
+      "headline": "Switch to Metro C Station",
+      "body": "9 minutes further, Rs 200 credit, and priority shuttle access.",
       "tradeoff": {
-        "extra_travel_sec": 0,
-        "credit_paise": 0,
+        "extra_travel_sec": 540,
+        "credit_paise": 20000,
         "perk": "priority_shuttle"
       },
-      "target_entity_id": "road_13",
+      "target_entity_id": "metro_c",
       "status": "pending",
-      "issued_at": "2026-09-04T14:45:00Z",
-      "expires_at": "2026-09-04T15:00:00Z"
+      "issued_at": "2026-09-04T14:50:00Z",
+      "expires_at": "2026-09-04T15:05:00Z"
     }
   ]
 }

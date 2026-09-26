@@ -1,5 +1,54 @@
 {
   "$defs": {
+    "ActionEffect": {
+      "additionalProperties": false,
+      "description": "Phase 1C: what an approved intervention physically does, explicitly.\n\n`planned_fraction` of the SOURCE's people are offered the move; the share\nthat actually moves is planned_fraction x the certificate's response rate.\ndestination_entity_id = null means they leave the modelled area (a\ndeferral: e.g. staggered entry holds people back for `duration_sec`).",
+      "properties": {
+        "source_entity_id": {
+          "title": "Source Entity Id",
+          "type": "string"
+        },
+        "destination_entity_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Destination Entity Id"
+        },
+        "planned_fraction": {
+          "title": "Planned Fraction",
+          "type": "number"
+        },
+        "ramp_sec": {
+          "default": 0,
+          "title": "Ramp Sec",
+          "type": "integer"
+        },
+        "duration_sec": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Duration Sec"
+        }
+      },
+      "required": [
+        "source_entity_id",
+        "planned_fraction"
+      ],
+      "title": "ActionEffect",
+      "type": "object"
+    },
     "CascadeResult": {
       "additionalProperties": false,
       "properties": {
@@ -174,6 +223,18 @@
           "maxLength": 140,
           "title": "Reason",
           "type": "string"
+        },
+        "response_rate": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Response Rate"
         }
       },
       "required": [
@@ -321,6 +382,23 @@
         "expires_at": {
           "title": "Expires At",
           "type": "string"
+        },
+        "effect_model": {
+          "default": "none",
+          "enum": [
+            "transfer",
+            "deferral",
+            "none"
+          ],
+          "title": "Effect Model",
+          "type": "string"
+        },
+        "action_effects": {
+          "items": {
+            "$ref": "#/$defs/ActionEffect"
+          },
+          "title": "Action Effects",
+          "type": "array"
         }
       },
       "required": [

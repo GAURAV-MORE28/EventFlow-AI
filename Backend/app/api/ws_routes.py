@@ -14,7 +14,6 @@ import logging
 from fastapi import APIRouter, Query, WebSocket, WebSocketDisconnect
 
 from ..services.engine import get_engine
-from ..services.metrics import build_regret
 from ..ws.manager import MANAGER
 
 log = logging.getLogger("eventflow.ws")
@@ -22,20 +21,7 @@ router = APIRouter()
 
 
 def _resync_payload(engine) -> dict:
-    store = engine.store
-    return {
-        "state": engine.state_payload(),
-        "pressure_timeline": store.pressure_timeline,
-        "active_forecast_source": store.active_forecast_source,
-        "interventions": [
-            {k: v for k, v in i.items() if not k.startswith("_")}
-            for i in store.interventions_by_status("proposed", limit=10)
-        ],
-        "cascades": list(store.cascades.values()),
-        "twin_fidelity": store.twin_fidelity_payload(),
-        "regret": build_regret(engine),
-        "nudges": list(store.nudges.values()),
-    }
+    return engine.resync_payload()
 
 
 @router.websocket("/ws")

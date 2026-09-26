@@ -20,6 +20,7 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import logging
+import math
 import time
 from collections import deque
 from typing import Any
@@ -37,6 +38,10 @@ log = logging.getLogger("eventflow.cycle")
 # 01 §3.4 — the pressure timeline is always these six offsets.
 TRAJECTORY_OFFSETS = [0, 300, 600, 900, 1200, 1800]
 MIN_WALL_SLEEP = 0.2
+# The inter-cycle wait is re-evaluated in slices this long, so a speed change or
+# a pause takes effect within ~0.1 s instead of after the previous sleep ends
+# (a 0.01x speed would otherwise commit the loop to a ~50-minute sleep).
+WAKE_CHECK_SEC = 0.1
 # Operator queue ceiling — the frontend shows 10; beyond that it is noise.
 MAX_LIVE_PROPOSALS = 8
 
@@ -49,9 +54,18 @@ class Engine:
         event_cfg = self.config.raw["event"]
 
         self.seed = self.config.demo_seed
-        self.speed_multiplier = float(self.config.raw.get("speed_multiplier", 60))
+        self.speed_multiplier = validated_speed(self.config.raw.get("speed_multiplier", 60))
         self.sim_dt = self.config.cycle_sec
         self.paused = False
+        # Timeline epoch: bumped on every reset. Anything cached against the
+        # previous timeline (Commander answers, client-side UI state) is keyed
+        # on it so it can never be mistaken for the current run.
+        self.run_id = 1
+        # Observer / judge mode (Phase 0). Off by default so the unattended
+        # cycle behaves exactly as before; the Command Centre toggles it.
+        self.auto_pause_on_intervention = False
+        self._pause_on_next_decision = False
+        self.pause_reason: dict[str, Any] | None = None
 
         self.store = StateStore(sim_start=event_cfg["sim_start_time"])
         self.registry = MLRegistry()
@@ -64,6 +78,9 @@ class Engine:
         self._stopping = asyncio.Event()
         self._last_cycle_ms = 0.0
         self._shed_forecast_until = 0
+        # Serialises whole cycles against control actions that must not
+        # interleave with one (reset, step), since run_cycle awaits mid-way.
+        self._cycle_lock = asyncio.Lock()
 
     # --- lifecycle ------------------------------------------------------------
     def _init_twin(self) -> None:
@@ -71,7 +88,10 @@ class Engine:
         truth = self.generator.ground_truth()
         counts = {e: v["current_count"] for e, v in truth.items()}
         if hasattr(self.registry.twin, "initialise"):
-            self.registry.twin.initialise(list(self.store.nodes.keys()), caps, counts)
+            self.registry.twin.initialise(
+                list(self.store.nodes.keys()), caps, counts,
+                entity_types={e: n["entity_type"] for e, n in self.store.nodes.items()},
+            )
 
     async def start(self) -> None:
         self._stopping.clear()
@@ -89,22 +109,30 @@ class Engine:
                 await self._task
         self._task = None
 
+    def wall_seconds_per_cycle(self) -> float:
+        return max(MIN_WALL_SLEEP, self.sim_dt / self.speed_multiplier)
+
     async def _loop(self) -> None:
         while not self._stopping.is_set():
-            wall_sleep = max(MIN_WALL_SLEEP, self.sim_dt / max(self.speed_multiplier, 1e-6))
             if self.paused:
-                await asyncio.sleep(wall_sleep)
+                await asyncio.sleep(WAKE_CHECK_SEC)
                 continue
+            started = time.perf_counter()
             try:
-                started = time.perf_counter()
-                await self.run_cycle()
-                elapsed = time.perf_counter() - started
+                async with self._cycle_lock:
+                    if not self.paused:  # a pause may have landed while waiting
+                        await self.run_cycle()
             except asyncio.CancelledError:
                 raise
             except Exception:
                 log.exception("cycle failed; continuing to the next one")
-                elapsed = 0.0
-            await asyncio.sleep(max(0.0, wall_sleep - elapsed))
+            # Wait out the rest of this cycle's wall interval, re-reading the
+            # speed each slice so a change applies now, not after the old sleep.
+            while not self._stopping.is_set() and not self.paused:
+                remaining = started + self.wall_seconds_per_cycle() - time.perf_counter()
+                if remaining <= 0:
+                    break
+                await asyncio.sleep(min(remaining, WAKE_CHECK_SEC))
 
     # --- the cycle -------------------------------------------------------------
     async def run_cycle(self) -> None:
@@ -130,6 +158,8 @@ class Engine:
         # because it mutates internal state only — a failure here can't corrupt
         # the wire, so it is caught and logged rather than routed through
         # call_ml's timeout/fallback machinery.
+        if hasattr(self.registry.twin, "set_known_transfers"):
+            self.registry.twin.set_known_transfers(self.generator.active_transfers())
         if hasattr(self.registry.twin, "step"):
             try:
                 await asyncio.to_thread(self.registry.twin.step, self.sim_dt)
@@ -241,6 +271,30 @@ class Engine:
         store.cycle_latency_ms.append(total_ms)
         self._maybe_shed_load(total_ms)
 
+        # 11. observer mode: stop on a REAL proposal so a human can read it -----------------
+        if new_interventions and (self.auto_pause_on_intervention or self._pause_on_next_decision):
+            await self._observer_pause(new_interventions[0], sim_time)
+
+    async def _observer_pause(self, top: dict, sim_time: str) -> None:
+        """Pause because the optimiser just queued a real proposal batch.
+
+        Pausing freezes the sim clock, so the proposal's sim-time TTL cannot run
+        out while the operator reads it — the intervention's own semantics
+        (created_at / expires_at / approve / reject / expire) are untouched.
+        """
+        self.paused = True
+        self._pause_on_next_decision = False
+        self.pause_reason = {
+            "kind": "intervention_proposed",
+            "intervention_id": top["intervention_id"],
+            "entity_id": top.get("triggered_by_entity_id"),
+            "cycle_number": self.store.cycle_number,
+            "sim_time": sim_time,
+        }
+        log.info("observer pause at cycle %s: %s proposed for %s",
+                 self.store.cycle_number, top["intervention_id"], top.get("triggered_by_entity_id"))
+        await self.broadcast_demo_status()
+
     # --- step 3/1: merge observations and twin estimates -------------------------------
     def _merge_states(
         self,
@@ -251,7 +305,9 @@ class Engine:
     ) -> None:
         store = self.store
         for eid, node in store.nodes.items():
-            cap = float(node["nominal_capacity"]) or 1.0
+            # Utilisation is people / EFFECTIVE capacity (a capacity cut or a
+            # closure raises it); the generator owns the effective figure.
+            cap = float(self.generator.capacity(eid)) or 1.0
             observed = eid in observations
 
             if observed:
@@ -544,18 +600,15 @@ class Engine:
         for candidate in candidates:
             certificate, degraded, certify_ms = await call_ml(
                 "equilibrium.certify",
-                self.registry.equilibrium.certify,
+                self.certify_candidate,
                 self.registry.equilibrium.fallback,
                 self.config.budget_sec("certify"),
                 candidate,
                 node_state,
-                store.edges,
-                store.segments,
             )
             candidate["certificate"] = certificate
             candidate["created_at"] = sim_time
             candidate["expires_at"] = shift(sim_time, candidate.pop("_ttl_sec", 900))
-            await self._score_certificate_accuracy(candidate, certificate, node_state)
 
         # rank() attaches rank_score using the certificate verdict — this is the
         # step where an UNSTABLE high-relief option loses to a STABLE lower one.
@@ -584,52 +637,30 @@ class Engine:
         if verdict == "UNSTABLE" and ranked[0]["intervention_id"] != by_relief["intervention_id"]:
             self.store.unstable_caught += 1
 
-    async def _score_certificate_accuracy(
-        self, candidate: dict, certificate: dict, node_state: dict[str, dict]
-    ) -> None:
-        """03 §5.6 — compare the certificate's predicted equilibrium against an
-        independent `twin.branch()` rollout of the same relief. Agreement within
-        15% is recorded; this is the only place `certificates_scored` is written,
-        and `metrics.certificate_accuracy_pct` is the only place it is read.
-
-        Deliberately a *different* mechanism from `certify()`'s own best-response
-        solver (a flat demand cut on the named targets vs. a compliance-weighted
-        segment model) — the point of this check is cross-validation, not
-        re-deriving the same number twice.
-        """
-        if not certificate.get("converged"):
-            return  # no equilibrium prediction to compare against
-        targets = candidate.get("target_entity_ids") or []
-        relief = float(candidate.get("estimated_relief_pct", 0.0)) / 100.0
-        scenario = {"demand_multipliers": {t: clamp(1.0 - relief, 0.05, 1.0) for t in targets if t in node_state}}
-        if not scenario["demand_multipliers"]:
-            return
-        branch, degraded, _ = await call_ml(
-            "twin.branch_check", self.registry.twin.branch, None, 0.2, scenario, 1800,
-        )
-        if degraded or not branch:
-            return
-        predicted = float(certificate.get("max_zone_utilisation", 0.0))
-        observed = float((branch.get("scenario") or {}).get("peak_utilisation", 0.0))
-        within_15pct = abs(predicted - observed) <= max(0.15 * observed, 0.05)
-        self.store.certificates_scored.append(within_15pct)
-
-    # `_counterfactual_trajectory` is a 6-point rollout at 300s increments
-    # (see AssimilatedTwin._branch, horizon_sec=1800 // 6 steps); settling at
-    # exactly 900s after approval lands on index 2.
     SETTLE_DELAY_SEC = 900
-    _COUNTERFACTUAL_STEP_SEC = 300
 
     async def _settle_executing_interventions(self, sim_time: str) -> list[dict]:
         """Close the loop: an executing intervention becomes a regret-ledger entry.
 
-        Both `realised_relief_pct` and `counterfactual_relief_pct` are measured
-        against the same baseline (`_util_at_approval`) and the same settlement
-        point — one from what the live simulation, with the relief actually
-        applied, shows now; the other from the do-nothing branch forked at
-        approval time. Neither is derived from `hash()` (which also broke
-        seed-42 reproducibility per 01 §8 — a per-process-salted hash of the
-        intervention id is not a function of the seed at all).
+        Phase 1B — matched counterfactual. At settlement (900 sim-s after
+        approval) two utilisation values are read from the SAME event-world
+        model at the SAME instant:
+
+            actual          the live world (this intervention's effects included)
+            counterfactual  the live world with this intervention's effects
+                            excluded — every other event since approval kept
+
+        The measured quantity is the mean utilisation of the intervention's
+        SOURCE entities (the ones it is meant to relieve). All three percentages
+        use that one quantity and that one horizon:
+
+            realised_relief_pct       = (cf - actual) / cf * 100        vs do-nothing
+            counterfactual_relief_pct = (u_approval - cf) / u_approval * 100
+                                        (how the source would have moved anyway)
+            regret                    = predicted_relief_pct - realised_relief_pct
+
+        No clamping: the old +/-100 clamp hid a twin branch predicting 915%
+        utilisation. If a denominator is ~0 the value is unavailable (null).
         """
         store = self.store
         settled = []
@@ -640,39 +671,43 @@ class Engine:
             if not applied or (parse(sim_time) - parse(applied)).total_seconds() < self.SETTLE_DELAY_SEC:
                 continue
 
+            sources = [s for s in i.get("_sources") or i["target_entity_ids"] if s in store.nodes]
+            effect_ids = tuple(i.get("_effect_ids") or ())
+            actual_world = self.generator.evaluate()
+            cf_world = self.generator.evaluate(exclude=effect_ids)
+
+            def mean_util(world: dict[str, dict]) -> float | None:
+                vals = [world[s]["utilisation"] for s in sources if s in world]
+                return sum(vals) / len(vals) if vals else None
+
+            actual = mean_util(actual_world)
+            counterfactual = mean_util(cf_world)
+            at_approval = i.get("_source_util_at_approval")
             predicted = float(i["estimated_relief_pct"])
-            baseline = float(i.get("_util_at_approval", 0.0))
-            targets = [t for t in i["target_entity_ids"] if t in store.entity_states]
-            traj = i.get("_counterfactual_trajectory") or {}
-            idx = self.SETTLE_DELAY_SEC // self._COUNTERFACTUAL_STEP_SEC - 1
 
-            actual_now = (
-                sum(store.entity_states[t]["utilisation"] for t in targets) / len(targets)
-                if targets else baseline
+            realised = (
+                round((counterfactual - actual) / counterfactual * 100.0, 1)
+                if counterfactual is not None and actual is not None and counterfactual > 0.01 else None
             )
-            do_nothing_now = (
-                sum(traj[t][idx] for t in targets if t in traj and len(traj[t]) > idx)
-                / max(sum(1 for t in targets if t in traj and len(traj[t]) > idx), 1)
-                if any(t in traj and len(traj[t]) > idx for t in targets) else baseline
+            cf_change = (
+                round((at_approval - counterfactual) / at_approval * 100.0, 1)
+                if at_approval and counterfactual is not None and at_approval > 0.01 else None
             )
 
-            # A near-zero baseline turns a small absolute swing into a huge
-            # percentage (the twin's branch model is a crude ABM surrogate —
-            # see twin.py — not the generator's true curve, so it can diverge
-            # from what actually happens by more than a percentage swing
-            # should reasonably report). Clamped to the same +/-100 scale
-            # `estimated_relief_pct` itself uses, so an outlier reads as "very
-            # wrong" rather than as a plausible-looking three-digit number.
-            if baseline > 0.05:
-                realised = round(clamp((baseline - actual_now) / baseline * 100.0, -100.0, 100.0), 1)
-                counterfactual = round(clamp((baseline - do_nothing_now) / baseline * 100.0, -100.0, 100.0), 1)
-            else:
-                realised = 0.0
-                counterfactual = 0.0
+            # Decision-panel evidence: affected entities, actual vs matched do-nothing.
+            affected = list(dict.fromkeys(sources + [d for d in i.get("_destinations") or [] if d in store.nodes]))
+            store.settlements.append({
+                "intervention_id": i["intervention_id"],
+                "affected": affected,
+                "actual_peak": max((actual_world[e]["utilisation"] for e in affected), default=0.0),
+                "counterfactual_peak": max((cf_world[e]["utilisation"] for e in affected), default=0.0),
+                "actual_zone_variance": variance([actual_world[z]["utilisation"] for z in store.zone_ids()]),
+                "counterfactual_zone_variance": variance([cf_world[z]["utilisation"] for z in store.zone_ids()]),
+            })
 
-            for t in targets:
-                if t in traj and len(traj[t]) > idx:
-                    store.counterfactual_utilisation[t] = float(traj[t][idx])
+            predicted_util = i.get("_predicted_source_util_at_settle")
+            if predicted_util is not None and actual is not None:
+                store.certificates_scored.append(abs(predicted_util - actual) <= max(0.15 * actual, 0.05))
 
             i["status"] = "completed"
             entry = {
@@ -681,8 +716,8 @@ class Engine:
                 "intervention_type": i["intervention_type"],
                 "predicted_relief_pct": predicted,
                 "realised_relief_pct": realised,
-                "counterfactual_relief_pct": counterfactual,
-                "regret": round(predicted - realised, 2),
+                "counterfactual_relief_pct": cf_change,
+                "regret": None if realised is None else round(predicted - realised, 2),
                 "sim_time": sim_time,
             }
             store.regret_entries.append(entry)
@@ -922,34 +957,204 @@ class Engine:
         speed_multiplier: float | None,
         seek_to_sim_time: str | None,
         inject: dict | None,
+        auto_pause_on_intervention: bool | None = None,
     ) -> dict[str, Any]:
         if seed is not None:
             self.seed = seed
         if speed_multiplier is not None:
-            self.speed_multiplier = float(speed_multiplier)
+            self.speed_multiplier = validated_speed(speed_multiplier)
+        if auto_pause_on_intervention is not None:
+            self.auto_pause_on_intervention = bool(auto_pause_on_intervention)
 
         if action == "pause":
             self.paused = True
+            self.pause_reason = {"kind": "operator", "cycle_number": self.store.cycle_number,
+                                 "sim_time": self.store.sim_time}
         elif action == "play":
             self.paused = False
+            self.pause_reason = None
         elif action == "set_speed":
             pass
         elif action == "reset":
-            await self._reset()
+            async with self._cycle_lock:
+                await self._reset()
+            await self.broadcast_resync()
         elif action == "seek" and seek_to_sim_time:
             elapsed = (parse(seek_to_sim_time) - parse(self.store.sim_start)).total_seconds()
             self.generator.seek(max(0.0, elapsed))
             self.store.reset_clock(seek_to_sim_time)
+        elif action == "step":
+            # Exactly one real cycle, then stay paused. Serialised with the loop
+            # so it can never interleave with a cycle already in flight.
+            self.paused = True
+            async with self._cycle_lock:
+                self.pause_reason = {"kind": "step"}
+                await self.run_cycle()
+            if self.pause_reason and self.pause_reason.get("kind") == "step":
+                self.pause_reason = {"kind": "step", "cycle_number": self.store.cycle_number,
+                                     "sim_time": self.store.sim_time}
+        elif action == "next_decision":
+            # Run at the current speed until the optimiser queues its next real
+            # proposal batch, then pause (see run_cycle step 11). No synthetic
+            # events: if nothing is proposed, the sim simply keeps running.
+            self._pause_on_next_decision = True
+            self.paused = False
+            self.pause_reason = None
 
         if inject:
             self.generator.inject(inject["scenario_type"], inject.get("params", {}))
 
+        await self.broadcast_demo_status()
+        return self.demo_status()
+
+    # --- intervention execution ----------------------------------------------------------------
+    def execute_intervention(self, item: dict) -> dict:
+        """Apply an approved intervention to the live world (Phase 1C).
+
+        Each `action_effects` entry becomes a conserved generator transfer:
+            moved = planned_fraction x response x source people (ramping in over ramp_sec)
+            source -= moved;  destination += moved   (destination None = deferral)
+        `response` is the share of the offered move that attendees actually take:
+        the certificate's equilibrium response rate when certified, otherwise the
+        nominal segment-weighted compliance (see `nominal_response`).
+
+        Interventions with no modelled crowd effect (notify_only,
+        emergency_corridor) do NOT touch demand — before Phase 1 approving
+        "notify operations team" cut real demand by 4%.
+
+        Records what the matched counterfactual needs: effect ids, sources,
+        destinations and the sources' utilisation at approval.
+        """
+        effects = item.get("action_effects") or []
+        response = self.response_rate(item)
+        effect_ids: list[str] = []
+        for eff in effects:
+            src, dst = eff["source_entity_id"], eff.get("destination_entity_id")
+            if src not in self.store.nodes or (dst is not None and dst not in self.store.nodes):
+                continue
+            effect_ids.append(self.generator.add_transfer(
+                src, dst, float(eff["planned_fraction"]) * response,
+                ramp_sec=float(eff.get("ramp_sec") or 0),
+                duration_sec=eff.get("duration_sec"),
+                tag=item["intervention_id"],
+            ))
+        sources = list(dict.fromkeys(e["source_entity_id"] for e in effects if e["source_entity_id"] in self.store.nodes))
+        if not sources:
+            # No crowd effect: measure at the entity it was raised for.
+            root = item.get("triggered_by_entity_id") or (item["target_entity_ids"] or [None])[0]
+            sources = [root] if root in self.store.nodes else []
+        destinations = list(dict.fromkeys(
+            e["destination_entity_id"] for e in effects
+            if e.get("destination_entity_id") in self.store.nodes
+        ))
+        truth = self.generator.evaluate()
+        # 03 §5.6 certificate accuracy: what the certified model predicts the
+        # sources' utilisation will be at settlement, compared there with reality.
+        # (Same event-world model, so this can only diverge through events that
+        # happen after approval — other approvals, injected disruptions.)
+        if sources and effects:
+            predicted_world = self.world_rollout(self.generator)
+            moved = [{**e, "fraction": float(e["planned_fraction"]) * response} for e in effects]
+            projection = predicted_world(moved, sources, self.SETTLE_DELAY_SEC)
+            item["_predicted_source_util_at_settle"] = sum(projection[s][-1] for s in sources) / len(sources)
+        item["_effect_ids"] = effect_ids
+        item["_sources"] = sources
+        item["_destinations"] = destinations
+        item["_response_rate"] = response
+        item["_source_util_at_approval"] = (
+            sum(truth[s]["utilisation"] for s in sources) / len(sources) if sources else None
+        )
+        self._branch_seq = getattr(self, "_branch_seq", 0) + 1
+        return {"branch_id": f"sim_{self._branch_seq:04x}", "effect_ids": effect_ids}
+
+    # Share of an offered move that attendees take, at the nominal (0.6) row of
+    # the compliance sweep with no cost advantage: sum(share x base_rate) x 0.6.
+    NOMINAL_COMPLIANCE_ROW = 0.6
+
+    def nominal_response(self) -> float:
+        return sum(
+            float(s["share"]) * float(s["compliance_base_rate"]) for s in self.store.segments
+        ) * self.NOMINAL_COMPLIANCE_ROW
+
+    def response_rate(self, item: dict) -> float:
+        cert = item.get("certificate") or {}
+        rate = cert.get("response_rate")
+        return float(rate) if rate is not None else self.nominal_response()
+
+    # --- certification hook ------------------------------------------------------------------
+    ROLLOUT_STEP_SEC = 30
+
+    def world_rollout(self, world: Any = None):
+        """A rollout over a frozen clone of the event-world model (Phase 1D).
+
+        `rollout(moved, entities, horizon_sec)` applies `moved` transfers to a
+        fresh copy of that clone and returns each entity's utilisation at every
+        30-sim-second step. The live generator is never touched, so certificates,
+        what-if and settlement all use the same model the simulation runs."""
+        frozen = (world or self.generator).clone()
+        start = frozen.elapsed_sec()
+
+        def rollout(moved: list[dict], entities: list[str], horizon_sec: int) -> dict[str, list[float]]:
+            branch = frozen.clone()
+            for e in moved:
+                branch.add_transfer(
+                    e["source_entity_id"], e.get("destination_entity_id"), float(e["fraction"]),
+                    ramp_sec=float(e.get("ramp_sec") or 0), duration_sec=e.get("duration_sec"),
+                )
+            steps = max(1, int(horizon_sec) // self.ROLLOUT_STEP_SEC)
+            frames = [branch.evaluate(start + self.ROLLOUT_STEP_SEC * (k + 1), only=entities) for k in range(steps)]
+            return {e: [f[e]["utilisation"] for f in frames] for e in entities}
+
+        return rollout
+
+    def certify_candidate(self, candidate: dict, node_state: dict[str, dict], world: Any = None) -> dict:
+        """Certify one candidate against the event-world model (live cycle and what-if)."""
+        return self.registry.equilibrium.certify(
+            candidate, node_state, self.store.edges, self.store.segments, rollout=self.world_rollout(world)
+        )
+
+    # --- observer status (Phase 0) ------------------------------------------------------
+    def demo_status(self) -> dict[str, Any]:
         return {
             "status": "paused" if self.paused else "playing",
             "sim_time": self.store.sim_time,
             "seed": self.seed,
             "speed_multiplier": self.speed_multiplier,
+            "cycle_number": self.store.cycle_number,
+            "run_id": self.run_id,
+            "cycle_sec": int(self.sim_dt),
+            "wall_seconds_per_cycle": round(self.wall_seconds_per_cycle(), 3),
+            "auto_pause_on_intervention": self.auto_pause_on_intervention,
+            "pause_on_next_decision": self._pause_on_next_decision,
+            "pause_reason": self.pause_reason,
         }
+
+    async def broadcast_demo_status(self) -> None:
+        await MANAGER.broadcast("demo_status", self.demo_status(), self.store.sim_time)
+
+    def resync_payload(self) -> dict[str, Any]:
+        """Full state for a (re)connecting client — never a delta (01 §4)."""
+        from .metrics import build_regret
+
+        store = self.store
+        return {
+            "state": self.state_payload(),
+            "pressure_timeline": store.pressure_timeline,
+            "active_forecast_source": store.active_forecast_source,
+            "interventions": [
+                {k: v for k, v in i.items() if not k.startswith("_")}
+                for i in store.interventions_by_status("proposed", limit=10)
+            ],
+            "cascades": list(store.cascades.values()),
+            "twin_fidelity": store.twin_fidelity_payload(),
+            "regret": build_regret(self),
+            "nudges": list(store.nudges.values()),
+            "demo": self.demo_status(),
+        }
+
+    async def broadcast_resync(self) -> None:
+        """After a reset every open client must drop the previous timeline."""
+        await MANAGER.broadcast("resync", self.resync_payload(), self.store.sim_time)
 
     async def _reset(self) -> None:
         """Full reproducible reset — the H33 rehearsal depends on this being exact."""
@@ -963,6 +1168,12 @@ class Engine:
         self._init_twin()
         self.store.drift_mode_enabled = False
         CACHE.clear()
+        self.run_id += 1
+        self.pause_reason = None
+        self._pause_on_next_decision = False
+        commander = getattr(self, "commander", None)
+        if commander is not None:
+            commander.clear_cache()
 
         # The clock rewinds to sim_start, so persistence would otherwise
         # re-insert entity_state rows keyed on sim_times this same process just
@@ -984,6 +1195,15 @@ class Engine:
             # Both series restart from the same point, so the divergence reads clean.
             self.store.twin_history.clear()
         return {"drift_mode_enabled": enabled, "uncorrected_ensemble_started_at": started}
+
+
+def validated_speed(value: Any) -> float:
+    """Sim-seconds per wall-second: finite and > 0. The API rejects anything
+    else with a 400 before it gets here; this guards config and direct callers."""
+    speed = float(value)
+    if not math.isfinite(speed) or speed <= 0:
+        raise ValueError(f"speed_multiplier must be a finite number > 0, got {value!r}")
+    return speed
 
 
 ENGINE: Engine | None = None

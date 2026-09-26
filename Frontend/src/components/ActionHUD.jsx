@@ -30,6 +30,12 @@ function BandArrow({ from, to }) {
   );
 }
 
+/** Relative percentage with sign; null means "unavailable", never 0. */
+function signedPct(value) {
+  if (value === null || value === undefined) return '—';
+  return `${value > 0 ? '+' : ''}${value}%`;
+}
+
 function DeltaPp({ pp }) {
   if (pp === null || pp === undefined) return null;
   if (pp === 0) return <span className="text-slate-500">±0pp</span>;
@@ -154,18 +160,21 @@ function ExecutedCard({ action, expanded, onToggle, onDismiss, nodesById, mockMo
 
               {settled && (
                 <div className="rounded border border-surface-700/80 bg-surface-950/80 px-2 py-1 font-mono text-[10px]">
+                  {/* Phase 1B definitions (engine._settle_executing_interventions):
+                      realised = source relief vs the MATCHED do-nothing world at
+                      settlement; counterfactual = how the source would have moved
+                      anyway since approval. Relative %, null = unavailable. */}
                   <span className="text-slate-500">settled:</span>{' '}
                   <span className="text-slate-200">
-                    realised {settled.realised_relief_pct}pp
+                    source relief {signedPct(settled.realised_relief_pct)} vs do-nothing
                   </span>{' '}
-                  <span className="text-slate-500">vs do-nothing</span>{' '}
-                  <span className="text-slate-300">{settled.counterfactual_relief_pct}pp</span>{' '}
+                  <span className="text-slate-500">· without action source would have moved</span>{' '}
+                  <span className="text-slate-300">{signedPct(settled.counterfactual_relief_pct == null ? null : -settled.counterfactual_relief_pct)}</span>{' '}
                   <span className="text-slate-500">· regret</span>{' '}
                   <span
                     className={settled.regret > 0 ? 'text-orange-400' : 'text-emerald-400'}
                   >
-                    {settled.regret > 0 ? '+' : ''}
-                    {settled.regret}
+                    {settled.regret == null ? '—' : `${settled.regret > 0 ? '+' : ''}${settled.regret}`}
                   </span>
                 </div>
               )}

@@ -160,10 +160,17 @@ def build_journey(engine: Any, request: dict) -> dict:
 def issue_nudges(engine: Any, intervention: dict) -> list[dict]:
     """Turn an approved intervention into attendee-facing nudges with honest trade-offs."""
     store = engine.store
+    # Phase 1C: a "switch to X" nudge only makes sense when the action actually
+    # moves people to X. Before, the last target was used, so approving
+    # notify_only told attendees to "Switch to" the congested station itself.
+    destinations = [
+        e.get("destination_entity_id") for e in intervention.get("action_effects") or []
+        if e.get("destination_entity_id") in store.nodes
+    ]
     targets = [t for t in intervention["target_entity_ids"] if t in store.nodes]
-    if not targets:
+    if not destinations or not targets:
         return []
-    destination = targets[-1]
+    destination = destinations[0]
     node = store.nodes[destination]
 
     credit = int(intervention["estimated_cost_paise"] / max(len(targets), 1) / 3)

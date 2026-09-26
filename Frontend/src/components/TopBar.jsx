@@ -95,7 +95,7 @@ export default function TopBar() {
         <div className="flex items-center gap-1.5 rounded-full border border-surface-700/60 bg-surface-900/80 px-2.5 py-0.5 text-[10px] font-semibold tracking-wider">
           <span className={wsStatus === 'connected' ? 'live-dot' : 'h-1.5 w-1.5 rounded-full bg-slate-500'} />
           <span className={wsStatus === 'connected' ? 'text-emerald-400' : 'text-slate-400'}>
-            {mockMode ? 'SIMULATION' : 'LIVE FEED'}
+            {mockMode ? 'RECORDED REPLAY' : 'LIVE SIMULATION'}
           </span>
         </div>
       </div>
@@ -117,11 +117,14 @@ export default function TopBar() {
           tone={toKickoff && toKickoff < 1800 ? 'text-amber-300' : 'text-slate-200'}
         />
 
+        {/* Live: the real cycle count (it does not wrap at 100 — showing it mod
+            100 made cycle 104 read "4"). Mock: the frame within the 100-frame
+            recording, which genuinely loops. */}
         <MetricBlock
           icon={Layers}
-          label="Cycle"
-          value={cycleNumber % CYCLE_DISPLAY_MAX}
-          sub="/ 100"
+          label={mockMode ? 'Frame' : 'Cycle'}
+          value={mockMode ? cycleNumber % CYCLE_DISPLAY_MAX : cycleNumber}
+          sub={mockMode ? '/ 100' : null}
         />
 
         <div className="topbar-divider" />

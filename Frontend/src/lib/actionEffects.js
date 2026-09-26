@@ -179,10 +179,11 @@ export function summarizeExecuted(action, deltas, downstream, cascade) {
   const anyWorse = deltas.some((d) => d.worsened);
 
   if (action.settled) {
+    // realised = source relief vs the matched do-nothing world (Phase 1B).
     const r = action.settled.realised_relief_pct;
-    const cf = action.settled.counterfactual_relief_pct;
-    if (r <= 0) return `Executed — congestion did not improve (realised ${r}pp)`;
-    return `Executed — realised ${r}pp vs do-nothing ${cf}pp`;
+    if (r === null || r === undefined) return 'Executed — realised relief unavailable';
+    if (r <= 0) return `Executed — no relief vs do-nothing (${r}%)`;
+    return `Executed — ${r}% source relief vs do-nothing`;
   }
   if (!measured.length) {
     if (action.phase === 'starting') return 'Executed — applying relief…';

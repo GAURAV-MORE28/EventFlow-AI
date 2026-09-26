@@ -27,31 +27,17 @@ def _rate(numerator: int, denominator: int) -> float:
     return round(numerator / denominator, 3) if denominator else 0.0
 
 
-def _counterfactual_variance(store: Any) -> float:
-    """Zone variance if every zone that has ever had a settled intervention sat
-    at its twin do-nothing projection instead of its real (relief-affected)
-    value — the actual counterfactual `load_variance_reduction_pct` needs."""
-    utils = []
-    for eid in store.zone_ids():
-        cf = store.counterfactual_utilisation.get(eid)
-        if cf is not None:
-            utils.append(cf)
-        else:
-            state = store.entity_states.get(eid)
-            if state:
-                utils.append(state["utilisation"])
-    return variance(utils)
-
-
-def _counterfactual_peak(store: Any) -> float:
-    """Peak utilisation if every entity with a settled intervention sat at its
-    do-nothing projection instead. Entities never targeted keep their real
-    value — there is nothing to counterfactualise for them."""
-    peak = 0.0
-    for eid, state in store.entity_states.items():
-        util = store.counterfactual_utilisation.get(eid, state["utilisation"])
-        peak = max(peak, util)
-    return peak
+def _settlement_reduction(store: Any, actual_key: str, cf_key: str) -> float:
+    """Mean % reduction vs the MATCHED do-nothing world over settled
+    interventions (engine._settle_executing_interventions): both values come
+    from the same event-world model at the same instant. 0.0 when nothing has
+    settled yet."""
+    values = []
+    for s in store.settlements:
+        cf, actual = s[cf_key], s[actual_key]
+        if cf > 1e-9:
+            values.append((cf - actual) / cf * 100.0)
+    return round(sum(values) / len(values), 1) if values else 0.0
 
 
 def build_metrics(engine: Any) -> dict[str, Any]:
@@ -75,31 +61,24 @@ def build_metrics(engine: Any) -> dict[str, Any]:
 
     assimilated = float(twin.get("assimilated_rmse") or 0.0)
     uncorrected = twin.get("uncorrected_rmse")
-    coverage = round(min(0.95, max(0.80, 0.85 + float(twin.get("ensemble_spread") or 0.0))), 2)
+    # Measured by the twin (fraction of entities whose simulated ground truth
+    # falls inside the ensemble's 90% interval) — it used to be the formula
+    # clamp(0.85 + spread, 0.80, 0.95), which could never leave its range.
+    coverage = twin.get("ensemble_coverage")
+    coverage = round(float(coverage), 2) if coverage is not None else 0.0
 
-    # Genuinely counterfactual (03 §5.6 / 01 §3.10): compares the real,
-    # relief-affected present against what the twin's do-nothing branch
-    # predicted for the same entities at the same settlement point — not a
-    # temporal diff against a cycle-3 snapshot, which just measures the event
-    # ramping up regardless of what any operator did.
-    current_variance = store.summary["load_variance"]
-    cf_variance = _counterfactual_variance(store)
-    variance_reduction = (
-        round((cf_variance - current_variance) / cf_variance * 100.0, 1) if cf_variance > 1e-9 else 0.0
-    )
+    # Matched counterfactual (Phase 1B): for each settled intervention, the
+    # affected entities' peak and the zone variance in the live world vs the
+    # same world with that intervention's effects excluded, same instant.
+    peak_reduction = _settlement_reduction(store, "actual_peak", "counterfactual_peak")
+    variance_reduction = _settlement_reduction(store, "actual_zone_variance", "counterfactual_zone_variance")
 
-    current_peak = max((s["utilisation"] for s in store.entity_states.values()), default=0.0)
-    cf_peak = _counterfactual_peak(store)
-    peak_reduction = (
-        round((cf_peak - current_peak) / cf_peak * 100.0, 1) if cf_peak > 1e-9 else 0.0
-    )
-
-    # 03 §5.6 names two distinct metrics that used to be conflated into one
-    # field: convergence rate (mechanical — did the solver converge) and
-    # certificate accuracy (does the converged prediction agree with an
-    # independent twin.branch() rollout, within 15%). `certificates_scored` is
-    # written once per certified candidate in
-    # `Engine._score_certificate_accuracy` and is exactly the latter.
+    # 03 §5.6 certificate accuracy (Phase 1D): for each settled intervention,
+    # the certified world-model projection of its sources' utilisation made at
+    # approval vs the realised value at settlement, within 15%. Both come from
+    # the same event-world model, so disagreement comes only from events after
+    # approval (other approvals, injected disruptions) — it is a consistency
+    # check of the simulation, not evidence of field accuracy.
     certified = [
         i for i in store.interventions.values() if (i.get("certificate") or {}).get("converged")
     ]
@@ -159,7 +138,7 @@ def build_metrics(engine: Any) -> dict[str, Any]:
             },
             "certificate_accuracy_pct": {
                 "value": certificate_accuracy, "target": 85.0,
-                "baseline_name": "twin_branch_ground_truth",
+                "baseline_name": "realised_at_settlement",
             },
             "convergence_rate_pct": {"value": convergence_rate, "target": 85.0},
         },
@@ -175,19 +154,21 @@ def build_metrics(engine: Any) -> dict[str, Any]:
 
 def build_regret(engine: Any) -> dict[str, Any]:
     entries = engine.store.regret_entries
-    regrets = [e["regret"] for e in entries]
-    count = len(regrets)
-    mean_abs = round(sum(abs(r) for r in regrets) / count, 2) if count else 0.0
+    # Unavailable (null) regrets are listed but excluded from the aggregates.
+    regrets = [e["regret"] for e in entries if e.get("regret") is not None]
+    count = len(entries)
+    k = len(regrets)
+    mean_abs = round(sum(abs(r) for r in regrets) / k, 2) if k else 0.0
 
     # Least-squares slope over the ledger; negative means we are getting better.
     slope = 0.0
-    if count >= 2:
-        mean_x = (count - 1) / 2.0
-        mean_y = sum(regrets) / count
-        denom = sum((i - mean_x) ** 2 for i in range(count))
+    if k >= 2:
+        mean_x = (k - 1) / 2.0
+        mean_y = sum(regrets) / k
+        denom = sum((i - mean_x) ** 2 for i in range(k))
         if denom:
             slope = round(
-                sum((i - mean_x) * (regrets[i] - mean_y) for i in range(count)) / denom, 3
+                sum((i - mean_x) * (regrets[i] - mean_y) for i in range(k)) / denom, 3
             )
 
     return {

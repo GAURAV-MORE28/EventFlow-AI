@@ -66,7 +66,13 @@ def install_error_handlers(app: FastAPI) -> None:
             content=envelope(
                 "INVALID_REQUEST",
                 "Request body or query parameters failed validation.",
-                {"errors": exc.errors()[:5]},
+                # Only loc/msg/type: the raw `input` may be NaN/Infinity (not
+                # JSON-serialisable -> the error handler itself would 500) and
+                # `ctx` can carry exception objects.
+                {"errors": [
+                    {"loc": list(e.get("loc", ())), "msg": str(e.get("msg", "")), "type": str(e.get("type", ""))}
+                    for e in exc.errors()[:5]
+                ]},
             ),
         )
 

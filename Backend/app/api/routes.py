@@ -20,7 +20,7 @@ from ..ml_reference.common import band_from_score
 from ..services.attendee import build_journey, issue_nudges
 from ..services.engine import get_engine
 from ..services.metrics import build_metrics, build_regret
-from ..services.simulation import SIMULATIONS
+from ..services.simulation import SIMULATIONS, validate_scenarios
 from ..simtime import iso, parse, server_now
 from ..ws.manager import MANAGER
 
@@ -218,17 +218,8 @@ async def approve(intervention_id: str, body: S.ApproveRequest) -> S.ApproveResp
     # (engine.py:_settle_executing_interventions reads `_counterfactual_trajectory`
     # 900s from now to compute `counterfactual_relief_pct`/`realised_relief_pct` for
     # real, instead of a hash()-derived number that also broke seed reproducibility).
-    branch = await asyncio.to_thread(engine.registry.twin.branch, {}, 1800)
-    targets = [t for t in item["target_entity_ids"] if t in store.entity_states]
-    util_at_approval = (
-        sum(store.entity_states[t]["utilisation"] for t in targets) / len(targets) if targets else 0.0
-    )
-
     item["status"] = "executing"
     item["_applied_at"] = store.sim_time
-    item["_util_at_approval"] = util_at_approval
-    item["_counterfactual_trajectory"] = {t: branch["trajectory"].get(t, []) for t in targets}
-    item["_twin_branch_id"] = branch["branch_id"]
 
     # This is the step that used to be missing entirely: approving an
     # intervention only ever flipped a status flag before, so nothing an
@@ -236,8 +227,7 @@ async def approve(intervention_id: str, body: S.ApproveRequest) -> S.ApproveResp
     # `apply_relief` mirrors the demo-control `inject()` mechanism the
     # generator already had — same persist-until-reset demand multiplier,
     # just driven by a real approval instead of a scripted scenario.
-    relief_fraction = float(item.get("estimated_relief_pct", 0.0)) / 100.0
-    engine.generator.apply_relief(item["target_entity_ids"], relief_fraction)
+    effect = engine.execute_intervention(item)
 
     nudges = issue_nudges(engine, item)
     _audit(engine, f"operator:{body.operator_id}", "approve", intervention_id, {"note": body.note})
@@ -253,7 +243,7 @@ async def approve(intervention_id: str, body: S.ApproveRequest) -> S.ApproveResp
         status="executing",
         applied_at=store.sim_time,
         nudges_issued=len(nudges),
-        twin_branch_id=branch["branch_id"],
+        twin_branch_id=effect["branch_id"],
     )
 
 
@@ -303,6 +293,8 @@ async def simulate(body: S.SimulateRequest, background: BackgroundTasks) -> S.Si
         raise ApiError("INVALID_HORIZON", "horizon_sec must be between 60 and 7200.", {"horizon_sec": body.horizon_sec})
 
     engine = get_engine()
+    scenarios_raw = [s.model_dump() for s in body.scenarios]
+    validate_scenarios(scenarios_raw, engine.store.nodes)
     simulation_id = SIMULATIONS.new_id()
     SIMULATIONS.create(simulation_id, body.label)
     scenarios = [s.model_dump() for s in body.scenarios]
@@ -318,7 +310,7 @@ async def simulation(simulation_id: str) -> S.SimulationResult:
             "SIMULATION_NOT_FOUND", f"No simulation with id '{simulation_id}'.",
             {"simulation_id": simulation_id},
         )
-    payload = dict(job)
+    payload = {k: v for k, v in job.items() if not k.startswith("_")}
     payload["candidate_interventions"] = [_clean(i) for i in payload.get("candidate_interventions", [])]
     return S.SimulationResult(**payload)
 
@@ -414,9 +406,17 @@ async def demo_control(body: S.DemoControlRequest) -> S.DemoControlResponse:
         body.speed_multiplier,
         body.seek_to_sim_time,
         body.inject.model_dump() if body.inject else None,
+        body.auto_pause_on_intervention,
     )
     _audit(engine, "operator:demo", "demo_control", None, body.model_dump(exclude_none=True))
     return S.DemoControlResponse(**result)
+
+
+@router.get("/demo/status", response_model=S.DemoControlResponse)
+async def demo_status() -> S.DemoControlResponse:
+    """Observer-mode status: paused/playing, speed, wall seconds per cycle, and
+    why the sim is paused (operator, step, or a real intervention proposal)."""
+    return S.DemoControlResponse(**get_engine().demo_status())
 
 
 # --- helpers -----------------------------------------------------------------------------------------

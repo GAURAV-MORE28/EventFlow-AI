@@ -29,16 +29,40 @@
       "type": "number"
     },
     "realised_relief_pct": {
-      "title": "Realised Relief Pct",
-      "type": "number"
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Realised Relief Pct"
     },
     "counterfactual_relief_pct": {
-      "title": "Counterfactual Relief Pct",
-      "type": "number"
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Counterfactual Relief Pct"
     },
     "regret": {
-      "title": "Regret",
-      "type": "number"
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Regret"
     },
     "sim_time": {
       "title": "Sim Time",
@@ -50,9 +74,6 @@
     "intervention_id",
     "intervention_type",
     "predicted_relief_pct",
-    "realised_relief_pct",
-    "counterfactual_relief_pct",
-    "regret",
     "sim_time"
   ],
   "title": "regret_entry",
