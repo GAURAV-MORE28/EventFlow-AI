@@ -5847,7 +5847,7 @@
         "entity_id": "line_red",
         "display_name": "Red Line",
         "current_utilisation": 0.6136,
-        "current_band": "high",
+        "current_band": "moderate",
         "time_to_critical_sec": 1707,
         "trajectory": [
           {
@@ -6051,7 +6051,7 @@
         "entity_id": "line_red",
         "display_name": "Red Line",
         "current_utilisation": 0.6093,
-        "current_band": "high",
+        "current_band": "moderate",
         "time_to_critical_sec": 1717,
         "trajectory": [
           {
@@ -6255,7 +6255,7 @@
         "entity_id": "line_red",
         "display_name": "Red Line",
         "current_utilisation": 0.6263,
-        "current_band": "high",
+        "current_band": "moderate",
         "time_to_critical_sec": 1677,
         "trajectory": [
           {
@@ -6459,7 +6459,7 @@
         "entity_id": "line_red",
         "display_name": "Red Line",
         "current_utilisation": 0.6206,
-        "current_band": "high",
+        "current_band": "moderate",
         "time_to_critical_sec": 1575,
         "trajectory": [
           {
@@ -6663,7 +6663,7 @@
         "entity_id": "line_red",
         "display_name": "Red Line",
         "current_utilisation": 0.6216,
-        "current_band": "high",
+        "current_band": "moderate",
         "time_to_critical_sec": 1572,
         "trajectory": [
           {
@@ -6867,7 +6867,7 @@
         "entity_id": "line_red",
         "display_name": "Red Line",
         "current_utilisation": 0.645,
-        "current_band": "high",
+        "current_band": "moderate",
         "time_to_critical_sec": 1505,
         "trajectory": [
           {
@@ -11298,7 +11298,7 @@
         "entity_id": "hotel_west_cluster",
         "display_name": "West Hotel Cluster",
         "current_utilisation": 0.8737,
-        "current_band": "moderate",
+        "current_band": "high",
         "time_to_critical_sec": 3399,
         "trajectory": [
           {
@@ -11535,7 +11535,7 @@
         "entity_id": "hotel_west_cluster",
         "display_name": "West Hotel Cluster",
         "current_utilisation": 0.8744,
-        "current_band": "moderate",
+        "current_band": "high",
         "time_to_critical_sec": 3395,
         "trajectory": [
           {
@@ -11811,7 +11811,7 @@
         "entity_id": "line_red",
         "display_name": "Red Line",
         "current_utilisation": 0.7519,
-        "current_band": "critical",
+        "current_band": "high",
         "time_to_critical_sec": 966,
         "trajectory": [
           {
@@ -12759,7 +12759,7 @@
         "entity_id": "line_red",
         "display_name": "Red Line",
         "current_utilisation": 0.7705,
-        "current_band": "critical",
+        "current_band": "high",
         "time_to_critical_sec": 782,
         "trajectory": [
           {
@@ -12996,7 +12996,7 @@
         "entity_id": "line_red",
         "display_name": "Red Line",
         "current_utilisation": 0.7736,
-        "current_band": "critical",
+        "current_band": "high",
         "time_to_critical_sec": 744,
         "trajectory": [
           {
@@ -13200,7 +13200,7 @@
         "entity_id": "line_red",
         "display_name": "Red Line",
         "current_utilisation": 0.7864,
-        "current_band": "critical",
+        "current_band": "high",
         "time_to_critical_sec": 692,
         "trajectory": [
           {
@@ -13404,7 +13404,7 @@
         "entity_id": "line_red",
         "display_name": "Red Line",
         "current_utilisation": 0.8002,
-        "current_band": "critical",
+        "current_band": "high",
         "time_to_critical_sec": 631,
         "trajectory": [
           {
@@ -13608,7 +13608,7 @@
         "entity_id": "line_red",
         "display_name": "Red Line",
         "current_utilisation": 0.7886,
-        "current_band": "critical",
+        "current_band": "high",
         "time_to_critical_sec": 682,
         "trajectory": [
           {
@@ -13812,7 +13812,7 @@
         "entity_id": "line_red",
         "display_name": "Red Line",
         "current_utilisation": 0.8187,
-        "current_band": "critical",
+        "current_band": "high",
         "time_to_critical_sec": 602,
         "trajectory": [
           {
@@ -14016,7 +14016,7 @@
         "entity_id": "line_red",
         "display_name": "Red Line",
         "current_utilisation": 0.8035,
-        "current_band": "critical",
+        "current_band": "high",
         "time_to_critical_sec": 681,
         "trajectory": [
           {
@@ -14220,7 +14220,7 @@
         "entity_id": "line_red",
         "display_name": "Red Line",
         "current_utilisation": 0.8254,
-        "current_band": "critical",
+        "current_band": "high",
         "time_to_critical_sec": 565,
         "trajectory": [
           {
@@ -14424,7 +14424,7 @@
         "entity_id": "line_red",
         "display_name": "Red Line",
         "current_utilisation": 0.8187,
-        "current_band": "critical",
+        "current_band": "high",
         "time_to_critical_sec": 602,
         "trajectory": [
           {
@@ -14628,7 +14628,7 @@
         "entity_id": "line_red",
         "display_name": "Red Line",
         "current_utilisation": 0.8326,
-        "current_band": "critical",
+        "current_band": "high",
         "time_to_critical_sec": 553,
         "trajectory": [
           {
@@ -14832,7 +14832,7 @@
         "entity_id": "line_red",
         "display_name": "Red Line",
         "current_utilisation": 0.8216,
-        "current_band": "critical",
+        "current_band": "high",
         "time_to_critical_sec": 619,
         "trajectory": [
           {
@@ -15036,7 +15036,7 @@
         "entity_id": "line_red",
         "display_name": "Red Line",
         "current_utilisation": 0.8417,
-        "current_band": "critical",
+        "current_band": "high",
         "time_to_critical_sec": 495,
         "trajectory": [
           {
@@ -15240,7 +15240,7 @@
         "entity_id": "line_red",
         "display_name": "Red Line",
         "current_utilisation": 0.8447,
-        "current_band": "critical",
+        "current_band": "high",
         "time_to_critical_sec": 474,
         "trajectory": [
           {
@@ -15444,7 +15444,7 @@
         "entity_id": "line_red",
         "display_name": "Red Line",
         "current_utilisation": 0.8326,
-        "current_band": "critical",
+        "current_band": "high",
         "time_to_critical_sec": 576,
         "trajectory": [
           {
@@ -15648,7 +15648,7 @@
         "entity_id": "line_red",
         "display_name": "Red Line",
         "current_utilisation": 0.856,
-        "current_band": "critical",
+        "current_band": "high",
         "time_to_critical_sec": 412,
         "trajectory": [
           {
@@ -15852,7 +15852,7 @@
         "entity_id": "line_red",
         "display_name": "Red Line",
         "current_utilisation": 0.8454,
-        "current_band": "critical",
+        "current_band": "high",
         "time_to_critical_sec": 490,
         "trajectory": [
           {
@@ -16056,7 +16056,7 @@
         "entity_id": "line_red",
         "display_name": "Red Line",
         "current_utilisation": 0.8692,
-        "current_band": "critical",
+        "current_band": "high",
         "time_to_critical_sec": 305,
         "trajectory": [
           {
@@ -18300,7 +18300,7 @@
         "entity_id": "line_red",
         "display_name": "Red Line",
         "current_utilisation": 0.9008,
-        "current_band": "critical",
+        "current_band": "high",
         "time_to_critical_sec": 0,
         "trajectory": [
           {

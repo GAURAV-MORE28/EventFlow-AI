@@ -24,12 +24,21 @@ export function connectWebSocket(store, { client = 'command_centre', attendeeId 
     state_update: (p) => store.mergeEntities(p.entities), // MERGE, never replace
     forecast_update: (p) => store.setPressureTimeline(p.pressure_timeline, p.active_source),
     cascade_alert: (p) => store.setCascade(p.cascade),
+    // The complete active set whenever any cascade changes (grows, shrinks,
+    // gains a branch or ends) — replaces, so ended cascades disappear.
+    cascade_update: (p) => store.setCascades(p.cascades),
+    // Live vs do-nothing utilisation for every executing action (backend-measured).
+    intervention_effect: (p) => store.setInterventionEffects(p.effects),
     intervention_queued: (p) => store.upsertIntervention(p.intervention),
     intervention_resolved: (p) => {
       store.updateInterventionStatus(p.intervention_id, p.status);
       if (p.status === 'executing') store.bumpWorld();
     },
     event_updated: (p) => store.upsertEvent(p.event),
+    event_deleted: (p) => store.removeEvent(p.event_id),
+    // An operator change was reconciled into the live state (the state itself
+    // arrives in the state_update / cascade_update sent just before this).
+    state_reconciled: () => store.bumpWorld(),
     disruption_update: (p) => store.setDisruptions(p.disruptions),
     twin_fidelity: (p) => store.setTwinFidelity(p),
     regret_update: (p) => store.appendRegret(p.entry, p.summary),

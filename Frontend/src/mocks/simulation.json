@@ -59,7 +59,7 @@
   },
   "cascade": {
     "root_entity_id": "gate_1",
-    "source": "gnn",
+    "source": "deterministic",
     "generated_at": "2026-09-04T15:20:00Z",
     "total_downstream_failures": 0,
     "max_depth": 0,
@@ -71,9 +71,16 @@
         "failure_probability": 0.99,
         "via_edge_id": null,
         "depth": 0,
+        "source_entity_id": null,
+        "utilisation_before": 0.0184,
+        "utilisation_after": 0.9024,
+        "flow_change_people": 56.0,
+        "reason": "Gate 1 is at or forecast over its critical line (90% of capacity); 56 people above the line must go elsewhere.",
+        "confidence": null,
         "step_index": 0
       }
-    ]
+    ],
+    "ml_enhanced": false
   },
   "candidate_interventions": [
     {

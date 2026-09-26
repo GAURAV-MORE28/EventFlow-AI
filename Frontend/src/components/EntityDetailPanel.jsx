@@ -223,11 +223,19 @@ export default function EntityDetailPanel() {
             </div>
           </div>
           <div className="rounded bg-surface-950/80 p-2 border border-surface-700/40">
-            <span className="text-slate-400 text-[9px] uppercase font-bold tracking-wider">Throughput Flow</span>
+            <span className="text-slate-400 text-[9px] uppercase font-bold tracking-wider">In / Out</span>
             <div className="mt-0.5 font-mono text-xs font-semibold text-slate-200">
-              {decimals(state.flow_rate_per_min, 1)}/min
+              {state.inflow_per_min == null ? '—' : `${decimals(state.inflow_per_min, 0)} / ${decimals(state.outflow_per_min, 0)} per min`}
             </div>
           </div>
+          {state.queue_people != null && (
+            <div className="col-span-2 rounded bg-surface-950/80 p-2 border border-surface-700/40">
+              <span className="text-slate-400 text-[9px] uppercase font-bold tracking-wider">Waiting outside (queue)</span>
+              <div className="mt-0.5 font-mono text-xs font-semibold text-slate-200">
+                {integer(state.queue_people)} people — not counted in the load above
+              </div>
+            </div>
+          )}
         </div>
       )}
 

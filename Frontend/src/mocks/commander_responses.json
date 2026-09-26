@@ -1,6 +1,6 @@
 {
   "What is the biggest problem right now?": {
-    "response": "Across the event, 2 entities are critical and 7 are at high risk. The most urgent is Gate 5, projected to cross critical in 0 minutes. It is currently filling, net flow 71.0 per minute, against a nominal capacity of 1500, at 100 risk. The forecast source is twin_model. Predicted propagation reaches road_5 in 11 minutes and road_6 in 18 minutes, 4 downstream failures in total.",
+    "response": "Across the event, 2 entities are critical and 7 are at high risk. The most urgent is Gate 5, projected to cross critical in 0 minutes. It is currently filling, net flow 71.0 per minute, against a nominal capacity of 1500, at 100 risk. The forecast source is twin_model. Predicted propagation reaches road_5 in 5 minutes and road_10 in 13 minutes, 5 downstream failures in total.",
     "is_cached": false,
     "tool_calls": [
       {
@@ -29,7 +29,7 @@
         "args": {
           "entity_id": "gate_5"
         },
-        "result_digest": "4 downstream failures"
+        "result_digest": "5 downstream failures"
       },
       {
         "tool": "summarize_window",
@@ -47,10 +47,10 @@
         "1500",
         "100",
         "5",
-        "11",
-        "6",
-        "18",
-        "4"
+        "5",
+        "10",
+        "13",
+        "5"
       ],
       "numbers_grounded": [
         "2",
@@ -61,10 +61,10 @@
         "1500",
         "100",
         "5",
-        "11",
-        "6",
-        "18",
-        "4"
+        "5",
+        "10",
+        "13",
+        "5"
       ],
       "ungrounded": [],
       "ungrounded_count": 0,

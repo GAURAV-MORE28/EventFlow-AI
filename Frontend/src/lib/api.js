@@ -119,6 +119,9 @@ export const api = {
   events: () => (MOCK_MODE ? mocks.events() : get('/events')),
   updateEvent: (eventId, body) =>
     MOCK_MODE ? mocks.liveOnly() : post(`/events/${eventId}`, { operator_id: 'op_demo', ...body }),
+  createEvent: (body) => (MOCK_MODE ? mocks.liveOnly() : post('/events', { operator_id: 'op_demo', ...body })),
+  deleteEvent: (eventId) => (MOCK_MODE ? mocks.liveOnly() : del(`/events/${eventId}?operator_id=op_demo`)),
+  eventVenues: () => (MOCK_MODE ? Promise.resolve({ venues: [] }) : get('/events/venues')),
   hotels: (params = {}) =>
     MOCK_MODE ? mocks.hotels(params) : get(`/accommodation/hotels${query(params)}`),
   recommendStay: (body) =>

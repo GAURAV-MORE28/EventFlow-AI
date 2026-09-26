@@ -38,7 +38,12 @@
         "closed": false,
         "forecast_1800": 1.1454,
         "time_to_critical_sec": 0,
-        "queue_delay_sec": 1053
+        "queue_delay_sec": 1053,
+        "inflow_per_min": 122.52,
+        "outflow_per_min": 87.0,
+        "queue_people": 1526.28,
+        "available_capacity": 0.0,
+        "event_ids": []
       },
       {
         "entity_id": "gate_6",
@@ -47,13 +52,18 @@
         "nominal_capacity": 2600.0,
         "current_count": 1918.3,
         "utilisation": 0.7378,
-        "risk_score": 77,
+        "risk_score": 78,
         "risk_band": "high",
         "is_observed": true,
         "closed": false,
         "forecast_1800": 1.157,
         "time_to_critical_sec": 349,
-        "queue_delay_sec": 649
+        "queue_delay_sec": 649,
+        "inflow_per_min": 284.06,
+        "outflow_per_min": 150.8,
+        "queue_people": 1632.4,
+        "available_capacity": 681.7,
+        "event_ids": []
       },
       {
         "entity_id": "convention_centre",
@@ -68,7 +78,14 @@
         "closed": false,
         "forecast_1800": 0.9314,
         "time_to_critical_sec": null,
-        "queue_delay_sec": 0
+        "queue_delay_sec": 0,
+        "inflow_per_min": 0.0,
+        "outflow_per_min": 0.0,
+        "queue_people": 0.0,
+        "available_capacity": 1079.8999999999996,
+        "event_ids": [
+          "evt_expo"
+        ]
       },
       {
         "entity_id": "gate_1",
@@ -83,7 +100,12 @@
         "closed": false,
         "forecast_1800": 0.6905,
         "time_to_critical_sec": null,
-        "queue_delay_sec": 329
+        "queue_delay_sec": 329,
+        "inflow_per_min": 223.49,
+        "outflow_per_min": 162.4,
+        "queue_people": 891.5,
+        "available_capacity": 1575.6,
+        "event_ids": []
       },
       {
         "entity_id": "stadium_main",
@@ -98,7 +120,14 @@
         "closed": false,
         "forecast_1800": 0.7438,
         "time_to_critical_sec": null,
-        "queue_delay_sec": 0
+        "queue_delay_sec": 0,
+        "inflow_per_min": 767.42,
+        "outflow_per_min": 0.0,
+        "queue_people": 4050.18,
+        "available_capacity": 39466.4,
+        "event_ids": [
+          "evt_demo"
+        ]
       },
       {
         "entity_id": "gate_2",
@@ -113,7 +142,12 @@
         "closed": false,
         "forecast_1800": 0.0597,
         "time_to_critical_sec": null,
-        "queue_delay_sec": 0
+        "queue_delay_sec": 0,
+        "inflow_per_min": 144.04,
+        "outflow_per_min": 144.04,
+        "queue_people": 0.0,
+        "available_capacity": 2510.1,
+        "event_ids": []
       },
       {
         "entity_id": "gate_3",
@@ -128,7 +162,12 @@
         "closed": false,
         "forecast_1800": 0.0541,
         "time_to_critical_sec": null,
-        "queue_delay_sec": 0
+        "queue_delay_sec": 0,
+        "inflow_per_min": 103.99,
+        "outflow_per_min": 103.99,
+        "queue_people": 0.0,
+        "available_capacity": 1993.5,
+        "event_ids": []
       },
       {
         "entity_id": "gate_4",
@@ -143,7 +182,12 @@
         "closed": false,
         "forecast_1800": 0.0556,
         "time_to_critical_sec": null,
-        "queue_delay_sec": 0
+        "queue_delay_sec": 0,
+        "inflow_per_min": 119.2,
+        "outflow_per_min": 119.2,
+        "queue_people": 0.0,
+        "available_capacity": 2260.5,
+        "event_ids": []
       }
     ],
     "transport": [
@@ -154,13 +198,18 @@
         "nominal_capacity": 21000.0,
         "current_count": 20133.6,
         "utilisation": 0.9587,
-        "risk_score": 100,
+        "risk_score": 90,
         "risk_band": "critical",
         "is_observed": true,
         "closed": false,
         "forecast_1800": 0.731,
         "time_to_critical_sec": 0,
-        "queue_delay_sec": 0
+        "queue_delay_sec": 0,
+        "inflow_per_min": 197.45,
+        "outflow_per_min": 197.45,
+        "queue_people": null,
+        "available_capacity": 866.4000000000015,
+        "event_ids": []
       },
       {
         "entity_id": "line_blue",
@@ -175,7 +224,12 @@
         "closed": false,
         "forecast_1800": 0.6901,
         "time_to_critical_sec": null,
-        "queue_delay_sec": 0
+        "queue_delay_sec": 0,
+        "inflow_per_min": 194.56,
+        "outflow_per_min": 194.56,
+        "queue_people": null,
+        "available_capacity": 2755.2000000000007,
+        "event_ids": []
       },
       {
         "entity_id": "line_green",
@@ -190,7 +244,12 @@
         "closed": false,
         "forecast_1800": 0.6463,
         "time_to_critical_sec": null,
-        "queue_delay_sec": 0
+        "queue_delay_sec": 0,
+        "inflow_per_min": 119.32,
+        "outflow_per_min": 119.32,
+        "queue_people": null,
+        "available_capacity": 2325.5,
+        "event_ids": []
       },
       {
         "entity_id": "metro_e",
@@ -205,7 +264,12 @@
         "closed": false,
         "forecast_1800": 0.44,
         "time_to_critical_sec": null,
-        "queue_delay_sec": 0
+        "queue_delay_sec": 0,
+        "inflow_per_min": 119.32,
+        "outflow_per_min": 119.32,
+        "queue_people": 0.0,
+        "available_capacity": 1242.8,
+        "event_ids": []
       },
       {
         "entity_id": "metro_c",
@@ -220,7 +284,12 @@
         "closed": false,
         "forecast_1800": 0.478,
         "time_to_critical_sec": null,
-        "queue_delay_sec": 0
+        "queue_delay_sec": 0,
+        "inflow_per_min": 111.14,
+        "outflow_per_min": 111.14,
+        "queue_people": 0.0,
+        "available_capacity": 1571.4,
+        "event_ids": []
       },
       {
         "entity_id": "bus_hub_south",
@@ -235,7 +304,12 @@
         "closed": false,
         "forecast_1800": 0.4694,
         "time_to_critical_sec": null,
-        "queue_delay_sec": 0
+        "queue_delay_sec": 0,
+        "inflow_per_min": 66.64,
+        "outflow_per_min": 66.64,
+        "queue_people": 0.0,
+        "available_capacity": 970.5,
+        "event_ids": []
       },
       {
         "entity_id": "bus_hub_north",
@@ -250,7 +324,12 @@
         "closed": false,
         "forecast_1800": 0.4279,
         "time_to_critical_sec": null,
-        "queue_delay_sec": 0
+        "queue_delay_sec": 0,
+        "inflow_per_min": 75.32,
+        "outflow_per_min": 75.32,
+        "queue_people": 0.0,
+        "available_capacity": 1102.7,
+        "event_ids": []
       },
       {
         "entity_id": "metro_d",
@@ -265,7 +344,12 @@
         "closed": false,
         "forecast_1800": 0.4635,
         "time_to_critical_sec": null,
-        "queue_delay_sec": 0
+        "queue_delay_sec": 0,
+        "inflow_per_min": 86.32,
+        "outflow_per_min": 86.32,
+        "queue_people": 0.0,
+        "available_capacity": 1423.3,
+        "event_ids": []
       },
       {
         "entity_id": "metro_b",
@@ -280,7 +364,12 @@
         "closed": false,
         "forecast_1800": 0.4526,
         "time_to_critical_sec": null,
-        "queue_delay_sec": 0
+        "queue_delay_sec": 0,
+        "inflow_per_min": 116.33,
+        "outflow_per_min": 116.33,
+        "queue_people": 0.0,
+        "available_capacity": 1964.1,
+        "event_ids": []
       },
       {
         "entity_id": "shuttle_hub_east",
@@ -295,7 +384,12 @@
         "closed": false,
         "forecast_1800": 0.4305,
         "time_to_critical_sec": null,
-        "queue_delay_sec": 0
+        "queue_delay_sec": 0,
+        "inflow_per_min": 62.17,
+        "outflow_per_min": 62.17,
+        "queue_people": 0.0,
+        "available_capacity": 843.4,
+        "event_ids": []
       },
       {
         "entity_id": "shuttle_hub_west",
@@ -304,13 +398,18 @@
         "nominal_capacity": 1800.0,
         "current_count": 901.6,
         "utilisation": 0.5009,
-        "risk_score": 30,
-        "risk_band": "low",
+        "risk_score": 31,
+        "risk_band": "moderate",
         "is_observed": true,
         "closed": false,
         "forecast_1800": 0.402,
         "time_to_critical_sec": null,
-        "queue_delay_sec": 0
+        "queue_delay_sec": 0,
+        "inflow_per_min": 60.26,
+        "outflow_per_min": 60.26,
+        "queue_people": 0.0,
+        "available_capacity": 898.4,
+        "event_ids": []
       },
       {
         "entity_id": "metro_a",
@@ -325,7 +424,12 @@
         "closed": false,
         "forecast_1800": 0.3963,
         "time_to_critical_sec": null,
-        "queue_delay_sec": 0
+        "queue_delay_sec": 0,
+        "inflow_per_min": 82.38,
+        "outflow_per_min": 82.38,
+        "queue_people": 0.0,
+        "available_capacity": 2017.2,
+        "event_ids": []
       }
     ],
     "roads": [
@@ -342,7 +446,12 @@
         "closed": false,
         "forecast_1800": 0.784,
         "time_to_critical_sec": null,
-        "queue_delay_sec": 0
+        "queue_delay_sec": 0,
+        "inflow_per_min": 32.72,
+        "outflow_per_min": 32.72,
+        "queue_people": null,
+        "available_capacity": 496.3,
+        "event_ids": []
       },
       {
         "entity_id": "road_6",
@@ -357,7 +466,12 @@
         "closed": false,
         "forecast_1800": 1.1106,
         "time_to_critical_sec": 1284,
-        "queue_delay_sec": 0
+        "queue_delay_sec": 0,
+        "inflow_per_min": 37.17,
+        "outflow_per_min": 37.17,
+        "queue_people": null,
+        "available_capacity": 570.7,
+        "event_ids": []
       },
       {
         "entity_id": "road_5",
@@ -372,7 +486,12 @@
         "closed": false,
         "forecast_1800": 1.6004,
         "time_to_critical_sec": 464,
-        "queue_delay_sec": 0
+        "queue_delay_sec": 0,
+        "inflow_per_min": 26.85,
+        "outflow_per_min": 26.85,
+        "queue_people": null,
+        "available_capacity": 605.3,
+        "event_ids": []
       },
       {
         "entity_id": "road_2",
@@ -387,7 +506,12 @@
         "closed": false,
         "forecast_1800": 0.4139,
         "time_to_critical_sec": null,
-        "queue_delay_sec": 0
+        "queue_delay_sec": 0,
+        "inflow_per_min": 24.45,
+        "outflow_per_min": 24.45,
+        "queue_people": null,
+        "available_capacity": 565.7,
+        "event_ids": []
       },
       {
         "entity_id": "road_3",
@@ -402,7 +526,12 @@
         "closed": false,
         "forecast_1800": 0.3882,
         "time_to_critical_sec": null,
-        "queue_delay_sec": 0
+        "queue_delay_sec": 0,
+        "inflow_per_min": 33.14,
+        "outflow_per_min": 33.14,
+        "queue_people": null,
+        "available_capacity": 552.9,
+        "event_ids": []
       },
       {
         "entity_id": "road_10",
@@ -417,7 +546,12 @@
         "closed": false,
         "forecast_1800": 0.4447,
         "time_to_critical_sec": null,
-        "queue_delay_sec": 0
+        "queue_delay_sec": 0,
+        "inflow_per_min": 3.85,
+        "outflow_per_min": 3.85,
+        "queue_people": null,
+        "available_capacity": 506.6,
+        "event_ids": []
       },
       {
         "entity_id": "road_13",
@@ -432,7 +566,12 @@
         "closed": false,
         "forecast_1800": 0.4009,
         "time_to_critical_sec": null,
-        "queue_delay_sec": 0
+        "queue_delay_sec": 0,
+        "inflow_per_min": 0.0,
+        "outflow_per_min": 0.0,
+        "queue_people": null,
+        "available_capacity": 432.9,
+        "event_ids": []
       },
       {
         "entity_id": "road_8",
@@ -447,7 +586,12 @@
         "closed": false,
         "forecast_1800": 0.4019,
         "time_to_critical_sec": null,
-        "queue_delay_sec": 0
+        "queue_delay_sec": 0,
+        "inflow_per_min": 2.35,
+        "outflow_per_min": 2.35,
+        "queue_people": null,
+        "available_capacity": 553.1,
+        "event_ids": []
       },
       {
         "entity_id": "road_17",
@@ -462,7 +606,12 @@
         "closed": false,
         "forecast_1800": 0.3914,
         "time_to_critical_sec": null,
-        "queue_delay_sec": 0
+        "queue_delay_sec": 0,
+        "inflow_per_min": 3.58,
+        "outflow_per_min": 3.58,
+        "queue_people": null,
+        "available_capacity": 488.0,
+        "event_ids": []
       },
       {
         "entity_id": "road_1",
@@ -477,7 +626,12 @@
         "closed": false,
         "forecast_1800": 0.3196,
         "time_to_critical_sec": null,
-        "queue_delay_sec": 0
+        "queue_delay_sec": 0,
+        "inflow_per_min": 32.54,
+        "outflow_per_min": 32.54,
+        "queue_people": null,
+        "available_capacity": 721.4,
+        "event_ids": []
       },
       {
         "entity_id": "road_16",
@@ -492,7 +646,12 @@
         "closed": false,
         "forecast_1800": 0.377,
         "time_to_critical_sec": null,
-        "queue_delay_sec": 0
+        "queue_delay_sec": 0,
+        "inflow_per_min": 0.0,
+        "outflow_per_min": 0.0,
+        "queue_people": null,
+        "available_capacity": 425.2,
+        "event_ids": []
       },
       {
         "entity_id": "road_11",
@@ -507,7 +666,12 @@
         "closed": false,
         "forecast_1800": 0.3387,
         "time_to_critical_sec": null,
-        "queue_delay_sec": 0
+        "queue_delay_sec": 0,
+        "inflow_per_min": 3.05,
+        "outflow_per_min": 3.05,
+        "queue_people": null,
+        "available_capacity": 499.2,
+        "event_ids": []
       },
       {
         "entity_id": "road_14",
@@ -522,7 +686,12 @@
         "closed": false,
         "forecast_1800": 0.3382,
         "time_to_critical_sec": null,
-        "queue_delay_sec": 0
+        "queue_delay_sec": 0,
+        "inflow_per_min": 0.0,
+        "outflow_per_min": 0.0,
+        "queue_people": null,
+        "available_capacity": 473.5,
+        "event_ids": []
       },
       {
         "entity_id": "road_18",
@@ -537,7 +706,12 @@
         "closed": false,
         "forecast_1800": 0.3347,
         "time_to_critical_sec": null,
-        "queue_delay_sec": 0
+        "queue_delay_sec": 0,
+        "inflow_per_min": 3.02,
+        "outflow_per_min": 3.02,
+        "queue_people": null,
+        "available_capacity": 530.3,
+        "event_ids": []
       },
       {
         "entity_id": "road_7",
@@ -552,7 +726,12 @@
         "closed": false,
         "forecast_1800": 0.319,
         "time_to_critical_sec": null,
-        "queue_delay_sec": 0
+        "queue_delay_sec": 0,
+        "inflow_per_min": 3.58,
+        "outflow_per_min": 3.58,
+        "queue_people": null,
+        "available_capacity": 584.2,
+        "event_ids": []
       },
       {
         "entity_id": "road_15",
@@ -567,7 +746,12 @@
         "closed": false,
         "forecast_1800": 0.2721,
         "time_to_critical_sec": null,
-        "queue_delay_sec": 0
+        "queue_delay_sec": 0,
+        "inflow_per_min": 0.0,
+        "outflow_per_min": 0.0,
+        "queue_people": null,
+        "available_capacity": 488.6,
+        "event_ids": []
       },
       {
         "entity_id": "road_12",
@@ -582,7 +766,12 @@
         "closed": false,
         "forecast_1800": 0.3155,
         "time_to_critical_sec": null,
-        "queue_delay_sec": 0
+        "queue_delay_sec": 0,
+        "inflow_per_min": 3.85,
+        "outflow_per_min": 3.85,
+        "queue_people": null,
+        "available_capacity": 553.2,
+        "event_ids": []
       },
       {
         "entity_id": "road_9",
@@ -597,7 +786,12 @@
         "closed": false,
         "forecast_1800": 0.6667,
         "time_to_critical_sec": null,
-        "queue_delay_sec": 0
+        "queue_delay_sec": 0,
+        "inflow_per_min": 2.2,
+        "outflow_per_min": 2.2,
+        "queue_people": null,
+        "available_capacity": 590.6,
+        "event_ids": []
       }
     ],
     "crowd": [
@@ -614,7 +808,14 @@
         "closed": false,
         "forecast_1800": 0.7645,
         "time_to_critical_sec": null,
-        "queue_delay_sec": 0
+        "queue_delay_sec": 0,
+        "inflow_per_min": 8.04,
+        "outflow_per_min": 0.0,
+        "queue_people": 0.0,
+        "available_capacity": 1968.8999999999996,
+        "event_ids": [
+          "evt_fanfest"
+        ]
       },
       {
         "entity_id": "zone_plaza_east",
@@ -629,7 +830,12 @@
         "closed": false,
         "forecast_1800": 0.1923,
         "time_to_critical_sec": null,
-        "queue_delay_sec": 0
+        "queue_delay_sec": 0,
+        "inflow_per_min": 0.0,
+        "outflow_per_min": 0.0,
+        "queue_people": 0.0,
+        "available_capacity": 3995.2,
+        "event_ids": []
       },
       {
         "entity_id": "zone_south",
@@ -644,7 +850,12 @@
         "closed": false,
         "forecast_1800": 0.1805,
         "time_to_critical_sec": null,
-        "queue_delay_sec": 0
+        "queue_delay_sec": 0,
+        "inflow_per_min": 0.0,
+        "outflow_per_min": 0.0,
+        "queue_people": 0.0,
+        "available_capacity": 10380.3,
+        "event_ids": []
       },
       {
         "entity_id": "zone_concourse_south",
@@ -659,7 +870,12 @@
         "closed": false,
         "forecast_1800": 0.1867,
         "time_to_critical_sec": null,
-        "queue_delay_sec": 0
+        "queue_delay_sec": 0,
+        "inflow_per_min": 0.0,
+        "outflow_per_min": 0.0,
+        "queue_people": 0.0,
+        "available_capacity": 4923.8,
+        "event_ids": []
       },
       {
         "entity_id": "zone_west",
@@ -674,7 +890,12 @@
         "closed": false,
         "forecast_1800": 0.2063,
         "time_to_critical_sec": null,
-        "queue_delay_sec": 0
+        "queue_delay_sec": 0,
+        "inflow_per_min": 0.0,
+        "outflow_per_min": 0.0,
+        "queue_people": 0.0,
+        "available_capacity": 9460.7,
+        "event_ids": []
       },
       {
         "entity_id": "zone_plaza_west",
@@ -689,7 +910,12 @@
         "closed": false,
         "forecast_1800": 0.1643,
         "time_to_critical_sec": null,
-        "queue_delay_sec": 0
+        "queue_delay_sec": 0,
+        "inflow_per_min": 0.0,
+        "outflow_per_min": 0.0,
+        "queue_people": 0.0,
+        "available_capacity": 4129.3,
+        "event_ids": []
       },
       {
         "entity_id": "zone_core",
@@ -704,7 +930,12 @@
         "closed": false,
         "forecast_1800": 0.1556,
         "time_to_critical_sec": null,
-        "queue_delay_sec": 0
+        "queue_delay_sec": 0,
+        "inflow_per_min": 0.0,
+        "outflow_per_min": 0.0,
+        "queue_people": 0.0,
+        "available_capacity": 13553.9,
+        "event_ids": []
       },
       {
         "entity_id": "zone_north",
@@ -719,7 +950,12 @@
         "closed": false,
         "forecast_1800": 0.1363,
         "time_to_critical_sec": null,
-        "queue_delay_sec": 0
+        "queue_delay_sec": 0,
+        "inflow_per_min": 0.0,
+        "outflow_per_min": 0.0,
+        "queue_people": 0.0,
+        "available_capacity": 11895.2,
+        "event_ids": []
       },
       {
         "entity_id": "zone_east",
@@ -734,7 +970,12 @@
         "closed": false,
         "forecast_1800": 0.124,
         "time_to_critical_sec": null,
-        "queue_delay_sec": 0
+        "queue_delay_sec": 0,
+        "inflow_per_min": 0.0,
+        "outflow_per_min": 0.0,
+        "queue_people": 0.0,
+        "available_capacity": 9533.7,
+        "event_ids": []
       },
       {
         "entity_id": "zone_concourse_north",
@@ -749,7 +990,12 @@
         "closed": false,
         "forecast_1800": 0.1109,
         "time_to_critical_sec": null,
-        "queue_delay_sec": 0
+        "queue_delay_sec": 0,
+        "inflow_per_min": 0.0,
+        "outflow_per_min": 0.0,
+        "queue_people": 0.0,
+        "available_capacity": 5374.0,
+        "event_ids": []
       }
     ],
     "parking": [
@@ -766,7 +1012,12 @@
         "closed": false,
         "forecast_1800": 0.7116,
         "time_to_critical_sec": null,
-        "queue_delay_sec": 0
+        "queue_delay_sec": 0,
+        "inflow_per_min": 29.97,
+        "outflow_per_min": 0.0,
+        "queue_people": null,
+        "available_capacity": 918.2,
+        "event_ids": []
       },
       {
         "entity_id": "parking_p1",
@@ -781,7 +1032,12 @@
         "closed": false,
         "forecast_1800": 0.6781,
         "time_to_critical_sec": null,
-        "queue_delay_sec": 0
+        "queue_delay_sec": 0,
+        "inflow_per_min": 32.96,
+        "outflow_per_min": 0.0,
+        "queue_people": null,
+        "available_capacity": 1080.9,
+        "event_ids": []
       },
       {
         "entity_id": "parking_p2",
@@ -796,7 +1052,12 @@
         "closed": false,
         "forecast_1800": 0.6522,
         "time_to_critical_sec": null,
-        "queue_delay_sec": 0
+        "queue_delay_sec": 0,
+        "inflow_per_min": 28.47,
+        "outflow_per_min": 0.0,
+        "queue_people": null,
+        "available_capacity": 966.7,
+        "event_ids": []
       },
       {
         "entity_id": "parking_p3",
@@ -811,7 +1072,12 @@
         "closed": false,
         "forecast_1800": 0.654,
         "time_to_critical_sec": null,
-        "queue_delay_sec": 0
+        "queue_delay_sec": 0,
+        "inflow_per_min": 25.47,
+        "outflow_per_min": 0.0,
+        "queue_people": null,
+        "available_capacity": 865.7,
+        "event_ids": []
       },
       {
         "entity_id": "parking_p9",
@@ -826,7 +1092,12 @@
         "closed": false,
         "forecast_1800": 0.6408,
         "time_to_critical_sec": null,
-        "queue_delay_sec": 0
+        "queue_delay_sec": 0,
+        "inflow_per_min": 16.48,
+        "outflow_per_min": 0.0,
+        "queue_people": null,
+        "available_capacity": 575.1,
+        "event_ids": []
       },
       {
         "entity_id": "parking_p8",
@@ -841,7 +1112,12 @@
         "closed": false,
         "forecast_1800": 0.6417,
         "time_to_critical_sec": null,
-        "queue_delay_sec": 0
+        "queue_delay_sec": 0,
+        "inflow_per_min": 20.23,
+        "outflow_per_min": 0.0,
+        "queue_people": null,
+        "available_capacity": 716.1,
+        "event_ids": []
       },
       {
         "entity_id": "parking_p7",
@@ -856,7 +1132,12 @@
         "closed": false,
         "forecast_1800": 0.6153,
         "time_to_critical_sec": null,
-        "queue_delay_sec": 0
+        "queue_delay_sec": 0,
+        "inflow_per_min": 19.48,
+        "outflow_per_min": 0.0,
+        "queue_people": null,
+        "available_capacity": 720.3,
+        "event_ids": []
       },
       {
         "entity_id": "parking_p5",
@@ -871,7 +1152,12 @@
         "closed": false,
         "forecast_1800": 0.6006,
         "time_to_critical_sec": null,
-        "queue_delay_sec": 0
+        "queue_delay_sec": 0,
+        "inflow_per_min": 22.48,
+        "outflow_per_min": 0.0,
+        "queue_people": null,
+        "available_capacity": 857.7,
+        "event_ids": []
       },
       {
         "entity_id": "parking_p10",
@@ -886,7 +1172,12 @@
         "closed": false,
         "forecast_1800": 0.5827,
         "time_to_critical_sec": null,
-        "queue_delay_sec": 0
+        "queue_delay_sec": 0,
+        "inflow_per_min": 15.73,
+        "outflow_per_min": 0.0,
+        "queue_people": null,
+        "available_capacity": 605.4,
+        "event_ids": []
       },
       {
         "entity_id": "parking_p6",
@@ -901,7 +1192,12 @@
         "closed": false,
         "forecast_1800": 0.5919,
         "time_to_critical_sec": null,
-        "queue_delay_sec": 0
+        "queue_delay_sec": 0,
+        "inflow_per_min": 20.98,
+        "outflow_per_min": 0.0,
+        "queue_people": null,
+        "available_capacity": 815.1,
+        "event_ids": []
       }
     ],
     "hospitality": [
@@ -918,7 +1214,12 @@
         "closed": false,
         "forecast_1800": 0.9982,
         "time_to_critical_sec": 1180,
-        "queue_delay_sec": 0
+        "queue_delay_sec": 0,
+        "inflow_per_min": null,
+        "outflow_per_min": null,
+        "queue_people": null,
+        "available_capacity": 66.70000000000005,
+        "event_ids": []
       },
       {
         "entity_id": "hotel_west_cluster",
@@ -933,7 +1234,12 @@
         "closed": false,
         "forecast_1800": 0.9862,
         "time_to_critical_sec": 1481,
-        "queue_delay_sec": 0
+        "queue_delay_sec": 0,
+        "inflow_per_min": null,
+        "outflow_per_min": null,
+        "queue_people": null,
+        "available_capacity": 59.5,
+        "event_ids": []
       },
       {
         "entity_id": "hotel_core_cluster",
@@ -948,7 +1254,12 @@
         "closed": false,
         "forecast_1800": 0.957,
         "time_to_critical_sec": null,
-        "queue_delay_sec": 0
+        "queue_delay_sec": 0,
+        "inflow_per_min": null,
+        "outflow_per_min": null,
+        "queue_people": null,
+        "available_capacity": 107.0,
+        "event_ids": []
       },
       {
         "entity_id": "hotel_south_cluster",
@@ -963,7 +1274,12 @@
         "closed": false,
         "forecast_1800": 0.9087,
         "time_to_critical_sec": 3502,
-        "queue_delay_sec": 0
+        "queue_delay_sec": 0,
+        "inflow_per_min": null,
+        "outflow_per_min": null,
+        "queue_people": null,
+        "available_capacity": 149.5,
+        "event_ids": []
       },
       {
         "entity_id": "hotel_north_cluster",
@@ -978,7 +1294,12 @@
         "closed": false,
         "forecast_1800": 0.6757,
         "time_to_critical_sec": null,
-        "queue_delay_sec": 0
+        "queue_delay_sec": 0,
+        "inflow_per_min": null,
+        "outflow_per_min": null,
+        "queue_people": null,
+        "available_capacity": 527.1,
+        "event_ids": []
       },
       {
         "entity_id": "hotel_airport_cluster",
@@ -993,7 +1314,12 @@
         "closed": false,
         "forecast_1800": 0.4801,
         "time_to_critical_sec": null,
-        "queue_delay_sec": 0
+        "queue_delay_sec": 0,
+        "inflow_per_min": null,
+        "outflow_per_min": null,
+        "queue_people": null,
+        "available_capacity": 864.1,
+        "event_ids": []
       }
     ],
     "emergency": [
@@ -1010,7 +1336,12 @@
         "closed": false,
         "forecast_1800": 0.8956,
         "time_to_critical_sec": null,
-        "queue_delay_sec": 0
+        "queue_delay_sec": 0,
+        "inflow_per_min": null,
+        "outflow_per_min": null,
+        "queue_people": null,
+        "available_capacity": 101.1,
+        "event_ids": []
       },
       {
         "entity_id": "emergency_north",
@@ -1025,7 +1356,12 @@
         "closed": false,
         "forecast_1800": 0.4844,
         "time_to_critical_sec": null,
-        "queue_delay_sec": 0
+        "queue_delay_sec": 0,
+        "inflow_per_min": null,
+        "outflow_per_min": null,
+        "queue_people": null,
+        "available_capacity": 88.9,
+        "event_ids": []
       },
       {
         "entity_id": "emergency_core",
@@ -1040,7 +1376,12 @@
         "closed": false,
         "forecast_1800": 0.3332,
         "time_to_critical_sec": null,
-        "queue_delay_sec": 0
+        "queue_delay_sec": 0,
+        "inflow_per_min": null,
+        "outflow_per_min": null,
+        "queue_people": null,
+        "available_capacity": 79.9,
+        "event_ids": []
       }
     ]
   }

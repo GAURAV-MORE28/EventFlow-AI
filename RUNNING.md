@@ -23,8 +23,8 @@ Open the printed URL (default http://localhost:5173). Pages:
 
 | Route | What it is for |
 |---|---|
-| `/` | Command Centre: live map, pressure timeline, intervention queue, commander, quick what-if |
-| `/events` | Event schedule; delay / bring forward / resize / cancel events (re-plans demand) |
+| `/` | Command Centre: full-size live map (entity detail, cascades, live effect of executing actions) |
+| `/events` | Event schedule: add, edit (exact date/time, windows), delay, cancel, delete; the live city re-plans at once |
 | `/accommodation` | Live hotel availability, saturation with explained alternatives, stay finder |
 | `/transport` | Stations, lines, roads, parking; report outages and capacity cuts |
 | `/crowd` | Venues, gates, crowd zones, emergency posts; close gates |
@@ -121,7 +121,7 @@ real sources (`Backend/app/providers/`):
 
 ```bash
 cd Backend
-python -m pytest tests/ -q       # 92 tests; uses a temporary database (tests/conftest.py)
+python -m pytest tests/ -q       # 126 tests; uses a temporary database (tests/conftest.py)
 cd ../Frontend
 npm run validate:mocks            # fixtures vs contracts/schemas
 npm run build

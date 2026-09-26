@@ -159,6 +159,14 @@ class Planner:
         self.closed = closed
         self.graph = _graph(self.store, closed)
         self.avoid = set(avoid or set())
+        acfg = engine.config.raw.get("attendee", {})
+        self.alpha = float(acfg.get("congestion_alpha", 0.15))
+        self.beta = float(acfg.get("congestion_beta", 4.0))
+
+    def slowdown(self, util: float) -> float:
+        """BPR travel-time multiplier 1 + alpha * u^beta (u capped at the physical max)."""
+        u = min(max(util, 0.0), 1.8)
+        return 1.0 + self.alpha * u ** self.beta
 
     def load(self, eid: str, offset_sec: float) -> tuple[float, float]:
         sample = ProjectionService.at(self.projection, offset_sec)
@@ -173,6 +181,7 @@ class Planner:
         heap = [(0.0, origin)]
         done: set[str] = set()
         types = {e: n["entity_type"] for e, n in self.store.nodes.items()}
+        inbound = types.get(destination) in ("venue", "zone")
         while heap:
             cost, node = heapq.heappop(heap)
             if node in done:
@@ -192,9 +201,18 @@ class Planner:
                     util_c = 0.0
                 else:
                     util_c = util
-                if reverse or types.get(nxt) not in ("gate", "transport_node"):
-                    delay = 0.0  # queues form on the way in, not on the way out
-                seg = base + delay
+                # Station queues hold travellers either way; a gate's scan queue
+                # only matters on the way *into* a venue. The edge's stored
+                # direction says nothing about the trip's direction.
+                if types.get(nxt) == "gate":
+                    if not inbound:
+                        delay = 0.0
+                elif types.get(nxt) != "transport_node":
+                    delay = 0.0
+                # Crowded roads, zones and trains are slower to move through
+                # (BPR volume-delay), at the load projected for the moment the
+                # traveller gets there; queues add their own wait on top.
+                seg = base * self.slowdown(util_c) + delay
                 weight = seg * (1.0 + crowd_w * 3.0 * max(0.0, util_c) ** 2.5) * node_penalty.get(nxt, 1.0)
                 if cost + weight < best.get(nxt, float("inf")):
                     best[nxt] = cost + weight

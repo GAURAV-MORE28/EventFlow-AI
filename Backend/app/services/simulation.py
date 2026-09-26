@@ -140,7 +140,11 @@ class SimulationRegistry:
             for eid, r in risk.items():
                 end_state[eid]["risk_score"] = r["risk_score"]
                 end_state[eid]["risk_band"] = r["risk_band"]
-            cascade = engine.registry.cascade.predict(worst, end_state, store.edges, generated_at=store.sim_time)
+            from .cascade_flow import cascade_for
+
+            closed = set(scen_start.closed_entities()) if hasattr(scen_start, "closed_entities") else set()
+            cascade = cascade_for(worst, end_state, store.edges, engine.config.thresholds_for,
+                                  engine.config.raw.get("cascade", {}), store.sim_time, closed)
             raw = engine.registry.optimiser.generate(
                 {"root_entity_id": worst, "cascade": cascade, "node_state": end_state, "edges": store.edges,
                  "sim_time": store.sim_time, **engine.optimiser_context()},

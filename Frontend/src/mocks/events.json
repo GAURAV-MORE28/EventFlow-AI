@@ -17,7 +17,14 @@
       "out_of_town_share": 0.4,
       "status": "live",
       "arrived": 14000,
-      "inside": 14000
+      "inside": 14000,
+      "description": null,
+      "arrival_window_start": "2026-09-04T10:24:00Z",
+      "arrival_window_end": "2026-09-04T12:16:00Z",
+      "departure_window_start": "2026-09-04T16:55:00Z",
+      "departure_window_end": "2026-09-04T17:35:00Z",
+      "custom_windows": false,
+      "remaining_demand": 0
     },
     {
       "event_id": "evt_fanfest",
@@ -34,7 +41,14 @@
       "out_of_town_share": 0.1,
       "status": "live",
       "arrived": 5412,
-      "inside": 5412
+      "inside": 5412,
+      "description": null,
+      "arrival_window_start": "2026-09-04T13:24:00Z",
+      "arrival_window_end": "2026-09-04T15:16:00Z",
+      "departure_window_start": "2026-09-04T19:25:00Z",
+      "departure_window_end": "2026-09-04T20:05:00Z",
+      "custom_windows": false,
+      "remaining_demand": 88
     },
     {
       "event_id": "evt_demo",
@@ -51,7 +65,14 @@
       "out_of_town_share": 0.3,
       "status": "arriving",
       "arrived": 35000,
-      "inside": 30950
+      "inside": 30950,
+      "description": null,
+      "arrival_window_start": "2026-09-04T14:24:00Z",
+      "arrival_window_end": "2026-09-04T16:16:00Z",
+      "departure_window_start": "2026-09-04T18:25:00Z",
+      "departure_window_end": "2026-09-04T19:05:00Z",
+      "custom_windows": false,
+      "remaining_demand": 35000
     }
   ]
 }

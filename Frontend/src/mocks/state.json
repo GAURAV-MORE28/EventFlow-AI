@@ -10,7 +10,10 @@
       "flow_rate_per_min": -524.4,
       "risk_score": 20,
       "risk_band": "low",
-      "is_observed": true
+      "is_observed": true,
+      "inflow_per_min": 767.42,
+      "outflow_per_min": 0.0,
+      "queue_people": 4050.18
     },
     {
       "entity_id": "convention_centre",
@@ -20,7 +23,10 @@
       "flow_rate_per_min": 0.6,
       "risk_score": 56,
       "risk_band": "moderate",
-      "is_observed": true
+      "is_observed": true,
+      "inflow_per_min": 0.0,
+      "outflow_per_min": 0.0,
+      "queue_people": 0.0
     },
     {
       "entity_id": "gate_1",
@@ -30,7 +36,10 @@
       "flow_rate_per_min": 84.8,
       "risk_score": 41,
       "risk_band": "moderate",
-      "is_observed": true
+      "is_observed": true,
+      "inflow_per_min": 223.49,
+      "outflow_per_min": 162.4,
+      "queue_people": 891.5
     },
     {
       "entity_id": "gate_2",
@@ -40,7 +49,10 @@
       "flow_rate_per_min": 8.4,
       "risk_score": 6,
       "risk_band": "low",
-      "is_observed": false
+      "is_observed": false,
+      "inflow_per_min": 144.04,
+      "outflow_per_min": 144.04,
+      "queue_people": 0.0
     },
     {
       "entity_id": "gate_3",
@@ -50,7 +62,10 @@
       "flow_rate_per_min": -5.3,
       "risk_score": 6,
       "risk_band": "low",
-      "is_observed": true
+      "is_observed": true,
+      "inflow_per_min": 103.99,
+      "outflow_per_min": 103.99,
+      "queue_people": 0.0
     },
     {
       "entity_id": "gate_4",
@@ -60,7 +75,10 @@
       "flow_rate_per_min": -2.1,
       "risk_score": 6,
       "risk_band": "low",
-      "is_observed": true
+      "is_observed": true,
+      "inflow_per_min": 119.2,
+      "outflow_per_min": 119.2,
+      "queue_people": 0.0
     },
     {
       "entity_id": "gate_5",
@@ -70,7 +88,10 @@
       "flow_rate_per_min": 71.0,
       "risk_score": 100,
       "risk_band": "critical",
-      "is_observed": true
+      "is_observed": true,
+      "inflow_per_min": 122.52,
+      "outflow_per_min": 87.0,
+      "queue_people": 1526.28
     },
     {
       "entity_id": "gate_6",
@@ -78,9 +99,12 @@
       "current_count": 1918.3,
       "utilisation": 0.7378,
       "flow_rate_per_min": 77.9,
-      "risk_score": 77,
+      "risk_score": 78,
       "risk_band": "high",
-      "is_observed": true
+      "is_observed": true,
+      "inflow_per_min": 284.06,
+      "outflow_per_min": 150.8,
+      "queue_people": 1632.4
     },
     {
       "entity_id": "metro_a",
@@ -90,7 +114,10 @@
       "flow_rate_per_min": -19.8,
       "risk_score": 28,
       "risk_band": "low",
-      "is_observed": true
+      "is_observed": true,
+      "inflow_per_min": 82.38,
+      "outflow_per_min": 82.38,
+      "queue_people": 0.0
     },
     {
       "entity_id": "metro_b",
@@ -100,7 +127,10 @@
       "flow_rate_per_min": 20.2,
       "risk_score": 34,
       "risk_band": "moderate",
-      "is_observed": true
+      "is_observed": true,
+      "inflow_per_min": 116.33,
+      "outflow_per_min": 116.33,
+      "queue_people": 0.0
     },
     {
       "entity_id": "metro_c",
@@ -110,7 +140,10 @@
       "flow_rate_per_min": -78.6,
       "risk_score": 38,
       "risk_band": "moderate",
-      "is_observed": true
+      "is_observed": true,
+      "inflow_per_min": 111.14,
+      "outflow_per_min": 111.14,
+      "queue_people": 0.0
     },
     {
       "entity_id": "metro_d",
@@ -120,7 +153,10 @@
       "flow_rate_per_min": -67.8,
       "risk_score": 35,
       "risk_band": "moderate",
-      "is_observed": true
+      "is_observed": true,
+      "inflow_per_min": 86.32,
+      "outflow_per_min": 86.32,
+      "queue_people": 0.0
     },
     {
       "entity_id": "metro_e",
@@ -130,7 +166,10 @@
       "flow_rate_per_min": 20.5,
       "risk_score": 39,
       "risk_band": "moderate",
-      "is_observed": true
+      "is_observed": true,
+      "inflow_per_min": 119.32,
+      "outflow_per_min": 119.32,
+      "queue_people": 0.0
     },
     {
       "entity_id": "bus_hub_north",
@@ -140,7 +179,10 @@
       "flow_rate_per_min": 15.6,
       "risk_score": 35,
       "risk_band": "moderate",
-      "is_observed": true
+      "is_observed": true,
+      "inflow_per_min": 75.32,
+      "outflow_per_min": 75.32,
+      "queue_people": 0.0
     },
     {
       "entity_id": "bus_hub_south",
@@ -150,7 +192,10 @@
       "flow_rate_per_min": -25.0,
       "risk_score": 37,
       "risk_band": "moderate",
-      "is_observed": true
+      "is_observed": true,
+      "inflow_per_min": 66.64,
+      "outflow_per_min": 66.64,
+      "queue_people": 0.0
     },
     {
       "entity_id": "shuttle_hub_east",
@@ -160,7 +205,10 @@
       "flow_rate_per_min": 24.2,
       "risk_score": 34,
       "risk_band": "moderate",
-      "is_observed": true
+      "is_observed": true,
+      "inflow_per_min": 62.17,
+      "outflow_per_min": 62.17,
+      "queue_people": 0.0
     },
     {
       "entity_id": "shuttle_hub_west",
@@ -168,9 +216,12 @@
       "current_count": 901.6,
       "utilisation": 0.5009,
       "flow_rate_per_min": 0.7,
-      "risk_score": 30,
-      "risk_band": "low",
-      "is_observed": true
+      "risk_score": 31,
+      "risk_band": "moderate",
+      "is_observed": true,
+      "inflow_per_min": 60.26,
+      "outflow_per_min": 60.26,
+      "queue_people": 0.0
     },
     {
       "entity_id": "line_blue",
@@ -180,7 +231,10 @@
       "flow_rate_per_min": 1129.6,
       "risk_score": 78,
       "risk_band": "high",
-      "is_observed": true
+      "is_observed": true,
+      "inflow_per_min": 194.56,
+      "outflow_per_min": 194.56,
+      "queue_people": null
     },
     {
       "entity_id": "line_red",
@@ -188,9 +242,12 @@
       "current_count": 20133.6,
       "utilisation": 0.9587,
       "flow_rate_per_min": -269.8,
-      "risk_score": 100,
+      "risk_score": 90,
       "risk_band": "critical",
-      "is_observed": true
+      "is_observed": true,
+      "inflow_per_min": 197.45,
+      "outflow_per_min": 197.45,
+      "queue_people": null
     },
     {
       "entity_id": "line_green",
@@ -200,7 +257,10 @@
       "flow_rate_per_min": 140.9,
       "risk_score": 73,
       "risk_band": "high",
-      "is_observed": true
+      "is_observed": true,
+      "inflow_per_min": 119.32,
+      "outflow_per_min": 119.32,
+      "queue_people": null
     },
     {
       "entity_id": "road_1",
@@ -210,7 +270,10 @@
       "flow_rate_per_min": -1.6,
       "risk_score": 21,
       "risk_band": "low",
-      "is_observed": true
+      "is_observed": true,
+      "inflow_per_min": 32.54,
+      "outflow_per_min": 32.54,
+      "queue_people": null
     },
     {
       "entity_id": "road_2",
@@ -220,7 +283,10 @@
       "flow_rate_per_min": 9.6,
       "risk_score": 26,
       "risk_band": "low",
-      "is_observed": true
+      "is_observed": true,
+      "inflow_per_min": 24.45,
+      "outflow_per_min": 24.45,
+      "queue_people": null
     },
     {
       "entity_id": "road_3",
@@ -230,7 +296,10 @@
       "flow_rate_per_min": -5.1,
       "risk_score": 25,
       "risk_band": "low",
-      "is_observed": false
+      "is_observed": false,
+      "inflow_per_min": 33.14,
+      "outflow_per_min": 33.14,
+      "queue_people": null
     },
     {
       "entity_id": "road_4",
@@ -240,7 +309,10 @@
       "flow_rate_per_min": -17.5,
       "risk_score": 42,
       "risk_band": "moderate",
-      "is_observed": true
+      "is_observed": true,
+      "inflow_per_min": 32.72,
+      "outflow_per_min": 32.72,
+      "queue_people": null
     },
     {
       "entity_id": "road_5",
@@ -250,7 +322,10 @@
       "flow_rate_per_min": 3.3,
       "risk_score": 39,
       "risk_band": "moderate",
-      "is_observed": true
+      "is_observed": true,
+      "inflow_per_min": 26.85,
+      "outflow_per_min": 26.85,
+      "queue_people": null
     },
     {
       "entity_id": "road_6",
@@ -260,7 +335,10 @@
       "flow_rate_per_min": 8.8,
       "risk_score": 42,
       "risk_band": "moderate",
-      "is_observed": false
+      "is_observed": false,
+      "inflow_per_min": 37.17,
+      "outflow_per_min": 37.17,
+      "queue_people": null
     },
     {
       "entity_id": "road_7",
@@ -270,7 +348,10 @@
       "flow_rate_per_min": -2.9,
       "risk_score": 19,
       "risk_band": "low",
-      "is_observed": false
+      "is_observed": false,
+      "inflow_per_min": 3.58,
+      "outflow_per_min": 3.58,
+      "queue_people": null
     },
     {
       "entity_id": "road_8",
@@ -280,7 +361,10 @@
       "flow_rate_per_min": 5.5,
       "risk_score": 23,
       "risk_band": "low",
-      "is_observed": true
+      "is_observed": true,
+      "inflow_per_min": 2.35,
+      "outflow_per_min": 2.35,
+      "queue_people": null
     },
     {
       "entity_id": "road_9",
@@ -290,7 +374,10 @@
       "flow_rate_per_min": -3.7,
       "risk_score": 15,
       "risk_band": "low",
-      "is_observed": false
+      "is_observed": false,
+      "inflow_per_min": 2.2,
+      "outflow_per_min": 2.2,
+      "queue_people": null
     },
     {
       "entity_id": "road_10",
@@ -300,7 +387,10 @@
       "flow_rate_per_min": 0.4,
       "risk_score": 23,
       "risk_band": "low",
-      "is_observed": true
+      "is_observed": true,
+      "inflow_per_min": 3.85,
+      "outflow_per_min": 3.85,
+      "queue_people": null
     },
     {
       "entity_id": "road_11",
@@ -310,7 +400,10 @@
       "flow_rate_per_min": -1.2,
       "risk_score": 20,
       "risk_band": "low",
-      "is_observed": true
+      "is_observed": true,
+      "inflow_per_min": 3.05,
+      "outflow_per_min": 3.05,
+      "queue_people": null
     },
     {
       "entity_id": "road_12",
@@ -320,7 +413,10 @@
       "flow_rate_per_min": 4.9,
       "risk_score": 15,
       "risk_band": "low",
-      "is_observed": true
+      "is_observed": true,
+      "inflow_per_min": 3.85,
+      "outflow_per_min": 3.85,
+      "queue_people": null
     },
     {
       "entity_id": "road_13",
@@ -330,7 +426,10 @@
       "flow_rate_per_min": -0.8,
       "risk_score": 23,
       "risk_band": "low",
-      "is_observed": false
+      "is_observed": false,
+      "inflow_per_min": 0.0,
+      "outflow_per_min": 0.0,
+      "queue_people": null
     },
     {
       "entity_id": "road_14",
@@ -340,7 +439,10 @@
       "flow_rate_per_min": -14.7,
       "risk_score": 19,
       "risk_band": "low",
-      "is_observed": true
+      "is_observed": true,
+      "inflow_per_min": 0.0,
+      "outflow_per_min": 0.0,
+      "queue_people": null
     },
     {
       "entity_id": "road_15",
@@ -350,7 +452,10 @@
       "flow_rate_per_min": 1.9,
       "risk_score": 16,
       "risk_band": "low",
-      "is_observed": true
+      "is_observed": true,
+      "inflow_per_min": 0.0,
+      "outflow_per_min": 0.0,
+      "queue_people": null
     },
     {
       "entity_id": "road_16",
@@ -360,7 +465,10 @@
       "flow_rate_per_min": -6.5,
       "risk_score": 21,
       "risk_band": "low",
-      "is_observed": true
+      "is_observed": true,
+      "inflow_per_min": 0.0,
+      "outflow_per_min": 0.0,
+      "queue_people": null
     },
     {
       "entity_id": "road_17",
@@ -370,7 +478,10 @@
       "flow_rate_per_min": -6.1,
       "risk_score": 22,
       "risk_band": "low",
-      "is_observed": true
+      "is_observed": true,
+      "inflow_per_min": 3.58,
+      "outflow_per_min": 3.58,
+      "queue_people": null
     },
     {
       "entity_id": "road_18",
@@ -380,7 +491,10 @@
       "flow_rate_per_min": -13.5,
       "risk_score": 19,
       "risk_band": "low",
-      "is_observed": true
+      "is_observed": true,
+      "inflow_per_min": 3.02,
+      "outflow_per_min": 3.02,
+      "queue_people": null
     },
     {
       "entity_id": "zone_north",
@@ -390,7 +504,10 @@
       "flow_rate_per_min": -13.1,
       "risk_score": 9,
       "risk_band": "low",
-      "is_observed": true
+      "is_observed": true,
+      "inflow_per_min": 0.0,
+      "outflow_per_min": 0.0,
+      "queue_people": 0.0
     },
     {
       "entity_id": "zone_south",
@@ -400,7 +517,10 @@
       "flow_rate_per_min": 63.2,
       "risk_score": 12,
       "risk_band": "low",
-      "is_observed": true
+      "is_observed": true,
+      "inflow_per_min": 0.0,
+      "outflow_per_min": 0.0,
+      "queue_people": 0.0
     },
     {
       "entity_id": "zone_east",
@@ -410,7 +530,10 @@
       "flow_rate_per_min": -0.5,
       "risk_score": 8,
       "risk_band": "low",
-      "is_observed": true
+      "is_observed": true,
+      "inflow_per_min": 0.0,
+      "outflow_per_min": 0.0,
+      "queue_people": 0.0
     },
     {
       "entity_id": "zone_west",
@@ -420,7 +543,10 @@
       "flow_rate_per_min": 33.5,
       "risk_score": 11,
       "risk_band": "low",
-      "is_observed": true
+      "is_observed": true,
+      "inflow_per_min": 0.0,
+      "outflow_per_min": 0.0,
+      "queue_people": 0.0
     },
     {
       "entity_id": "zone_core",
@@ -430,7 +556,10 @@
       "flow_rate_per_min": -85.9,
       "risk_score": 9,
       "risk_band": "low",
-      "is_observed": false
+      "is_observed": false,
+      "inflow_per_min": 0.0,
+      "outflow_per_min": 0.0,
+      "queue_people": 0.0
     },
     {
       "entity_id": "zone_concourse_north",
@@ -440,7 +569,10 @@
       "flow_rate_per_min": -9.9,
       "risk_score": 6,
       "risk_band": "low",
-      "is_observed": true
+      "is_observed": true,
+      "inflow_per_min": 0.0,
+      "outflow_per_min": 0.0,
+      "queue_people": 0.0
     },
     {
       "entity_id": "zone_concourse_south",
@@ -450,7 +582,10 @@
       "flow_rate_per_min": 8.7,
       "risk_score": 11,
       "risk_band": "low",
-      "is_observed": false
+      "is_observed": false,
+      "inflow_per_min": 0.0,
+      "outflow_per_min": 0.0,
+      "queue_people": 0.0
     },
     {
       "entity_id": "zone_fanpark",
@@ -460,7 +595,10 @@
       "flow_rate_per_min": 232.0,
       "risk_score": 65,
       "risk_band": "high",
-      "is_observed": true
+      "is_observed": true,
+      "inflow_per_min": 8.04,
+      "outflow_per_min": 0.0,
+      "queue_people": 0.0
     },
     {
       "entity_id": "zone_plaza_east",
@@ -470,7 +608,10 @@
       "flow_rate_per_min": 18.7,
       "risk_score": 12,
       "risk_band": "low",
-      "is_observed": false
+      "is_observed": false,
+      "inflow_per_min": 0.0,
+      "outflow_per_min": 0.0,
+      "queue_people": 0.0
     },
     {
       "entity_id": "zone_plaza_west",
@@ -480,7 +621,10 @@
       "flow_rate_per_min": 9.2,
       "risk_score": 10,
       "risk_band": "low",
-      "is_observed": true
+      "is_observed": true,
+      "inflow_per_min": 0.0,
+      "outflow_per_min": 0.0,
+      "queue_people": 0.0
     },
     {
       "entity_id": "hotel_north_cluster",
@@ -490,7 +634,10 @@
       "flow_rate_per_min": 29.8,
       "risk_score": 31,
       "risk_band": "moderate",
-      "is_observed": true
+      "is_observed": true,
+      "inflow_per_min": null,
+      "outflow_per_min": null,
+      "queue_people": null
     },
     {
       "entity_id": "hotel_core_cluster",
@@ -500,7 +647,10 @@
       "flow_rate_per_min": 54.5,
       "risk_score": 69,
       "risk_band": "high",
-      "is_observed": true
+      "is_observed": true,
+      "inflow_per_min": null,
+      "outflow_per_min": null,
+      "queue_people": null
     },
     {
       "entity_id": "hotel_east_cluster",
@@ -510,7 +660,10 @@
       "flow_rate_per_min": -9.1,
       "risk_score": 72,
       "risk_band": "high",
-      "is_observed": true
+      "is_observed": true,
+      "inflow_per_min": null,
+      "outflow_per_min": null,
+      "queue_people": null
     },
     {
       "entity_id": "hotel_south_cluster",
@@ -520,7 +673,10 @@
       "flow_rate_per_min": -30.2,
       "risk_score": 57,
       "risk_band": "moderate",
-      "is_observed": true
+      "is_observed": true,
+      "inflow_per_min": null,
+      "outflow_per_min": null,
+      "queue_people": null
     },
     {
       "entity_id": "hotel_west_cluster",
@@ -530,7 +686,10 @@
       "flow_rate_per_min": 11.1,
       "risk_score": 71,
       "risk_band": "high",
-      "is_observed": true
+      "is_observed": true,
+      "inflow_per_min": null,
+      "outflow_per_min": null,
+      "queue_people": null
     },
     {
       "entity_id": "hotel_airport_cluster",
@@ -540,7 +699,10 @@
       "flow_rate_per_min": -8.4,
       "risk_score": 22,
       "risk_band": "low",
-      "is_observed": true
+      "is_observed": true,
+      "inflow_per_min": null,
+      "outflow_per_min": null,
+      "queue_people": null
     },
     {
       "entity_id": "parking_p1",
@@ -550,7 +712,10 @@
       "flow_rate_per_min": 40.1,
       "risk_score": 44,
       "risk_band": "moderate",
-      "is_observed": true
+      "is_observed": true,
+      "inflow_per_min": 32.96,
+      "outflow_per_min": 0.0,
+      "queue_people": null
     },
     {
       "entity_id": "parking_p2",
@@ -560,7 +725,10 @@
       "flow_rate_per_min": 37.2,
       "risk_score": 29,
       "risk_band": "low",
-      "is_observed": false
+      "is_observed": false,
+      "inflow_per_min": 28.47,
+      "outflow_per_min": 0.0,
+      "queue_people": null
     },
     {
       "entity_id": "parking_p3",
@@ -570,7 +738,10 @@
       "flow_rate_per_min": 23.3,
       "risk_score": 29,
       "risk_band": "low",
-      "is_observed": false
+      "is_observed": false,
+      "inflow_per_min": 25.47,
+      "outflow_per_min": 0.0,
+      "queue_people": null
     },
     {
       "entity_id": "parking_p4",
@@ -580,7 +751,10 @@
       "flow_rate_per_min": 30.6,
       "risk_score": 48,
       "risk_band": "moderate",
-      "is_observed": true
+      "is_observed": true,
+      "inflow_per_min": 29.97,
+      "outflow_per_min": 0.0,
+      "queue_people": null
     },
     {
       "entity_id": "parking_p5",
@@ -590,7 +764,10 @@
       "flow_rate_per_min": -7.9,
       "risk_score": 26,
       "risk_band": "low",
-      "is_observed": true
+      "is_observed": true,
+      "inflow_per_min": 22.48,
+      "outflow_per_min": 0.0,
+      "queue_people": null
     },
     {
       "entity_id": "parking_p6",
@@ -600,7 +777,10 @@
       "flow_rate_per_min": -21.9,
       "risk_score": 25,
       "risk_band": "low",
-      "is_observed": true
+      "is_observed": true,
+      "inflow_per_min": 20.98,
+      "outflow_per_min": 0.0,
+      "queue_people": null
     },
     {
       "entity_id": "parking_p7",
@@ -610,7 +790,10 @@
       "flow_rate_per_min": 20.3,
       "risk_score": 27,
       "risk_band": "low",
-      "is_observed": true
+      "is_observed": true,
+      "inflow_per_min": 19.48,
+      "outflow_per_min": 0.0,
+      "queue_people": null
     },
     {
       "entity_id": "parking_p8",
@@ -620,7 +803,10 @@
       "flow_rate_per_min": 17.1,
       "risk_score": 28,
       "risk_band": "low",
-      "is_observed": true
+      "is_observed": true,
+      "inflow_per_min": 20.23,
+      "outflow_per_min": 0.0,
+      "queue_people": null
     },
     {
       "entity_id": "parking_p9",
@@ -630,7 +816,10 @@
       "flow_rate_per_min": 0.2,
       "risk_score": 29,
       "risk_band": "low",
-      "is_observed": true
+      "is_observed": true,
+      "inflow_per_min": 16.48,
+      "outflow_per_min": 0.0,
+      "queue_people": null
     },
     {
       "entity_id": "parking_p10",
@@ -640,7 +829,10 @@
       "flow_rate_per_min": 25.0,
       "risk_score": 25,
       "risk_band": "low",
-      "is_observed": true
+      "is_observed": true,
+      "inflow_per_min": 15.73,
+      "outflow_per_min": 0.0,
+      "queue_people": null
     },
     {
       "entity_id": "emergency_north",
@@ -650,7 +842,10 @@
       "flow_rate_per_min": 0.3,
       "risk_score": 22,
       "risk_band": "low",
-      "is_observed": true
+      "is_observed": true,
+      "inflow_per_min": null,
+      "outflow_per_min": null,
+      "queue_people": null
     },
     {
       "entity_id": "emergency_south",
@@ -660,7 +855,10 @@
       "flow_rate_per_min": -0.8,
       "risk_score": 28,
       "risk_band": "low",
-      "is_observed": true
+      "is_observed": true,
+      "inflow_per_min": null,
+      "outflow_per_min": null,
+      "queue_people": null
     },
     {
       "entity_id": "emergency_core",
@@ -670,7 +868,10 @@
       "flow_rate_per_min": 0.2,
       "risk_score": 16,
       "risk_band": "low",
-      "is_observed": false
+      "is_observed": false,
+      "inflow_per_min": null,
+      "outflow_per_min": null,
+      "queue_people": null
     }
   ],
   "summary": {

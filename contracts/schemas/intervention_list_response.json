@@ -231,6 +231,21 @@
             }
           ],
           "default": null
+        },
+        "live_effect": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/InterventionEffect"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Live Effect"
         }
       },
       "required": [
@@ -249,6 +264,36 @@
         "expires_at"
       ],
       "title": "Intervention",
+      "type": "object"
+    },
+    "InterventionEffect": {
+      "additionalProperties": false,
+      "description": "Live consequence of an executing action: the live city vs its do-nothing copy.",
+      "properties": {
+        "entity_id": {
+          "title": "Entity Id",
+          "type": "string"
+        },
+        "utilisation": {
+          "title": "Utilisation",
+          "type": "number"
+        },
+        "counterfactual_utilisation": {
+          "title": "Counterfactual Utilisation",
+          "type": "number"
+        },
+        "delta": {
+          "title": "Delta",
+          "type": "number"
+        }
+      },
+      "required": [
+        "entity_id",
+        "utilisation",
+        "counterfactual_utilisation",
+        "delta"
+      ],
+      "title": "InterventionEffect",
       "type": "object"
     },
     "InterventionEvaluation": {

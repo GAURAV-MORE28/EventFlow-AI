@@ -81,6 +81,18 @@ class AssimilatedTwin:
             # Stepped but never assimilated — that divergence is the demo.
             self._X_uncorrected = self._advance(self._X_uncorrected, dt_sec, model, inflate=True)
 
+    def shift(self, delta: dict[str, float]) -> None:
+        """An announced change of the process model at the current instant (an
+        operator re-planned the schedule): every member moves by the model's
+        change, so estimates follow the plan without waiting for sensors."""
+        if not self.ready():
+            return
+        v = self._vector(delta)
+        if v is None:
+            return
+        n = self.n
+        self._X[:n] = np.maximum(self._X[:n] + v[:, None], 0.0)
+
     def _vector(self, values: dict[str, float] | None) -> np.ndarray | None:
         if not values:
             return None

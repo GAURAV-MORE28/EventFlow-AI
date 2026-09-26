@@ -1,6 +1,6 @@
 {
   "sim_time": "2026-09-04T15:20:00Z",
-  "assimilated_rmse": 29.55,
+  "assimilated_rmse": 29.4,
   "uncorrected_rmse": 2479.32,
   "improvement_pct": 98.8,
   "ensemble_size": 20,
@@ -9,57 +9,57 @@
   "history": [
     {
       "sim_time": "2026-09-04T15:10:30Z",
-      "assimilated_rmse": 33.75,
+      "assimilated_rmse": 33.76,
       "uncorrected_rmse": 2651.58
     },
     {
       "sim_time": "2026-09-04T15:11:00Z",
-      "assimilated_rmse": 19.63,
+      "assimilated_rmse": 19.74,
       "uncorrected_rmse": 2638.09
     },
     {
       "sim_time": "2026-09-04T15:11:30Z",
-      "assimilated_rmse": 26.94,
+      "assimilated_rmse": 26.84,
       "uncorrected_rmse": 2658.3
     },
     {
       "sim_time": "2026-09-04T15:12:00Z",
-      "assimilated_rmse": 32.11,
+      "assimilated_rmse": 32.08,
       "uncorrected_rmse": 2669.12
     },
     {
       "sim_time": "2026-09-04T15:12:30Z",
-      "assimilated_rmse": 23.61,
+      "assimilated_rmse": 23.58,
       "uncorrected_rmse": 2694.47
     },
     {
       "sim_time": "2026-09-04T15:13:00Z",
-      "assimilated_rmse": 43.66,
+      "assimilated_rmse": 43.7,
       "uncorrected_rmse": 2702.92
     },
     {
       "sim_time": "2026-09-04T15:13:30Z",
-      "assimilated_rmse": 27.94,
+      "assimilated_rmse": 27.96,
       "uncorrected_rmse": 2715.07
     },
     {
       "sim_time": "2026-09-04T15:14:00Z",
-      "assimilated_rmse": 26.54,
+      "assimilated_rmse": 26.65,
       "uncorrected_rmse": 2736.65
     },
     {
       "sim_time": "2026-09-04T15:14:30Z",
-      "assimilated_rmse": 37.38,
+      "assimilated_rmse": 37.42,
       "uncorrected_rmse": 2760.54
     },
     {
       "sim_time": "2026-09-04T15:15:00Z",
-      "assimilated_rmse": 31.82,
+      "assimilated_rmse": 31.86,
       "uncorrected_rmse": 2776.84
     },
     {
       "sim_time": "2026-09-04T15:15:30Z",
-      "assimilated_rmse": 19.9,
+      "assimilated_rmse": 19.99,
       "uncorrected_rmse": 2761.68
     },
     {
@@ -74,37 +74,37 @@
     },
     {
       "sim_time": "2026-09-04T15:17:00Z",
-      "assimilated_rmse": 18.1,
+      "assimilated_rmse": 18.07,
       "uncorrected_rmse": 2679.31
     },
     {
       "sim_time": "2026-09-04T15:17:30Z",
-      "assimilated_rmse": 22.15,
+      "assimilated_rmse": 22.22,
       "uncorrected_rmse": 2647.22
     },
     {
       "sim_time": "2026-09-04T15:18:00Z",
-      "assimilated_rmse": 34.96,
+      "assimilated_rmse": 34.95,
       "uncorrected_rmse": 2607.88
     },
     {
       "sim_time": "2026-09-04T15:18:30Z",
-      "assimilated_rmse": 32.5,
+      "assimilated_rmse": 32.56,
       "uncorrected_rmse": 2561.0
     },
     {
       "sim_time": "2026-09-04T15:19:00Z",
-      "assimilated_rmse": 39.78,
+      "assimilated_rmse": 39.79,
       "uncorrected_rmse": 2534.44
     },
     {
       "sim_time": "2026-09-04T15:19:30Z",
-      "assimilated_rmse": 19.24,
+      "assimilated_rmse": 19.15,
       "uncorrected_rmse": 2511.03
     },
     {
       "sim_time": "2026-09-04T15:20:00Z",
-      "assimilated_rmse": 29.55,
+      "assimilated_rmse": 29.4,
       "uncorrected_rmse": 2479.32
     }
   ]

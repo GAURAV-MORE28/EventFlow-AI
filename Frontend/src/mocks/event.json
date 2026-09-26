@@ -22,7 +22,14 @@
       "status": "live",
       "delay_sec": 0,
       "arrived": 14000,
-      "inside": 14000
+      "inside": 14000,
+      "description": null,
+      "remaining_demand": 0,
+      "custom_windows": false,
+      "arrival_window_start": "2026-09-04T10:24:00Z",
+      "arrival_window_end": "2026-09-04T12:16:00Z",
+      "departure_window_start": "2026-09-04T16:55:00Z",
+      "departure_window_end": "2026-09-04T17:35:00Z"
     },
     {
       "event_id": "evt_fanfest",
@@ -39,7 +46,14 @@
       "status": "live",
       "delay_sec": 0,
       "arrived": 5412,
-      "inside": 5412
+      "inside": 5412,
+      "description": null,
+      "remaining_demand": 88,
+      "custom_windows": false,
+      "arrival_window_start": "2026-09-04T13:24:00Z",
+      "arrival_window_end": "2026-09-04T15:16:00Z",
+      "departure_window_start": "2026-09-04T19:25:00Z",
+      "departure_window_end": "2026-09-04T20:05:00Z"
     }
   ]
 }

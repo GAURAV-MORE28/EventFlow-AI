@@ -136,7 +136,7 @@ export default function MapCanvas() {
     selectedEntityId,
     selectEntity,
     simTime,
-    trackedActions,
+    interventions,
     whatIfOverlay,
   } = useStore();
 
@@ -173,9 +173,21 @@ export default function MapCanvas() {
   const revealed = useCascadeReveal(cascade);
 
   // --- action visualisation (TASK 2) ------------------------------------
+  // Executing actions and the entities they measurably move (backend
+  // `live_effect`: live city vs its do-nothing copy). Nothing inferred here.
   const executedActions = useMemo(
-    () => trackedActions.filter((a) => a.kind === 'executed'),
-    [trackedActions],
+    () =>
+      (interventions || [])
+        .filter((i) => i.status === 'executing')
+        .map((i) => ({
+          id: i.intervention_id,
+          phase: 'live',
+          targetIds: (i.live_effect || []).length
+            ? i.live_effect.filter((e) => Math.abs(e.delta) >= 0.005).map((e) => e.entity_id)
+            : i.target_entity_ids,
+          live: { downstream: [] },
+        })),
+    [interventions],
   );
   const actionPulseActive =
     executedActions.some((a) => a.phase !== 'settled') || Boolean(whatIfOverlay);
@@ -461,7 +473,7 @@ export default function MapCanvas() {
       data: labelData,
       getPosition: (d) => d.position,
       getText: (d) => {
-        if (tier !== 'detailed') return d.displayName;
+        if (tier === 'compact') return d.displayName;
         const state = entities[d.entity_id];
         return state && state.utilisation != null
           ? `${d.displayName}  ${percent(state.utilisation)}`

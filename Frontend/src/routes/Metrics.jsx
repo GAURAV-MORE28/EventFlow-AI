@@ -36,6 +36,7 @@ import { api } from '../lib/api.js';
 import { clock, decimals, minutes } from '../lib/format.js';
 import { useStore } from '../store/useStore.js';
 import { ReplayBanner } from '../components/PageShell.jsx';
+import TwinFidelityGauge from '../components/TwinFidelityGauge.jsx';
 
 const EMPHASISED = new Set([
   'prediction.cascade_lead_time_sec',
@@ -351,6 +352,7 @@ export default function Metrics() {
             )}
             <Section title="Prediction Horizon & Cascades" metrics={metrics.prediction} group="prediction" />
             <Section title="EnKF Digital Twin Assimilation" metrics={metrics.twin} group="twin" />
+            <div className="max-w-xl"><TwinFidelityGauge /></div>
             <Section title="Decision Quality & Interventions" metrics={metrics.decision} group="decision" />
             <Section title="System Architecture & Commander" metrics={metrics.system} group="system" />
 

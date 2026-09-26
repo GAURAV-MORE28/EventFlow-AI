@@ -103,7 +103,12 @@ def persist_events(events: list[dict]) -> None:
 
     try:
         with SessionLocal() as session:
+            keep = {ev["event_id"] for ev in events if ev.get("status") != "deleted"}
+            session.query(models.EventSchedule).filter(~models.EventSchedule.event_id.in_(keep)).delete(
+                synchronize_session=False)
             for ev in events:
+                if ev.get("status") == "deleted":
+                    continue
                 session.merge(models.EventSchedule(
                     event_id=ev["event_id"], name=ev["name"], category=ev.get("category", "event"),
                     venue_entity_id=ev["venue_entity_id"], start_time=parse(ev["start_time"]),

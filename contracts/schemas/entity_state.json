@@ -38,6 +38,42 @@
     "is_observed": {
       "title": "Is Observed",
       "type": "boolean"
+    },
+    "inflow_per_min": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Inflow Per Min"
+    },
+    "outflow_per_min": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Outflow Per Min"
+    },
+    "queue_people": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Queue People"
     }
   },
   "required": [

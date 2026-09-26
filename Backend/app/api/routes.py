@@ -64,7 +64,10 @@ async def health() -> S.HealthResponse:
                 ready=registry.forecaster.ready(), active_source=store.active_forecast_source
             ),
             "cascade": S.ModuleHealth(
-                ready=registry.cascade.ready(), active_source=store.active_cascade_source
+                ready=registry.cascade.ready(),
+                # the loaded cascade model (it annotates the deterministic cascade)
+                active_source=(registry.cascade.active_source() if hasattr(registry.cascade, "active_source")
+                               else store.active_cascade_source)
             ),
             "twin": S.ModuleHealth(
                 ready=twin_ready,
@@ -175,15 +178,13 @@ async def cascade(entity_id: str) -> S.CascadeResult:
     if existing:
         return S.CascadeResult(**existing)
 
-    # Not currently a cascade root: compute on demand so the click-through works.
-    result = await asyncio.to_thread(
-        engine.registry.cascade.predict,
-        entity_id,
-        store.node_state_for_ml(),
-        store.edges,
-        None,
-        store.sim_time,
-    )
+    # Not currently a cascade root: the same deterministic flow cascade, on demand.
+    from ..services.cascade_flow import cascade_for
+
+    with engine.world_lock:
+        closed = set(engine.generator.closed_entities()) if hasattr(engine.generator, "closed_entities") else set()
+    result = cascade_for(entity_id, store.node_state_for_ml(), store.edges, engine.config.thresholds_for,
+                         engine.config.raw.get("cascade", {}), store.sim_time, closed)
     return S.CascadeResult(**result)
 
 
@@ -241,6 +242,7 @@ async def approve(intervention_id: str, body: S.ApproveRequest) -> S.ApproveResp
     except Exception:
         item["status"] = "proposed"
         raise
+    await engine.reconcile("intervention_approved")
     nudges = issue_nudges(engine, item)
     if item.get("_event_id"):
         _persist_event(engine, item["_event_id"])
@@ -480,6 +482,11 @@ async def overview() -> S.OverviewResponse:
             utilisation=st["utilisation"], risk_score=st["risk_score"], risk_band=st["risk_band"],
             is_observed=st["is_observed"], closed=eid in closed, forecast_1800=f1800,
             time_to_critical_sec=fc.get("time_to_critical_sec"), queue_delay_sec=int(round(delays.get(eid, 0.0))),
+            inflow_per_min=st.get("inflow_per_min"), outflow_per_min=st.get("outflow_per_min"),
+            queue_people=st.get("queue_people"),
+            available_capacity=max(0.0, float(node["nominal_capacity"]) - float(st["current_count"])),
+            event_ids=[e["event_id"] for e in engine.events.events.values()
+                       if e["venue_entity_id"] == eid and e["status"] != "cancelled"],
         )
         for domain, types in DOMAINS.items():
             if node["entity_type"] in types:
@@ -503,26 +510,64 @@ async def events() -> S.EventListResponse:
     )
 
 
+@router.get("/events/venues", response_model=S.EventVenueList)
+async def event_venues() -> S.EventVenueList:
+    """Where an event can be held (reachable venues and open zones)."""
+    return S.EventVenueList(venues=get_engine().event_venues())
+
+
 @router.get("/events/{event_id}", response_model=S.EventView)
 async def event_detail(event_id: str) -> S.EventView:
     return S.EventView(**get_engine().event_view(event_id))
 
 
+EVENT_FIELDS = ("delay_sec", "start_time", "expected_attendance", "status", "end_time", "name", "venue_entity_id",
+                "category", "description", "arrival_window_start", "arrival_window_end",
+                "departure_window_start", "departure_window_end")
+
+
+@router.post("/events", response_model=S.EventView, status_code=201)
+async def create_event(body: S.EventCreateRequest) -> S.EventView:
+    """A new demand source. The simulator starts planning its arrivals at once."""
+    engine = get_engine()
+    fields = body.model_dump(exclude={"operator_id"})
+    view = await asyncio.to_thread(engine.create_event, **fields)
+    _audit(engine, f"operator:{body.operator_id}", "event_create", view["event_id"], fields)
+    _persist_event(engine, view["event_id"])
+    await engine.reconcile("event_created")
+    view = engine.event_view(view["event_id"])
+    await MANAGER.broadcast("event_updated", {"event": view}, engine.store.sim_time)
+    return S.EventView(**view)
+
+
 @router.post("/events/{event_id}", response_model=S.EventView)
 async def update_event(event_id: str, body: S.EventUpdateRequest) -> S.EventView:
     engine = get_engine()
-    if body.delay_sec is None and body.start_time is None and body.expected_attendance is None and body.status is None:
-        raise ApiError("INVALID_REQUEST", "Nothing to change: give delay_sec, start_time, expected_attendance or status.")
-    view = await asyncio.to_thread(
-        engine.update_event, event_id,
-        delay_sec=body.delay_sec, start_time=body.start_time,
-        expected_attendance=body.expected_attendance, status=body.status,
-    )
+    changes = {k: getattr(body, k) for k in EVENT_FIELDS if getattr(body, k) is not None}
+    if not changes:
+        raise ApiError("INVALID_REQUEST", "Nothing to change.")
+    await asyncio.to_thread(engine.update_event, event_id, **changes)
     _audit(engine, f"operator:{body.operator_id}", "event_update", event_id,
            body.model_dump(exclude_none=True, exclude={"operator_id"}))
     _persist_event(engine, event_id)
+    # The schedule changed: re-state the live city now, not at the next cycle.
+    await engine.reconcile("event_updated")
+    view = engine.event_view(event_id)
     await MANAGER.broadcast("event_updated", {"event": view}, engine.store.sim_time)
     return S.EventView(**view)
+
+
+@router.delete("/events/{event_id}", response_model=S.EventDeleteResponse)
+async def delete_event(event_id: str, operator_id: str = Query(default="operator")) -> S.EventDeleteResponse:
+    """Remove from the active schedule: no more demand; visitors already in the
+    city leave through the normal departure logic (they are not removed)."""
+    engine = get_engine()
+    result = await asyncio.to_thread(engine.delete_event, event_id)
+    _audit(engine, f"operator:{operator_id}", "event_delete", event_id, result)
+    _unpersist_event(event_id)
+    await engine.reconcile("event_deleted")
+    await MANAGER.broadcast("event_deleted", {"event_id": event_id}, engine.store.sim_time)
+    return S.EventDeleteResponse(**result)
 
 
 # --- accommodation ------------------------------------------------------------------------------
@@ -583,6 +628,7 @@ async def create_disruption(body: S.DisruptionCreateRequest) -> S.Disruption:
     record = await asyncio.to_thread(engine.inject_disruption, body.scenario_type, body.params, body.label)
     _audit(engine, f"operator:{body.operator_id}", "disruption_start", record["disruption_id"],
            {"scenario_type": body.scenario_type, "params": body.params})
+    await engine.reconcile("disruption_started")
     await MANAGER.broadcast("disruption_update", {"disruptions": list(engine.store.disruptions.values())},
                             engine.store.sim_time)
     return S.Disruption(**record)
@@ -593,6 +639,7 @@ async def clear_disruption(disruption_id: str) -> S.Disruption:
     engine = get_engine()
     record = await asyncio.to_thread(engine.clear_disruption, disruption_id)
     _audit(engine, "operator:demo", "disruption_clear", disruption_id, {})
+    await engine.reconcile("disruption_cleared")
     await MANAGER.broadcast("disruption_update", {"disruptions": list(engine.store.disruptions.values())},
                             engine.store.sim_time)
     return S.Disruption(**record)
@@ -663,6 +710,18 @@ def _record_execution(engine, item: dict, operator_id: str, approved: bool, note
             session.commit()
     except Exception:
         log.exception("execution record failed for %s", item["intervention_id"])
+
+
+def _unpersist_event(event_id: str) -> None:
+    from ..db import models
+    from ..db.base import SessionLocal
+
+    try:
+        with SessionLocal() as session:
+            session.query(models.EventSchedule).filter(models.EventSchedule.event_id == event_id).delete()
+            session.commit()
+    except Exception:
+        log.exception("event delete persistence failed for %s", event_id)
 
 
 def _persist_event(engine, event_id: str) -> None:

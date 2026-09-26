@@ -119,6 +119,11 @@ class EntityState(Base):
     risk_score: int
     risk_band: RiskBand
     is_observed: bool
+    # Simulation flows (people/min) and people waiting outside the entity.
+    # null = not modelled for this entity type (e.g. hotels).
+    inflow_per_min: Optional[float] = None
+    outflow_per_min: Optional[float] = None
+    queue_people: Optional[float] = None
 
 
 class StateSummary(Base):
@@ -241,6 +246,14 @@ class CascadeStep(Base):
     failure_probability: float
     via_edge_id: Optional[str] = None
     depth: int
+    # Why this step exists (deterministic flow cascade): which entity passes
+    # load along `via_edge_id`, how many people, and the load before/after.
+    source_entity_id: Optional[str] = None
+    utilisation_before: Optional[float] = None
+    utilisation_after: Optional[float] = None
+    flow_change_people: Optional[float] = None
+    reason: Optional[str] = None
+    confidence: Optional[float] = None  # ML failure probability, when a model produced one
 
 
 class CascadeResult(Base):
@@ -250,6 +263,7 @@ class CascadeResult(Base):
     total_downstream_failures: int
     max_depth: int
     steps: list[CascadeStep]
+    ml_enhanced: bool = False
 
 
 class ActiveCascadesResponse(Base):
@@ -300,6 +314,14 @@ class InterventionEvaluation(Base):
     rooms_unmet_delta: float = 0.0
 
 
+class InterventionEffect(Base):
+    """Live consequence of an executing action: the live city vs its do-nothing copy."""
+    entity_id: str
+    utilisation: float
+    counterfactual_utilisation: float
+    delta: float
+
+
 class Intervention(Base):
     intervention_id: str
     intervention_type: InterventionType
@@ -317,6 +339,7 @@ class Intervention(Base):
     created_at: str
     expires_at: str
     evaluation: Optional[InterventionEvaluation] = None
+    live_effect: Optional[list[InterventionEffect]] = None
 
 
 class InterventionListResponse(Base):
@@ -674,6 +697,14 @@ class EventView(Base):
     status: EventStatus
     arrived: int
     inside: int
+    description: Optional[str] = None
+    # Exact windows the simulator uses (explicit, or the configured default curve).
+    arrival_window_start: Optional[str] = None
+    arrival_window_end: Optional[str] = None
+    departure_window_start: Optional[str] = None
+    departure_window_end: Optional[str] = None
+    custom_windows: bool = False
+    remaining_demand: int = 0     # visitors still to come (0 once cancelled)
 
 
 class EventListResponse(Base):
@@ -689,6 +720,51 @@ class EventUpdateRequest(Base):
     expected_attendance: Optional[int] = Field(default=None, ge=0, le=500000)
     status: Optional[Literal["scheduled", "cancelled"]] = None
     note: Optional[str] = None
+    end_time: Optional[str] = None
+    name: Optional[str] = Field(default=None, max_length=120)
+    venue_entity_id: Optional[str] = None
+    category: Optional[str] = Field(default=None, max_length=40)
+    description: Optional[str] = Field(default=None, max_length=500)
+    arrival_window_start: Optional[str] = None     # "" clears an explicit window
+    arrival_window_end: Optional[str] = None
+    departure_window_start: Optional[str] = None
+    departure_window_end: Optional[str] = None
+
+
+class EventCreateRequest(Base):
+    operator_id: str
+    name: str = Field(min_length=1, max_length=120)
+    venue_entity_id: str
+    start_time: str                 # exact datetime; no zone = UTC (the simulation clock)
+    end_time: str
+    expected_attendance: int = Field(ge=0, le=500000)
+    category: str = Field(default="event", max_length=40)
+    description: Optional[str] = Field(default=None, max_length=500)
+    out_of_town_share: float = Field(default=0.25, ge=0.0, le=1.0)
+    status: Literal["scheduled", "cancelled"] = "scheduled"
+    arrival_window_start: Optional[str] = None
+    arrival_window_end: Optional[str] = None
+    departure_window_start: Optional[str] = None
+    departure_window_end: Optional[str] = None
+
+
+class EventVenue(Base):
+    entity_id: str
+    display_name: str
+    entity_type: EntityType
+    nominal_capacity: float
+
+
+class EventVenueList(Base):
+    venues: list[EventVenue]
+
+
+class EventDeleteResponse(Base):
+    event_id: str
+    name: str
+    status: Literal["deleted"]
+    arrived: int     # visitors the event already brought; they leave normally
+    inside: int
 
 
 # --- accommodation ------------------------------------------------------
@@ -813,6 +889,11 @@ class DomainEntity(Base):
     forecast_1800: Optional[float] = None
     time_to_critical_sec: Optional[int] = None
     queue_delay_sec: int = 0
+    inflow_per_min: Optional[float] = None
+    outflow_per_min: Optional[float] = None
+    queue_people: Optional[float] = None       # waiting outside; never part of current_count
+    available_capacity: Optional[float] = None
+    event_ids: list[str] = Field(default_factory=list)
 
 
 class OverviewResponse(Base):

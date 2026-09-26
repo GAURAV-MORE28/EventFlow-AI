@@ -42,6 +42,7 @@ from ..ml_registry import MLRegistry, call_ml
 from ..simtime import iso, parse, shift
 from ..ws.manager import MANAGER
 from .events import EventSchedule
+from .cascade_flow import build_cascades, ml_confidence
 from .state_store import StateStore
 
 log = logging.getLogger("eventflow.cycle")
@@ -72,7 +73,7 @@ class Engine:
 
         self.events = EventSchedule(
             get_data_provider().events(raw.get("events") or [self._primary_from_event_cfg(event_cfg)]),
-            event_cfg["event_id"],
+            event_cfg["event_id"], raw.get("demand"),
         )
         # Guards every generator mutation and every clone, so a what-if or a
         # projection never copies a half-applied cycle.
@@ -111,6 +112,9 @@ class Engine:
         else:  # an ML drop-in generator without clone(): the twin runs model-free
             self.nominal = None
         self.counterfactuals = {}
+        for w in (self.generator, self.nominal):
+            if w is not None:
+                w.keep_step_snapshot = True
         self._init_twin()
         self.world_version += 1
 
@@ -183,11 +187,27 @@ class Engine:
                 model = {"counts": after, "delta": {e: after[e] - before.get(e, after[e]) for e in after}}
             observations = self.generator.tick(self.sim_dt)
             truth = self.generator.ground_truth()
+            self._flows = self.generator.flow_state() if hasattr(self.generator, "flow_state") else {}
             for cf in self.counterfactuals.values():
                 cf.tick(self.sim_dt)
+            self._update_live_effects()
         return observations, truth, model
 
+    def _cycle_guard(self) -> asyncio.Lock:
+        """One lock per event loop serialising a cycle with reset / seek, so a
+        reset never lands in the middle of a cycle (the cycle would otherwise
+        finish against the fresh state and persist the old run's rows)."""
+        loop = asyncio.get_running_loop()
+        held = getattr(self, "_cycle_lock", None)
+        if held is None or held[0] is not loop:
+            self._cycle_lock = (loop, asyncio.Lock())
+        return self._cycle_lock[1]
+
     async def run_cycle(self) -> None:
+        async with self._cycle_guard():
+            await self._run_cycle()
+
+    async def _run_cycle(self) -> None:
         cycle_started = time.perf_counter()
         store = self.store
         previous_states = store.snapshot_states()
@@ -221,67 +241,7 @@ class Engine:
         twin_state = self.registry.twin.state() if hasattr(self.registry.twin, "state") else {}
         self._merge_states(observations, twin_state, truth, sim_time)
 
-        # 4. forecast ------------------------------------------------------------
-        if store.cycle_number >= self._shed_forecast_until:
-            prior = await asyncio.to_thread(self._model_prior)
-            forecasts, forecast_degraded, forecast_ms = await call_ml(
-                "forecaster.predict",
-                self._predict_with_prior,
-                self.registry.forecaster.fallback,
-                self.config.budget_sec("forecast"),
-                store.series(),
-                store.capacities(),
-                self.config.horizons_sec,
-                sim_time,
-                prior,
-            )
-            self._apply_forecasts(forecasts or {}, sim_time)
-        else:
-            log.info("shedding forecast refresh this cycle (backpressure)")
-
-        # 5. risk ------------------------------------------------------------------
-        node_state = store.node_state_for_ml()
-        exposure = self._cascade_exposure()
-        scores, _, _ = await call_ml(
-            "risk.score", self.registry.risk.score, self.registry.risk.fallback, 0.2,
-            node_state, store.forecasts, exposure,
-        )
-        self._apply_risk(scores or {})
-
-        # 6. anomalies --------------------------------------------------------------
-        anomalies, _, _ = await call_ml(
-            "anomaly.detect", self.registry.anomaly.detect, self.registry.anomaly.fallback, 0.15,
-            {e: list(r) for e, r in store.residuals.items()},
-        )
-
-        # 7. cascades ----------------------------------------------------------------
-        node_state = store.node_state_for_ml()
-        cascades, cascade_degraded, cascade_ms = await call_ml(
-            "cascade.predict_all",
-            self.registry.cascade.predict_all,
-            None,
-            self.config.budget_sec("cascade"),
-            node_state,
-            store.edges,
-            sim_time,
-        )
-        if cascades is None:
-            cascades = [
-                self.registry.cascade.fallback(root, node_state, store.edges, None, sim_time)
-                for root in self._critical_roots(node_state)
-            ]
-        new_cascades = self._apply_cascades(cascades)
-
-        # Re-score risk now that cascade exposure is known, so `cascading` is real.
-        exposure = self._cascade_exposure()
-        scores, _, _ = await call_ml(
-            "risk.score", self.registry.risk.score, self.registry.risk.fallback,
-            0.2, node_state, store.forecasts, exposure,
-        )
-        self._apply_risk(scores or {})
-        self._recompute_summary()
-        self._resolve_cascade_predictions()
-        self._track_cascade_recall(previous_states)
+        anomalies, new_cascades = await self._analyse(sim_time, previous_states)
 
         # 8. interventions -------------------------------------------------------------
         node_state = store.node_state_for_ml()
@@ -308,6 +268,178 @@ class Engine:
         store.cycle_latency_ms.append(total_ms)
         self._maybe_shed_load(total_ms)
 
+    async def _analyse(self, sim_time: str, previous_states: dict[str, dict],
+                       reconcile: bool = False) -> tuple[list[dict], list[dict]]:
+        """Steps 4-7 (forecast, risk, anomalies, cascades, risk again) over the
+        published state. Shared by the cycle and by an immediate reconciliation."""
+        store = self.store
+        # 4. forecast ------------------------------------------------------------
+        if reconcile or store.cycle_number >= self._shed_forecast_until:
+            prior = await asyncio.to_thread(self._model_prior)
+            forecasts, forecast_degraded, forecast_ms = await call_ml(
+                "forecaster.predict",
+                self._predict_with_prior,
+                self.registry.forecaster.fallback,
+                self.config.budget_sec("forecast"),
+                store.series(),
+                store.capacities(),
+                self.config.horizons_sec,
+                sim_time,
+                prior,
+            )
+            self._apply_forecasts(forecasts or {}, sim_time, reconcile)
+        else:
+            log.info("shedding forecast refresh this cycle (backpressure)")
+
+        # 5. risk ------------------------------------------------------------------
+        node_state = store.node_state_for_ml()
+        exposure = self._cascade_exposure()
+        scores, _, _ = await call_ml(
+            "risk.score", self.registry.risk.score, self.registry.risk.fallback, 0.2,
+            node_state, store.forecasts, exposure,
+        )
+        self._apply_risk(scores or {})
+
+        # 6. anomalies --------------------------------------------------------------
+        anomalies = []
+        if not reconcile:
+            anomalies, _, _ = await call_ml(
+                "anomaly.detect", self.registry.anomaly.detect, self.registry.anomaly.fallback, 0.15,
+                {e: list(r) for e, r in store.residuals.items()},
+            )
+
+        # 7. cascades ----------------------------------------------------------------
+        node_state = store.node_state_for_ml()
+        # ML (optional): per-entity failure probabilities that annotate the
+        # deterministic cascade. None / timeout / exception -> no annotation.
+        ml_cascades, cascade_degraded, cascade_ms = await call_ml(
+            "cascade.predict_all",
+            self.registry.cascade.predict_all,
+            None,
+            self.config.budget_sec("cascade"),
+            node_state,
+            store.edges,
+            sim_time,
+        )
+        with self.world_lock:
+            closed = set(self.generator.closed_entities()) if hasattr(self.generator, "closed_entities") else set()
+        cascades = build_cascades(node_state, store.edges, self.config.thresholds_for,
+                                  self.config.raw.get("cascade", {}), sim_time, closed,
+                                  ml_confidence(ml_cascades))
+        new_cascades = self._apply_cascades(cascades)
+
+        # Re-score risk now that cascade exposure is known, so `cascading` is real.
+        exposure = self._cascade_exposure()
+        scores, _, _ = await call_ml(
+            "risk.score", self.registry.risk.score, self.registry.risk.fallback,
+            0.2, node_state, store.forecasts, exposure,
+        )
+        self._apply_risk(scores or {})
+        if reconcile:
+            # An operator change is a real change, not sensor noise: show it now,
+            # and let the next cycles follow the model without the noise hold.
+            store.band_hold.clear()
+            store.no_hold_until = store.cycle_number + int(
+                self.config.raw["thresholds"].get("post_change_no_hold_cycles", 10))
+        else:
+            self._stabilise_bands(previous_states)
+        self._recompute_summary()
+        if not reconcile:
+            self._resolve_cascade_predictions()
+            self._track_cascade_recall(previous_states)
+        return anomalies or [], new_cascades
+
+
+    # --- immediate reconciliation after an operator change ----------------------------
+    def _resimulate_worlds(self) -> tuple[dict | None, dict, dict[str, float]]:
+        """Redo the step in progress in every world under the new schedule /
+        modifiers. Returns (observations, truth, nominal count change)."""
+        with self.world_lock:
+            nominal_delta: dict[str, float] = {}
+            if self.nominal is not None and hasattr(self.nominal, "resimulate_last_step"):
+                before = {e: v["current_count"] for e, v in self.nominal.ground_truth().items()}
+                self.nominal.resimulate_last_step()
+                after = {e: v["current_count"] for e, v in self.nominal.ground_truth().items()}
+                nominal_delta = {e: after[e] - before.get(e, after[e]) for e in after}
+            observations = (self.generator.resimulate_last_step()
+                            if hasattr(self.generator, "resimulate_last_step") else None)
+            truth = self.generator.ground_truth()
+            self._flows = self.generator.flow_state() if hasattr(self.generator, "flow_state") else {}
+            for cf in self.counterfactuals.values():
+                if hasattr(cf, "resimulate_last_step"):
+                    cf.resimulate_last_step()
+            self._update_live_effects()
+            return observations, truth, nominal_delta
+
+    async def reconcile(self, reason: str) -> dict[str, Any]:
+        """Re-state the current instant after an operator change (event created,
+        edited, cancelled or deleted; disruption; approved action) and publish
+        it at once. The clock does not move; the next cycle continues from here."""
+        async with self._cycle_guard():
+            store = self.store
+            previous = store.snapshot_states()
+            sim_time = store.sim_time
+            observations, truth, nominal_delta = await asyncio.to_thread(self._resimulate_worlds)
+            if observations is None:
+                return {"reason": reason, "sim_time": sim_time, "changed_entities": 0}
+            if store.cycle_number == 0:
+                # Still the initial instant: re-derive it exactly as a reset does.
+                with self.world_lock:
+                    self._init_twin()
+                self.prime_state()
+                for h in store.history.values():
+                    h.clear()
+                new_cascades: list[dict] = []
+            else:
+                twin = self.registry.twin
+                if nominal_delta and hasattr(twin, "shift"):
+                    twin.shift(nominal_delta)   # the announced change moves the twin's model too
+                twin_state = twin.state() if hasattr(twin, "state") else {}
+                self._merge_states(observations, twin_state, truth, sim_time, reconcile=True)
+                _, new_cascades = await self._analyse(sim_time, previous, reconcile=True)
+            with self.world_lock:
+                store.operations = self.generator.stats() if hasattr(self.generator, "stats") else {}
+            self._write_cache()
+            changed = store.changed_entities(previous)
+            await self._broadcast_reconciled(changed, new_cascades, reason, sim_time)
+            return {"reason": reason, "sim_time": sim_time, "changed_entities": len(changed)}
+
+    async def _broadcast_reconciled(self, changed: list[dict], new_cascades: list[dict], reason: str,
+                                    sim_time: str) -> None:
+        store = self.store
+        await MANAGER.broadcast(
+            "tick",
+            {"cycle_number": store.cycle_number, "sim_time": sim_time, "summary": store.summary,
+             "operations": self.operations_summary()},
+            sim_time,
+        )
+        if changed:
+            await MANAGER.broadcast("state_update", {"entities": changed}, sim_time)
+        await MANAGER.broadcast(
+            "forecast_update",
+            {"active_source": store.active_forecast_source, "pressure_timeline": store.pressure_timeline},
+            sim_time,
+        )
+        for cascade in new_cascades:
+            await MANAGER.broadcast("cascade_alert", {"cascade": cascade}, sim_time)
+        store.cascade_signature = ()   # always send the full set after a reconciliation
+        await self._broadcast_cascade_set(sim_time)
+        effects = [{"intervention_id": i["intervention_id"], "live_effect": i["live_effect"]}
+                   for i in store.interventions.values() if i["status"] == "executing" and i.get("live_effect")]
+        if effects:
+            await MANAGER.broadcast("intervention_effect", {"effects": effects}, sim_time)
+        await MANAGER.broadcast("state_reconciled", {"reason": reason, "changed_entities": len(changed)}, sim_time)
+
+    async def _broadcast_cascade_set(self, sim_time: str) -> None:
+        store = self.store
+        signature = tuple(sorted(
+            (root, tuple((s["entity_id"], s["predicted_band"], s.get("via_edge_id")) for s in c["steps"]))
+            for root, c in store.cascades.items()
+        ))
+        if signature != store.cascade_signature:
+            store.cascade_signature = signature
+            await MANAGER.broadcast("cascade_update", {"cascades": list(store.cascades.values())}, sim_time)
+
     # --- step 3/1: merge observations and twin estimates -------------------------------
     def _merge_states(
         self,
@@ -315,11 +447,17 @@ class Engine:
         twin_state: dict[str, dict],
         truth: dict[str, dict],
         sim_time: str,
+        reconcile: bool = False,
     ) -> None:
         """Observed entities report their reading; the rest (and sensors that
         missed this cycle) take the twin's estimate — the last valid state
-        carried forward by the process model, never an unconstrained guess."""
+        carried forward by the process model, never an unconstrained guess.
+
+        `reconcile=True` re-states the *current* instant after an operator
+        change: it replaces this instant's history point instead of adding one."""
         store = self.store
+        if not reconcile:
+            self._pre_merge_counts = {e: float(s["current_count"]) for e, s in store.entity_states.items()}
         for eid in store.nodes:
             critical = self.config.thresholds_for(store.nodes[eid]["entity_type"])[1]
             cap = self._capacity(eid) or 1.0
@@ -334,8 +472,13 @@ class Engine:
 
             previous = store.entity_states.get(eid)
             prev_count = float(previous["current_count"]) if previous else count
+            if reconcile:
+                prev_count = getattr(self, "_pre_merge_counts", {}).get(eid, prev_count)
             utilisation = round(clamp(count / cap, 0.0, 2.0), 4)
-            store.cycles_over_critical[eid] = store.cycles_over_critical.get(eid, 0) + 1 if utilisation >= critical else 0
+            if not reconcile:
+                store.cycles_over_critical[eid] = store.cycles_over_critical.get(eid, 0) + 1 if utilisation >= critical else 0
+            elif utilisation < critical:
+                store.cycles_over_critical[eid] = 0
 
             tw = twin_state.get(eid) or {}
             store.twin_layers[eid] = {
@@ -352,8 +495,12 @@ class Engine:
                 "risk_score": int(previous["risk_score"]) if previous else 0,
                 "risk_band": previous["risk_band"] if previous else "low",
                 "is_observed": observed,
+                **self._flow_fields(eid),
             }
-            store.history[eid].append(utilisation)
+            if reconcile and store.history[eid]:
+                store.history[eid][-1] = utilisation
+            else:
+                store.history[eid].append(utilisation)
 
     # --- step 4 -------------------------------------------------------------------------
     VALIDATION_HORIZON_SEC = 900
@@ -394,7 +541,7 @@ class Engine:
         self._prior_cache = (key, prior)
         return prior
 
-    def _apply_forecasts(self, forecasts: dict[str, dict], sim_time: str) -> None:
+    def _apply_forecasts(self, forecasts: dict[str, dict], sim_time: str, reconcile: bool = False) -> None:
         store = self.store
         sources: dict[str, int] = {}
         lag_cycles = max(1, self.VALIDATION_HORIZON_SEC // self.sim_dt)
@@ -407,7 +554,7 @@ class Engine:
             due_cycle = store.cycle_number - lag_cycles
             while snapshots and snapshots[0][0] < due_cycle:
                 snapshots.popleft()
-            if snapshots and snapshots[0][0] == due_cycle:
+            if not reconcile and snapshots and snapshots[0][0] == due_cycle:
                 _, predicted_900, baseline_then = snapshots.popleft()
                 residual = actual - predicted_900
                 store.residuals[eid].append(residual)
@@ -424,7 +571,10 @@ class Engine:
                 (p["predicted_utilisation"] for p in forecast["points"] if p["horizon_sec"] == 900),
                 forecast["baseline_value"],
             )
-            store.forecast_snapshots[eid].append((store.cycle_number, predicted_900, forecast["baseline_value"]))
+            if reconcile and snapshots and snapshots[-1][0] == store.cycle_number:
+                snapshots[-1] = (store.cycle_number, predicted_900, forecast["baseline_value"])
+            else:
+                snapshots.append((store.cycle_number, predicted_900, forecast["baseline_value"]))
 
         if sources:
             store.active_forecast_source = max(sources, key=lambda s: sources[s])
@@ -478,6 +628,56 @@ class Engine:
             state["risk_band"] = result["risk_band"]
             store.risk_breakdown[eid] = result.get("breakdown", [])
 
+    def _stabilise_bands(self, previous_states: dict[str, dict]) -> None:
+        """Severity hysteresis. Escalation is immediate (safety first); a drop to
+        a lower band is accepted only after it has held for
+        `thresholds.band_hold_cycles` consecutive cycles. While held, the score
+        is kept at the held band's floor so band and score never disagree."""
+        store = self.store
+        if store.cycle_number < getattr(store, "no_hold_until", -1):
+            # Just after an operator change the display follows the model
+            # directly, so the consequence is visible as it unfolds.
+            store.band_hold.clear()
+            return
+        hold = int(self.config.raw["thresholds"].get("band_hold_cycles", 3))
+        bands = self.config.raw["thresholds"]["risk_bands"]
+        rank = {"low": 0, "moderate": 1, "high": 2, "critical": 3}
+        floor = {"low": 0, "moderate": bands["low"] + 1, "high": bands["moderate"] + 1, "critical": bands["high"] + 1}
+        for eid, st in store.entity_states.items():
+            prev = (previous_states.get(eid) or {}).get("risk_band")
+            if prev is None or rank[st["risk_band"]] >= rank[prev]:
+                store.band_hold.pop(eid, None)
+                continue
+            n = store.band_hold.get(eid, 0) + 1
+            if n < hold:
+                store.band_hold[eid] = n
+                st["risk_band"] = prev
+                st["risk_score"] = max(int(st["risk_score"]), floor[prev])
+            else:
+                store.band_hold.pop(eid, None)
+
+    def _flow_fields(self, eid: str) -> dict[str, Any]:
+        fv = (getattr(self, "_flows", None) or {}).get(eid) or {}
+        return {"inflow_per_min": fv.get("inflow_per_min"), "outflow_per_min": fv.get("outflow_per_min"),
+                "queue_people": fv.get("queue_people")}
+
+    def _update_live_effects(self) -> None:
+        """For every executing action: live utilisation vs its do-nothing copy
+        on the entities it acts on (called under the world lock, after both
+        worlds advanced to the same instant)."""
+        live = self.generator.utilisation() if hasattr(self.generator, "utilisation") else {}
+        for iid, cf in self.counterfactuals.items():
+            item = self.store.interventions.get(iid)
+            if not item or item["status"] != "executing":
+                continue
+            cf_u = cf.utilisation()
+            ids = list(dict.fromkeys([item.get("_root")] + list(item["target_entity_ids"])))
+            item["live_effect"] = [
+                {"entity_id": e, "utilisation": round(live[e], 4), "counterfactual_utilisation": round(cf_u[e], 4),
+                 "delta": round(live[e] - cf_u[e], 4)}
+                for e in ids if e in live and e in cf_u
+            ]
+
     def _recompute_summary(self) -> None:
         store = self.store
         states = store.entity_states
@@ -496,12 +696,6 @@ class Engine:
         }
 
     # --- step 7 -------------------------------------------------------------------------------
-    def _critical_roots(self, node_state: dict[str, dict]) -> list[str]:
-        roots = [e for e, s in node_state.items()
-                 if s.get("risk_band") == "critical" and s.get("entity_type") != "hotel"]
-        roots.sort(key=lambda e: -node_state[e].get("risk_score", 0))
-        return roots[: int(self.config.raw.get("cascade", {}).get("max_roots", 5))]
-
     def _apply_cascades(self, cascades: list[dict]) -> list[dict]:
         store = self.store
         store.cascades = {}
@@ -768,7 +962,9 @@ class Engine:
         root = item.get("triggered_by_entity_id") or (item["target_entity_ids"] or [None])[0]
         with self.world_lock:
             if hasattr(self.generator, "clone"):
-                self.counterfactuals[item["intervention_id"]] = self.generator.clone()
+                cf = self.generator.clone()
+                cf.keep_step_snapshot = True
+                self.counterfactuals[item["intervention_id"]] = cf
             if item["intervention_type"] == "event_delay":
                 # A delay is an announced schedule change: it goes on the
                 # schedule itself (so /events, attendee plans and every world
@@ -995,6 +1191,11 @@ class Engine:
         )
         for cascade in new_cascades:
             await MANAGER.broadcast("cascade_alert", {"cascade": cascade}, sim_time)
+        await self._broadcast_cascade_set(sim_time)
+        effects = [{"intervention_id": i["intervention_id"], "live_effect": i["live_effect"]}
+                   for i in store.interventions.values() if i["status"] == "executing" and i.get("live_effect")]
+        if effects:
+            await MANAGER.broadcast("intervention_effect", {"effects": effects}, sim_time)
         for i in new_interventions:
             await MANAGER.broadcast("intervention_queued", {"intervention": _public(i)}, sim_time)
         for i in expired:
@@ -1087,9 +1288,58 @@ class Engine:
         })
         return layers
 
+    def _check_venue(self, venue_entity_id: str) -> None:
+        from ..errors import ApiError
+
+        if venue_entity_id not in {v["entity_id"] for v in self.event_venues()}:
+            raise ApiError("INVALID_REQUEST", "The venue must be a venue or open zone that visitors can reach.",
+                           {"venue_entity_id": venue_entity_id})
+
+    def event_venues(self) -> list[dict[str, Any]]:
+        with self.world_lock:
+            ids = self.generator.event_venues() if hasattr(self.generator, "event_venues") else [
+                e for e, n in self.store.nodes.items() if n["entity_type"] in ("venue", "zone")]
+        return [{"entity_id": e, "display_name": self.store.nodes[e]["display_name"],
+                 "entity_type": self.store.nodes[e]["entity_type"],
+                 "nominal_capacity": float(self.store.nodes[e]["nominal_capacity"])} for e in ids]
+
+    def _push_schedule(self) -> None:
+        schedule = self.events.to_generator()
+        with self.world_lock:
+            for w in self._all_worlds():
+                if hasattr(w, "set_events"):
+                    w.set_events(schedule)
+        self.world_changed()
+
+    def create_event(self, **fields: Any) -> dict[str, Any]:
+        self._check_venue(fields["venue_entity_id"])
+        ev = self.events.create(self.store.sim_time, **fields)
+        self._push_schedule()
+        return self.event_view(ev["event_id"])
+
+    def delete_event(self, event_id: str) -> dict[str, Any]:
+        with self.world_lock:
+            live = (self.generator.event_states() if hasattr(self.generator, "event_states") else {}).get(event_id, {})
+        ev = self.events.delete(event_id)
+        self._push_schedule()
+        return {"event_id": event_id, "name": ev["name"], "status": "deleted",
+                "arrived": int(round(live.get("arrived", 0.0))), "inside": int(round(live.get("inside", 0.0)))}
+
     def update_event(self, event_id: str, **changes: Any) -> dict[str, Any]:
         """Apply a schedule change to every world (it is announced, so the twin's
         nominal model and the counterfactuals all see it)."""
+        from ..errors import ApiError
+
+        venue = changes.get("venue_entity_id")
+        if venue is not None and venue != self.events.get(event_id)["venue_entity_id"]:
+            self._check_venue(venue)
+            with self.world_lock:
+                arrived = (self.generator.event_states() if hasattr(self.generator, "event_states") else {}) \
+                    .get(event_id, {}).get("arrived", 0.0)
+            if arrived > 0.5:
+                raise ApiError("INVALID_SCHEDULE",
+                               f"{int(arrived):,} visitors are already on their way to the current venue; it cannot change now.",
+                               {"event_id": event_id})
         self.events.update(event_id, self.store.sim_time, **changes)
         schedule = self.events.to_generator()
         with self.world_lock:
@@ -1151,17 +1401,19 @@ class Engine:
         elif action == "play":
             self.paused = False
         elif action == "reset":
-            await self._reset()
+            async with self._cycle_guard():
+                await self._reset()
         elif action == "seek" and seek_to_sim_time:
-            elapsed = (parse(seek_to_sim_time) - parse(self.store.sim_start)).total_seconds()
-            with self.world_lock:
-                self.generator.seek(max(0.0, elapsed))
-                if self.nominal is not None:
-                    self.nominal.seek(max(0.0, elapsed))
-                self.counterfactuals.clear()
-            self.store.reset_clock(seek_to_sim_time)
-            self.store.cycle_number = int(max(0.0, elapsed) // self.sim_dt)
-            self.world_changed()
+            async with self._cycle_guard():
+                elapsed = (parse(seek_to_sim_time) - parse(self.store.sim_start)).total_seconds()
+                with self.world_lock:
+                    self.generator.seek(max(0.0, elapsed))
+                    if self.nominal is not None:
+                        self.nominal.seek(max(0.0, elapsed))
+                    self.counterfactuals.clear()
+                self.store.reset_clock(seek_to_sim_time)
+                self.store.cycle_number = int(max(0.0, elapsed) // self.sim_dt)
+                self.world_changed()
 
         if inject:
             self.inject_disruption(inject["scenario_type"], inject.get("params", {}))

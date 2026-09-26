@@ -70,6 +70,76 @@
         "inside": {
           "title": "Inside",
           "type": "integer"
+        },
+        "description": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Description"
+        },
+        "arrival_window_start": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Arrival Window Start"
+        },
+        "arrival_window_end": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Arrival Window End"
+        },
+        "departure_window_start": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Departure Window Start"
+        },
+        "departure_window_end": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Departure Window End"
+        },
+        "custom_windows": {
+          "default": false,
+          "title": "Custom Windows",
+          "type": "boolean"
+        },
+        "remaining_demand": {
+          "default": 0,
+          "title": "Remaining Demand",
+          "type": "integer"
         }
       },
       "required": [

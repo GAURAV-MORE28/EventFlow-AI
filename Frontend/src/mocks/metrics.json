@@ -56,23 +56,23 @@
       "improvement_pct": 91.6
     },
     "cascade_lead_time_sec": {
-      "value": 1740.0,
+      "value": 0.0,
       "baseline": 0.0,
       "baseline_name": "threshold_rule",
-      "sample_size": 1
+      "sample_size": 0
     },
     "cascade_precision": {
-      "value": 1.0,
-      "sample_size": 1
+      "value": 0.0,
+      "sample_size": 4
     },
     "cascade_recall": {
-      "value": 1.0,
-      "sample_size": 1
+      "value": 0.0,
+      "sample_size": 0
     }
   },
   "twin": {
     "rmse": {
-      "value": 29.55,
+      "value": 29.4,
       "baseline": 2479.32,
       "baseline_name": "uncorrected_abm",
       "improvement_pct": 98.8
@@ -110,7 +110,7 @@
   },
   "system": {
     "cycle_latency_ms": {
-      "value": 220.0,
+      "value": 118.0,
       "target": 2000.0
     },
     "commander_ungrounded_rate": {

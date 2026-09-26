@@ -44,6 +44,78 @@
         "depth": {
           "title": "Depth",
           "type": "integer"
+        },
+        "source_entity_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source Entity Id"
+        },
+        "utilisation_before": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Utilisation Before"
+        },
+        "utilisation_after": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Utilisation After"
+        },
+        "flow_change_people": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Flow Change People"
+        },
+        "reason": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Reason"
+        },
+        "confidence": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Confidence"
         }
       },
       "required": [
@@ -90,6 +162,11 @@
       },
       "title": "Steps",
       "type": "array"
+    },
+    "ml_enhanced": {
+      "default": false,
+      "title": "Ml Enhanced",
+      "type": "boolean"
     }
   },
   "required": [

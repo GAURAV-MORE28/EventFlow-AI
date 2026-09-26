@@ -137,6 +137,8 @@ class StateStore:
         # Settled interventions: realised effect vs the do-nothing world.
         self.settlements: list[dict] = []
         self.twin_layers: dict[str, dict] = {}
+        self.band_hold: dict[str, int] = {}
+        self.cascade_signature: tuple = ()
         # Live disruptions: disruption_id -> record.
         self.disruptions: dict[str, dict] = {}
         self.operations: dict = {}
@@ -197,6 +199,8 @@ class StateStore:
                 or old["risk_band"] != st["risk_band"]
                 or old["risk_score"] != st["risk_score"]
                 or old["is_observed"] != st["is_observed"]
+                or abs((old.get("queue_people") or 0.0) - (st.get("queue_people") or 0.0)) > 0.5
+                or abs((old.get("inflow_per_min") or 0.0) - (st.get("inflow_per_min") or 0.0)) > 0.5
             ):
                 out.append(st)
         return out
@@ -290,5 +294,8 @@ class StateStore:
         self.root_cooldown.clear()
         self.settlements.clear()
         self.twin_layers.clear()
+        self.band_hold.clear()
+        self.no_hold_until = -1
+        self.cascade_signature = ()
         self.disruptions.clear()
         self.operations = {}

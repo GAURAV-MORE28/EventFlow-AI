@@ -12,6 +12,8 @@ thresholds:
   critical_utilisation: 0.90
   warning_utilisation: 0.75
   risk_bands: { low: 30, moderate: 60, high: 80 }
+  band_hold_cycles: 3   # a lower severity band must hold this many cycles before it is shown (no flicker)
+  post_change_no_hold_cycles: 10   # after an operator change, bands follow the model directly for this long
   # Entity types whose normal operating point is near full: a sold-out venue
   # or a well-booked hotel is the plan, not an emergency.
   by_type:
@@ -138,8 +140,11 @@ attendee:
   departure_offsets_sec: [0, 900, 1800, 2700]
   arrival_buffer_sec: 600       # aim to arrive this long before an event starts
   min_crowding_gain: 0.05       # a later departure is advised only if it cuts peak crowding by this much
+  # Travel time through a crowded road/zone/train: base x (1 + alpha x load^beta)
+  # (the standard BPR volume-delay function), at the load projected for arrival time.
+  congestion_alpha: 0.15
+  congestion_beta: 4.0
 
-# The event schedule. `event` below stays the primary event (GET /event).
 # Geography provider for door-to-door travel times (app/providers/geo.py).
 # synthetic = great-circle distance x street detour factor, per-mode speeds.
 # osrm / google need OSRM_URL / GOOGLE_MAPS_API_KEY in the environment
@@ -156,6 +161,7 @@ data:
   provider: synthetic
   dir: data
 
+# The event schedule. `event` below stays the primary event (GET /event).
 events:
   - event_id: "evt_demo"
     name: "National Cup Final"

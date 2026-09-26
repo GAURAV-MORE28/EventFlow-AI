@@ -1,72 +1,100 @@
 {
-  "root_entity_id": "line_red",
-  "source": "gnn",
+  "root_entity_id": "gate_5",
+  "source": "deterministic",
   "generated_at": "2026-09-04T15:20:00Z",
-  "total_downstream_failures": 6,
-  "max_depth": 4,
+  "total_downstream_failures": 5,
+  "max_depth": 3,
   "steps": [
-    {
-      "entity_id": "line_red",
-      "predicted_band": "high",
-      "eta_sec": 0,
-      "failure_probability": 0.812,
-      "via_edge_id": null,
-      "depth": 0,
-      "step_index": 0
-    },
     {
       "entity_id": "gate_5",
       "predicted_band": "critical",
-      "eta_sec": 520,
+      "eta_sec": 0,
       "failure_probability": 0.99,
-      "via_edge_id": "metro_c__gate_5__feeds",
-      "depth": 2,
-      "step_index": 1
-    },
-    {
-      "entity_id": "gate_6",
-      "predicted_band": "critical",
-      "eta_sec": 620,
-      "failure_probability": 0.99,
-      "via_edge_id": "metro_c__gate_6__feeds",
-      "depth": 2,
-      "step_index": 2
+      "via_edge_id": null,
+      "depth": 0,
+      "source_entity_id": null,
+      "utilisation_before": 1.1427,
+      "utilisation_after": 1.1618,
+      "flow_change_people": 392.7,
+      "reason": "Gate 5 is at or forecast over its critical line (116% of capacity); 393 people above the line must go elsewhere.",
+      "confidence": 0.99,
+      "step_index": 0
     },
     {
       "entity_id": "road_5",
       "predicted_band": "critical",
-      "eta_sec": 820,
+      "eta_sec": 300,
       "failure_probability": 0.99,
       "via_edge_id": "gate_5__road_5__adjacent_to",
-      "depth": 3,
-      "step_index": 3
-    },
-    {
-      "entity_id": "road_9",
-      "predicted_band": "high",
-      "eta_sec": 1060,
-      "failure_probability": 0.721,
-      "via_edge_id": "road_5__road_9__adjacent_to",
-      "depth": 4,
-      "step_index": 4
+      "depth": 1,
+      "source_entity_id": "gate_5",
+      "utilisation_before": 1.6004,
+      "utilisation_after": 1.6,
+      "flow_change_people": 86.7,
+      "reason": "Receives 87 people (22% of the overflow) from Gate 5 via adjacent to: 160% -> 160% of capacity.",
+      "confidence": 0.99,
+      "step_index": 1
     },
     {
       "entity_id": "road_6",
       "predicted_band": "critical",
-      "eta_sec": 1085,
+      "eta_sec": 540,
       "failure_probability": 0.99,
-      "via_edge_id": "gate_6__road_6__adjacent_to",
-      "depth": 3,
-      "step_index": 5
+      "via_edge_id": "road_5__road_6__adjacent_to",
+      "depth": 2,
+      "source_entity_id": "road_5",
+      "utilisation_before": 1.1106,
+      "utilisation_after": 1.4439,
+      "flow_change_people": 350.0,
+      "reason": "Receives 350 people (50% of the overflow) from Arterial 5 via adjacent to: 111% -> 144% of capacity.",
+      "confidence": 0.99,
+      "step_index": 2
+    },
+    {
+      "entity_id": "road_9",
+      "predicted_band": "critical",
+      "eta_sec": 540,
+      "failure_probability": 0.99,
+      "via_edge_id": "road_5__road_9__adjacent_to",
+      "depth": 2,
+      "source_entity_id": "road_5",
+      "utilisation_before": 0.6667,
+      "utilisation_after": 1.1154,
+      "flow_change_people": 350.0,
+      "reason": "Receives 350 people (50% of the overflow) from Arterial 5 via adjacent to: 67% -> 112% of capacity.",
+      "confidence": 0.721,
+      "step_index": 3
     },
     {
       "entity_id": "emergency_south",
       "predicted_band": "critical",
-      "eta_sec": 1160,
-      "failure_probability": 0.966,
+      "eta_sec": 640,
+      "failure_probability": 0.99,
       "via_edge_id": "road_5__emergency_south__evacuates_to",
-      "depth": 4,
-      "step_index": 6
+      "depth": 2,
+      "source_entity_id": "road_5",
+      "utilisation_before": 0.8956,
+      "utilisation_after": 1.2956,
+      "flow_change_people": null,
+      "reason": "Incident load rises because Arterial 5 is at 160%: 90% -> 130% of capacity.",
+      "confidence": 0.966,
+      "step_index": 4
+    },
+    {
+      "entity_id": "road_10",
+      "predicted_band": "high",
+      "eta_sec": 780,
+      "failure_probability": 0.881,
+      "via_edge_id": "road_6__road_10__adjacent_to",
+      "depth": 3,
+      "source_entity_id": "road_6",
+      "utilisation_before": 0.4447,
+      "utilisation_after": 0.7929,
+      "flow_change_people": 285.6,
+      "reason": "Receives 286 people (50% of the overflow) from Arterial 6 via adjacent to: 44% -> 79% of capacity.",
+      "confidence": null,
+      "step_index": 5
     }
-  ]
+  ],
+  "ml_enhanced": true
 }

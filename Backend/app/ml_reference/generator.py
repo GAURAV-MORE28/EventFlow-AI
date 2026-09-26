@@ -61,6 +61,7 @@ EMERGENCY_TRIGGER_UTIL = 0.60
 EMERGENCY_GAIN = 2.0
 PARKING_FULL = 0.97
 CANCEL_EGRESS_MIN = 20.0    # a cancelled event empties over this many minutes
+ENTRY_CLOSE_EGRESS = 0.05   # entry closes once this share of an event has left
 # Physical density limits: a space cannot hold more than this multiple of its
 # nominal capacity. Demand beyond it waits upstream (it is still counted in the
 # queues that drive delays), it does not pile up as impossible occupancy.
@@ -105,8 +106,11 @@ _DYNAMIC = (
     "seed", "_elapsed_sec", "_counts", "_util_prev", "_queue", "_parked", "_held",
     "_ev_state", "_events_base", "_modifiers", "_mod_counter", "_event_rooms",
     "_requested_rooms", "_unmet_rooms", "_displaced_rooms", "_stats", "_prev_counts",
-    "_observed", "_eff", "_last_flows", "_path_time",
+    "_observed", "_eff", "_last_flows", "_path_time", "_flow_view",
 )
+# What `resimulate_last_step` rolls back: everything that evolves with time.
+# The schedule and the modifier list are the *new* truth and are kept.
+_RESTORABLE = tuple(k for k in _DYNAMIC if k not in ("seed", "_events_base", "_modifiers", "_mod_counter", "_eff"))
 
 
 class SyntheticGenerator:
@@ -250,6 +254,7 @@ class SyntheticGenerator:
 
     # --- dynamic state -------------------------------------------------------------
     def _init_dynamic(self) -> None:
+        self._pre_tick = None
         self._elapsed_sec = 0.0
         self._counts: dict[str, float] = {}
         self._prev_counts: dict[str, float] = {}
@@ -268,6 +273,7 @@ class SyntheticGenerator:
         }
         self._last_flows: dict[str, float] = {}
         self._path_time: dict[str, float] = {}
+        self._flow_view: dict[str, dict[str, float | None]] = {}
         frac = float(self.demand.get("observed_fraction", 0.75))
         self._observed = {
             e: (t in ALWAYS_OBSERVED_TYPES) or stable_unit(self.seed, "observed", e) < frac
@@ -301,8 +307,8 @@ class SyntheticGenerator:
         out = []
         for ev in self._events_base + eff["extra_events"]:
             status = ev.get("status", "scheduled")
-            if ev["event_id"] in eff["cancelled_events"]:
-                status = "cancelled"
+            if ev["event_id"] in eff["cancelled_events"] or status == "deleted":
+                status = "cancelled"   # a deleted event makes no new demand; its visitors leave
             if status == "cancelled":
                 attendance = 0.0
             else:
@@ -315,13 +321,27 @@ class SyntheticGenerator:
                 end = self._minutes(ev["end_time"])
             else:
                 end = ev["end_min"]
+            arr = self._window(ev, "arrival_window_start", "arrival_window_end", shift)
+            dep = self._window(ev, "departure_window_start", "departure_window_end", shift)
             out.append({
                 "event_id": ev["event_id"], "venue": ev["venue_entity_id"],
                 "attendance": attendance, "start": start + shift, "end": end + shift,
                 "cancelled": status == "cancelled",
                 "oot": float(ev.get("out_of_town_share", 0.25)),
+                # Arrival / departure curves: centre and spread in sim minutes.
+                # An explicit window holds ~95% of its people (mid +- 2 sd).
+                "arr_mid": arr[0] if arr else start + shift - float(self.demand["arrival_lead_min"]),
+                "arr_sd": arr[1] if arr else float(self.demand["arrival_sd_min"]),
+                "dep_mid": dep[0] if dep else end + shift + float(self.demand["egress_lag_min"]),
+                "dep_sd": dep[1] if dep else float(self.demand["egress_sd_min"]),
             })
         return out
+
+    def _window(self, ev: dict, k0: str, k1: str, shift: float) -> tuple[float, float] | None:
+        if not ev.get(k0) or not ev.get(k1):
+            return None
+        a, b = self._minutes(ev[k0]) + shift, self._minutes(ev[k1]) + shift
+        return ((a + b) / 2.0, max((b - a) / 4.0, 1.0))
 
     # --- modifiers (disruptions, interventions) -------------------------------------------
     def _new_modifier(self, source: str, kind: str, params: dict, modifier_id: str | None = None, **extra: Any) -> dict:
@@ -811,18 +831,24 @@ class SyntheticGenerator:
         flows = {"acc_in": {}, "acc_out": {}, "gate_in": {}, "gate_out": {}, "direct": {}, "line": {},
                  "car_in": {}, "car_out": {}, "boarding": {}}
         path_acc: list[tuple[str, str | None, float, int]] = []
+        egress_by_venue: dict[str, float] = {}
+        flow_view: dict[str, dict[str, float | None]] = {}
 
         for ev in self._events():
             st = self._ev_state.setdefault(ev["event_id"], {"arrived": 0.0, "egressed": 0.0, "inside": 0.0, "split": {}, "queued": 0.0})
             A = ev["attendance"]
-            lead, sd = float(d["arrival_lead_min"]), float(d["arrival_sd_min"])
-            phi = _phi((t - (ev["start"] - lead)) / sd)
-            if st.get("start_seen") is None or dt_sec == 0.0:
-                st["start_seen"], st["anchor"] = ev["start"], None
-            elif ev["start"] != st["start_seen"]:
+            sd = ev["arr_sd"]
+            phi = _phi((t - ev["arr_mid"]) / sd)
+            curve = (round(ev["arr_mid"], 3), round(sd, 3))
+            if dt_sec == 0.0:
+                st["curve_seen"], st["anchor"] = curve, None
+            elif st.get("curve_seen") is None:
+                # Created mid-run: its visitors arrive over what is left of its window.
+                st["curve_seen"], st["anchor"] = curve, (st["arrived"], phi)
+            elif curve != st["curve_seen"]:
                 # Rescheduled mid-arrival: whoever has arrived stays; only the
                 # people still to come follow the new schedule from now on.
-                st["start_seen"] = ev["start"]
+                st["curve_seen"] = curve
                 st["anchor"] = (st["arrived"], phi)
             if st.get("anchor") and st["anchor"][1] < 0.999:
                 a0, p0 = st["anchor"]
@@ -834,7 +860,14 @@ class SyntheticGenerator:
                 pre = target - st["arrived"]
                 if pre > 0:
                     st["arrived"] += pre
-                    st["inside"] += pre
+                    # Early arrivals are inside only up to the venue's capacity;
+                    # the rest wait outside (never counted as occupancy).
+                    v = ev["venue"]
+                    inside_v = sum(x.get("inside", 0.0) for x in self._ev_state.values() if x.get("venue") == v)
+                    admit = min(pre, max(0.0, self.capacity(v) - inside_v))
+                    st["inside"] += admit
+                    if pre > admit:
+                        self._queue[v] = self._queue.get(v, 0.0) + (pre - admit)
                     # Record how they came, so their egress loads the right paths.
                     scratch = {"gate_in": {}, "direct": {}}
                     guests_e = total_guests * (room_per_event.get(ev["event_id"], 0.0) / room_total if room_total > 0 else 0.0)
@@ -854,6 +887,11 @@ class SyntheticGenerator:
             else:
                 max_rate = A * 2.5 / (sd * 2.5066) if A > 0 else 0.0
                 arr = clamp(target - st["arrived"], 0.0, max_rate * dt)
+                floor = getattr(self, "_arrival_floor", None)
+                if floor:
+                    # Redoing a step: whoever already arrived in it still arrives
+                    # (a change never removes people who are already here).
+                    arr = max(arr, floor.get(ev["event_id"], 0.0) - st["arrived"])
                 st["arrived"] += arr
                 arr_rate = arr / dt
             # Egress: after the event ends, or immediately if cancelled.
@@ -866,12 +904,14 @@ class SyntheticGenerator:
                 eg_frac = clamp((t - st["cancel_min"]) / CANCEL_EGRESS_MIN, 0.0, 1.0)
             else:
                 st.pop("cancel_min", None)
-                eg_frac = _phi((t - (ev["end"] + float(d["egress_lag_min"]))) / float(d["egress_sd_min"]))
+                eg_frac = _phi((t - ev["dep_mid"]) / ev["dep_sd"])
+            st["eg_frac"] = eg_frac
             eg_target = eg_frac * st["arrived"]
             eg = clamp(eg_target - st["egressed"], 0.0, st["inside"]) if dt_sec > 0 else 0.0
             st["egressed"] += eg
             st["inside"] -= eg
             eg_rate = eg / dt if dt_sec > 0 else 0.0
+            egress_by_venue[ev["venue"]] = egress_by_venue.get(ev["venue"], 0.0) + eg_rate
 
             if arr_rate > 0:
                 guests_e = total_guests * (room_per_event.get(ev["event_id"], 0.0) / room_total if room_total > 0 else 0.0)
@@ -945,8 +985,12 @@ class SyntheticGenerator:
                 continue
             lam = flows["acc_in"].get(a, 0.0) + flows["acc_out"].get(a, 0.0)
             mu = self.capacity(a) * STATION_MU_PER_CAP / dm + mu_boost.get(a, 0.0)
-            q = max(0.0, self._queue.get(a, 0.0) + (lam - mu) * dt)
+            q_prev = self._queue.get(a, 0.0)
+            q = max(0.0, q_prev + (lam - mu) * dt)
             self._queue[a] = q
+            # Queue balance: served = arrivals - growth of the queue.
+            flow_view[a] = {"inflow_per_min": lam, "outflow_per_min": max(0.0, lam - (q - q_prev) / dt) if dt_sec > 0 else min(lam, mu),
+                            "queue_people": q}
             counts[a] = min(
                 bg + min(lam, mu) * STATION_DWELL_MIN * dm + q + flows["boarding"].get(a, 0.0) * BOARDING_DWELL_MIN,
                 STATION_MAX * self.capacity(a),
@@ -959,6 +1003,8 @@ class SyntheticGenerator:
                 continue
             counts[l] = min(self._background(l, t) * self.capacity(l) + flows["line"].get(l, 0.0) * 60.0,
                             LINE_MAX * self.capacity(l))
+            flow_view[l] = {"inflow_per_min": flows["line"].get(l, 0.0), "outflow_per_min": flows["line"].get(l, 0.0),
+                            "queue_people": None}
 
         # Gates: arrivals queue on the scan rate; entries fill the venue.
         venue_inside: dict[str, float] = {}
@@ -968,13 +1014,27 @@ class SyntheticGenerator:
         spill: dict[str, float] = {}
         entries_by_venue: dict[str, float] = {}
         gate_venue = {g: v for v, gs in self.venue_gates.items() for g in gs}
+        # A venue never holds more than its capacity: gates admit only into the
+        # room that is left; everyone else waits in the gate queue (outside).
+        room = {v: max(0.0, self.capacity(v) - venue_inside.get(v, 0.0)) for v in self.venues}
+        # Nobody is admitted to an event that is already emptying out.
+        admitting = {st.get("venue") for st in self._ev_state.values() if st.get("eg_frac", 0.0) < ENTRY_CLOSE_EGRESS}
+        for v in room:
+            if v not in admitting:
+                room[v] = 0.0
         for g in (e for e, ty in self.types.items() if ty == "gate"):
             v = gate_venue.get(g)
-            full = v is not None and venue_inside.get(v, 0.0) >= self.capacity(v)
+            full = v is not None and room.get(v, 1.0) <= 0.0
             mu = 0.0 if (g in closed or full) else self.capacity(g) * GATE_MU_PER_CAP / dm + mu_boost.get(g, 0.0)
-            q = self._queue.get(g, 0.0) + flows["gate_in"].get(g, 0.0) * dt
-            served = min(q, mu * dt)
+            q_in = flows["gate_in"].get(g, 0.0)
+            q = self._queue.get(g, 0.0) + q_in * dt
+            served = min(q, mu * dt, room[v]) if v in room else min(q, mu * dt)
+            if v in room:
+                room[v] -= served
             q -= served
+            flow_view[g] = {"inflow_per_min": q_in + flows["gate_out"].get(g, 0.0),
+                            "outflow_per_min": (served / dt if dt_sec > 0 else 0.0) + flows["gate_out"].get(g, 0.0),
+                            "queue_people": q}
             self._queue[g] = q
             if v:
                 entries_by_venue[v] = entries_by_venue.get(v, 0.0) + served
@@ -984,8 +1044,16 @@ class SyntheticGenerator:
                 spill[g] = gc - hold
                 gc = hold
             counts[g] = 0.0 if g in closed else gc
-        for v, n in flows["direct"].items():
-            entries_by_venue[v] = entries_by_venue.get(v, 0.0) + n * dt
+        # Direct approaches (no scanned gate): people wait outside when the venue is full.
+        outside = {v for v in self.venues if self._queue.get(v, 0.0) > 0}
+        for v in sorted(set(flows["direct"]) | outside):
+            n = flows["direct"].get(v, 0.0)
+            waiting = self._queue.get(v, 0.0) + n * dt
+            admit = min(waiting, room.get(v, waiting))
+            if v in room:
+                room[v] -= admit
+            self._queue[v] = waiting - admit
+            entries_by_venue[v] = entries_by_venue.get(v, 0.0) + admit
 
         # Distribute entries back to the events at each venue (proportional to queued demand).
         for ev_id, st in self._ev_state.items():
@@ -1006,9 +1074,29 @@ class SyntheticGenerator:
                     self._stats["late_entries"] += took
                 self._stats["entered"] += took
 
+        # People still outside when their event is over (or cancelled) go home:
+        # they leave the queues and are accounted as departed, never deleted.
+        if dt_sec > 0:
+            for st in self._ev_state.values():
+                v = st.get("venue")
+                pending = st["arrived"] - st["inside"] - st["egressed"]
+                if v is None or pending <= 1e-6 or st.get("eg_frac", 0.0) < ENTRY_CLOSE_EGRESS:
+                    continue
+                give = pending * min(1.0, dt / 10.0)
+                st["egressed"] += give
+                left = give
+                for key in [v] + list(self.venue_gates.get(v, [])):
+                    take = min(self._queue.get(key, 0.0), left)
+                    if take > 0:
+                        self._queue[key] -= take
+                        left -= take
+
         for v in self.venues:
             if self.types[v] == "venue":
                 counts[v] = sum(s["inside"] for s in self._ev_state.values() if s.get("venue") == v)
+            flow_view[v] = {"inflow_per_min": entries_by_venue.get(v, 0.0) / dt if dt_sec > 0 else 0.0,
+                            "outflow_per_min": egress_by_venue.get(v, 0.0),
+                            "queue_people": self._queue.get(v, 0.0) + sum(self._queue.get(g, 0.0) for g in self.venue_gates.get(v, []))}
 
         # Parking: vehicles accumulate on arrival and drain on egress.
         ppv = float(d["persons_per_vehicle"])
@@ -1021,6 +1109,8 @@ class SyntheticGenerator:
                 parked = max(cap, 0.0)
             self._parked[p] = parked
             counts[p] = 0.0 if p in closed else self._background(p, t) * self.capacity(p) + parked
+            flow_view[p] = {"inflow_per_min": flows["car_in"].get(p, 0.0), "outflow_per_min": flows["car_out"].get(p, 0.0),
+                            "queue_people": None}
 
         # Roads: pedestrian approach + car traffic + queue spill, one extra hop.
         first: dict[str, float] = {}
@@ -1059,6 +1149,9 @@ class SyntheticGenerator:
                 counts[n] = counts.get(n, 0.0) + over * c / tot
         for r in roads:
             counts[r] = min(counts[r], ROAD_MAX * self.capacity(r))
+            # Pass-through: occupancy = flow x dwell (Little's law), so flow = event load / dwell.
+            lam_r = max(0.0, counts[r] - self._background(r, t) * self.capacity(r)) / (ROAD_DWELL_MIN * dm)
+            flow_view[r] = {"inflow_per_min": lam_r, "outflow_per_min": lam_r, "queue_people": None}
 
         # Zones: people arriving on foot from stations/hubs, crowds around queued gates.
         zone_add: dict[str, float] = {}
@@ -1074,6 +1167,9 @@ class SyntheticGenerator:
             inside = sum(s["inside"] for s in self._ev_state.values() if s.get("venue") == z)
             counts[z] = min(self._background(z, t) * self.capacity(z) + zone_add.get(z, 0.0) + inside,
                             ZONE_MAX * self.capacity(z))
+            if z not in flow_view:
+                lam_z = zone_add.get(z, 0.0) / (ZONE_DWELL_MIN * dm)
+                flow_view[z] = {"inflow_per_min": lam_z, "outflow_per_min": lam_z, "queue_people": None}
 
         # Hotels: rooms occupied.
         if dt_sec > 0:
@@ -1118,6 +1214,8 @@ class SyntheticGenerator:
             self._path_time["current"] = tw / tp
 
         self._counts = counts
+        self._flow_view = {e: {k: (None if v is None else round(float(v), 2)) for k, v in fv.items()}
+                           for e, fv in flow_view.items()}
         self._util_prev = {e: c / self.capacity(e) for e, c in counts.items()}
         self._last_flows = {
             "arrivals_per_min": sum(flows["acc_in"].values()),
@@ -1127,12 +1225,17 @@ class SyntheticGenerator:
     # --- 03 §8.1 interface ----------------------------------------------------------------
     def tick(self, dt_sec: int = 30) -> dict[str, float]:
         """Advance the city one step; return readings from instrumented entities."""
+        if getattr(self, "keep_step_snapshot", False):
+            self._pre_tick = ({k: copy.deepcopy(getattr(self, k)) for k in _RESTORABLE}, dt_sec)
         self._prev_counts = dict(self._counts)
         self._elapsed_sec += dt_sec
         if any(m.get("until_sec") is not None and self._elapsed_sec - dt_sec < m["until_sec"] <= self._elapsed_sec
                for m in self._modifiers):
             self._rebuild()
         self._step(float(dt_sec))
+        return self._observe()
+
+    def _observe(self) -> dict[str, float]:
         bucket = int(self._elapsed_sec // 30)
         dropout = float(self.demand.get("sensor_dropout_rate", 0.0))
         observations: dict[str, float] = {}
@@ -1144,6 +1247,29 @@ class SyntheticGenerator:
             err = (stable_unit(self.seed, "sensor", eid, bucket) - 0.5) * 0.03
             observations[eid] = max(0.0, count * (1.0 + err))
         return observations
+
+    def resimulate_last_step(self) -> dict[str, float] | None:
+        """Re-run the most recent step from its starting state under the current
+        schedule and modifiers (an operator change applies to the step now in
+        progress). The clock ends where it was; nothing is double-counted,
+        because every stock (arrivals, queues, occupancy) is rolled back first.
+        Returns the new sensor readings, or None when there is no step to redo."""
+        snap = getattr(self, "_pre_tick", None)
+        if snap is None:
+            if self._elapsed_sec == 0:
+                self._init_dynamic()      # still at the initial instant: re-derive it
+                return self._observe()
+            return None
+        state, dt = snap
+        committed = {e: st.get("arrived", 0.0) for e, st in self._ev_state.items()}
+        for k, v in state.items():
+            setattr(self, k, copy.deepcopy(v))
+        self._rebuild()
+        self._arrival_floor = committed
+        try:
+            return self.tick(dt)
+        finally:
+            self._arrival_floor = None
 
     def run(self, seconds: float, step_sec: int = 60) -> None:
         """Advance without collecting observations (what-if / projection use)."""
@@ -1169,13 +1295,31 @@ class SyntheticGenerator:
     def utilisation(self) -> dict[str, float]:
         return {e: c / self.capacity(e) for e, c in self._counts.items()}
 
+    def event_venues(self) -> list[str]:
+        """Venues visitors can actually reach (at least one station, hub or car
+        park leads there); an event anywhere else could never be attended."""
+        return [v for v in self.venues if self.options.get(v)]
+
+    def flow_state(self) -> dict[str, dict[str, float | None]]:
+        """Per-entity people/min in and out and people queued, from the last step.
+        Queued people wait *outside* the entity (gate/station queue, or outside a
+        full venue) and are never counted in its occupancy."""
+        return {e: dict(v) for e, v in self._flow_view.items()}
+
+    def event_ledger(self) -> dict[str, dict[str, float]]:
+        """Person accounting per event: arrived = inside + egressed + pending."""
+        return {ev_id: {"arrived": st.get("arrived", 0.0), "inside": st.get("inside", 0.0),
+                        "egressed": st.get("egressed", 0.0),
+                        "pending": st.get("arrived", 0.0) - st.get("inside", 0.0) - st.get("egressed", 0.0)}
+                for ev_id, st in self._ev_state.items()}
+
     def elapsed_sec(self) -> float:
         return self._elapsed_sec
 
     def queue_delay_sec(self, eid: str) -> float:
         q = self._queue.get(eid, 0.0)
-        if q <= 0:
-            return 0.0
+        if q <= 0 or self.types.get(eid) not in ("gate", "transport_node"):
+            return 0.0  # a venue's outside queue is reported as people, not a scan delay
         rate = GATE_MU_PER_CAP if self.types.get(eid) == "gate" else STATION_MU_PER_CAP
         mu = self.capacity(eid) * rate
         return q / mu * 60.0 if mu > 0 else 0.0
@@ -1268,6 +1412,8 @@ class SyntheticGenerator:
         if sources is not None:
             new._modifiers = [m for m in new._modifiers if m["source"] in sources]
             new._rebuild()
+        new._pre_tick = None               # a copy starts without a step to redo,
+        new.keep_step_snapshot = False     # and projection copies never pay for one
         return new
 
     def generate_cascade_dataset(self, n_scenarios: int = 5000, randomise_topology: bool = True) -> list[dict]:

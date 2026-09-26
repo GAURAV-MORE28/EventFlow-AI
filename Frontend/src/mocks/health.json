@@ -10,7 +10,7 @@
     },
     "cascade": {
       "ready": true,
-      "active_source": "gnn"
+      "active_source": "deterministic"
     },
     "twin": {
       "ready": true,

@@ -54,7 +54,7 @@ npm run validate:mocks   # AJV-validates every mock against contracts/schemas/*.
 cd Backend
 pip install -r requirements.txt
 python run.py                       # http://localhost:8000, OpenAPI docs at /docs
-python -m pytest tests/ -q          # 92 tests (temp DB via tests/conftest.py)
+python -m pytest tests/ -q          # 126 tests (temp DB via tests/conftest.py)
 python -m pytest tests/test_contract.py::test_name -q     # single test
 ```
 No DB/Redis setup required — SQLite (`Backend/eventflow.db`) and an in-process cache are the

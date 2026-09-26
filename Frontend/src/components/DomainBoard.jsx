@@ -104,7 +104,9 @@ function EntityRow({ row, onReport, busy }) {
       <td className="w-40 pr-2">
         <div className="mb-0.5 flex justify-between text-[11px] tabular-nums text-slate-200">
           <span>{percent(row.utilisation)}</span>
-          <span className="text-slate-400">{Math.round(row.current_count).toLocaleString('en-IN')}</span>
+          <span className="text-slate-400">
+            {Math.round(row.current_count).toLocaleString('en-IN')} / {Math.round(row.nominal_capacity).toLocaleString('en-IN')}
+          </span>
         </div>
         <UtilBar value={row.utilisation} band={row.risk_band} />
       </td>
@@ -115,7 +117,13 @@ function EntityRow({ row, onReport, busy }) {
       <td className="pr-2 tabular-nums text-xs text-slate-300">
         {row.time_to_critical_sec === 0 ? 'now' : row.time_to_critical_sec != null ? minutes(row.time_to_critical_sec) : '—'}
       </td>
-      <td className="pr-2 tabular-nums text-xs text-slate-300">{row.queue_delay_sec ? minutes(row.queue_delay_sec) : '—'}</td>
+      <td className="pr-2 tabular-nums text-xs text-slate-300">
+        {row.inflow_per_min == null ? '—' : `${Math.round(row.inflow_per_min)} / ${Math.round(row.outflow_per_min)}`}
+      </td>
+      <td className="pr-2 tabular-nums text-xs text-slate-300">
+        {row.queue_people ? `${Math.round(row.queue_people).toLocaleString('en-IN')}` : '—'}
+        {row.queue_delay_sec ? <span className="text-slate-400"> · {minutes(row.queue_delay_sec)}</span> : null}
+      </td>
       <td className="py-1">
         <div className="flex flex-wrap gap-1">
           {actions.map((a) => (
@@ -171,7 +179,8 @@ export default function DomainBoard({ domains }) {
             <thead className="text-[10px] uppercase tracking-wider text-slate-400">
               <tr>
                 <th className="pb-1">Location</th><th className="pb-1">Load</th><th className="pb-1">Risk</th>
-                <th className="pb-1">In 30 min</th><th className="pb-1">Critical in</th><th className="pb-1">Queue delay</th>
+                <th className="pb-1">In 30 min</th><th className="pb-1">Critical in</th>
+                <th className="pb-1">In / out per min</th><th className="pb-1">Queued outside</th>
                 <th className="pb-1">Report disruption</th>
               </tr>
             </thead>

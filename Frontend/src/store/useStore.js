@@ -103,6 +103,8 @@ export const useStore = create((set, get) => ({
         : [...s.events, event],
       worldVersion: s.worldVersion + 1,
     })),
+  removeEvent: (eventId) =>
+    set((s) => ({ events: s.events.filter((e) => e.event_id !== eventId), worldVersion: s.worldVersion + 1 })),
   setDisruptions: (disruptions) =>
     set((s) => ({ disruptions: disruptions || [], worldVersion: s.worldVersion + 1 })),
   bumpWorld: () => set((s) => ({ worldVersion: s.worldVersion + 1 })),
@@ -149,6 +151,16 @@ export const useStore = create((set, get) => ({
     }),
 
   setInterventions: (interventions) => set({ interventions: interventions || [] }),
+
+  setInterventionEffects: (effects) =>
+    set((s) => {
+      const byId = Object.fromEntries((effects || []).map((e) => [e.intervention_id, e.live_effect]));
+      return {
+        interventions: s.interventions.map((i) =>
+          byId[i.intervention_id] ? { ...i, status: 'executing', live_effect: byId[i.intervention_id] } : i,
+        ),
+      };
+    }),
 
   updateInterventionStatus: (interventionId, status) =>
     set((s) => ({

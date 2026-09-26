@@ -10,6 +10,7 @@
 import { useState } from 'react';
 
 import InterventionQueue from '../components/InterventionQueue.jsx';
+import PressureTimeline from '../components/PressureTimeline.jsx';
 import PageShell, { ErrorNote, Stat } from '../components/PageShell.jsx';
 import { api } from '../lib/api.js';
 import { clock, integer, pct, rupees } from '../lib/format.js';
@@ -40,7 +41,10 @@ export default function Interventions() {
         <Stat label="Attendee compliance" value={operations ? `${Math.round(operations.compliance * 100)}%` : '—'} sub="updated by nudge answers" />
       </div>
       <div className="grid gap-3 lg:grid-cols-[380px_1fr]">
-        <div className="h-[560px]"><InterventionQueue /></div>
+        <div className="flex flex-col gap-3">
+          <div className="h-[560px]"><InterventionQueue /></div>
+          <div className="h-[320px]"><PressureTimeline /></div>
+        </div>
         <section className="panel overflow-x-auto p-3">
           <div className="mb-2 flex flex-wrap items-center gap-2">
             <h2 className="panel-title mr-2">Decision history</h2>
