@@ -61,7 +61,8 @@ function Timeline({ events, simTime }) {
   );
 }
 
-function EventRow({ event, onChange, busy }) {
+function EventRow({ event, onChange, busy: working, replay }) {
+  const busy = working || replay;
   const [attendance, setAttendance] = useState(event.expected_attendance);
   const started = ['live', 'egress', 'ended'].includes(event.status);
   const cancelled = event.status === 'cancelled';
@@ -139,7 +140,7 @@ function EventRow({ event, onChange, busy }) {
 }
 
 export default function Events() {
-  const { simTime, toast, upsertEvent } = useStore();
+  const { simTime, toast, upsertEvent, mockMode } = useStore();
   const { data, error, reload } = useLiveQuery(() => api.events(), [], { everyCycles: 2 });
   const [busyId, setBusyId] = useState(null);
   const events = data?.events || [];
@@ -193,7 +194,7 @@ export default function Events() {
           </thead>
           <tbody>
             {events.map((e) => (
-              <EventRow key={`${e.event_id}-${e.expected_attendance}`} event={e} busy={busyId === e.event_id} onChange={(body) => change(e, body)} />
+              <EventRow key={`${e.event_id}-${e.expected_attendance}`} event={e} busy={busyId === e.event_id} replay={mockMode} onChange={(body) => change(e, body)} />
             ))}
           </tbody>
         </table>

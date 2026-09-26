@@ -175,7 +175,7 @@ function HotelCard({ propertyId, eventId, segment }) {
 }
 
 export default function Attendee() {
-  const { nodesById, graph, events, toast } = useStore();
+  const { nodesById, graph, events, toast, mockMode } = useStore();
   const [plan, setPlan] = useState({
     attendee_id: 'att_demo_1',
     segment_id: 'price_sensitive',
@@ -246,7 +246,13 @@ export default function Attendee() {
           </Link>
         </header>
 
-        <section className="panel grid grid-cols-2 gap-2 p-3">
+        {mockMode && (
+          <div className="rounded border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-[11px] text-amber-800">
+            <b>Recorded replay:</b> this is one journey recorded from a real run. Changing the trip or answering
+            a nudge needs the live backend (<code>npm run dev:live</code>).
+          </div>
+        )}
+        <fieldset disabled={mockMode} className="panel grid grid-cols-2 gap-2 p-3 disabled:opacity-70">
           <label className="col-span-2 flex flex-col gap-0.5">
             <span className="text-[10px] text-slate-400">Starting from</span>
             <select id="att-origin" className={select} value={plan.origin} onChange={(e) => setPlan({ ...plan, origin: e.target.value })}>
@@ -279,10 +285,10 @@ export default function Attendee() {
               {PRIORITIES.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
             </select>
           </label>
-        </section>
+        </fieldset>
 
         {pending.map((n) => (
-          <NudgeCard key={n.nudge_id} nudge={n} nodesById={nodesById} onRespond={respond} busy={busy} />
+          <NudgeCard key={n.nudge_id} nudge={n} nodesById={nodesById} onRespond={respond} busy={busy || mockMode} />
         ))}
 
         {journey.error && <div className="panel p-3 text-xs text-amber-700">{journey.error.message}</div>}

@@ -35,6 +35,7 @@ import {
 import { api } from '../lib/api.js';
 import { clock, decimals, minutes } from '../lib/format.js';
 import { useStore } from '../store/useStore.js';
+import { ReplayBanner } from '../components/PageShell.jsx';
 
 const EMPHASISED = new Set([
   'prediction.cascade_lead_time_sec',
@@ -259,7 +260,7 @@ export default function Metrics() {
   const [metrics, setMetrics] = useState(null);
   const [regret, setRegret] = useState(null);
   const [error, setError] = useState(null);
-  const { toast } = useStore();
+  const { toast, mockMode } = useStore();
 
   useEffect(() => {
     let cancelled = false;
@@ -290,6 +291,7 @@ export default function Metrics() {
   return (
     <div className="min-h-screen bg-surface-950 p-4 md:p-6 font-sans">
       <div className="mx-auto max-w-7xl">
+        <ReplayBanner />
         {/* Header Bar */}
         <header className="mb-6 flex flex-wrap items-center justify-between gap-4 border-b border-surface-700/60 pb-4">
           <div>
@@ -338,7 +340,7 @@ export default function Metrics() {
         {metrics && (
           <div className="space-y-6">
             {metrics.operations && Object.keys(metrics.operations).length > 0 && (
-              <Section title="City Operations (live)" metrics={metrics.operations} group="operations" />
+              <Section title={mockMode ? 'City Operations (recorded)' : 'City Operations (live)'} metrics={metrics.operations} group="operations" />
             )}
             <Section title="Prediction Horizon & Cascades" metrics={metrics.prediction} group="prediction" />
             <Section title="EnKF Digital Twin Assimilation" metrics={metrics.twin} group="twin" />

@@ -146,7 +146,7 @@ function Comparison({ result }) {
 }
 
 export default function WhatIfPanel() {
-  const { whatIf, setWhatIf, toast, setWhatIfOverlay, clearWhatIfOverlay } = useStore();
+  const { whatIf, setWhatIf, toast, setWhatIfOverlay, clearWhatIfOverlay, mockMode } = useStore();
   const timers = useRef({ poll: null, timeout: null });
   const [lastRun, setLastRun] = useState(null);
 
@@ -244,7 +244,8 @@ export default function WhatIfPanel() {
               <button
                 key={preset.label}
                 type="button"
-                disabled={isRunning}
+                disabled={isRunning || (mockMode && preset.id !== 'gate_5')}
+                title={mockMode && preset.id !== 'gate_5' ? 'Only the recorded Gate 5 scenario is available in replay' : undefined}
                 onClick={() => run(preset)}
                 className={`flex items-center gap-2 rounded-md border p-1.5 text-left transition-all disabled:opacity-40 select-none ${
                   isSelected

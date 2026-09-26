@@ -447,6 +447,9 @@ export default function MapCanvas() {
       data: nodeData,
       getPosition: (d) => [d.lon, d.lat],
       getText: (d) => TYPE_GLYPH[d.entity_type] || '•',
+      // deck.gl's default atlas is ASCII only; the type symbols must be listed
+      // explicitly or they render as nothing ("Missing character" warnings).
+      characterSet: [...new Set([...Object.values(TYPE_GLYPH).join(''), '•'])],
       getSize: 11,
       getColor: [10, 15, 25, 220],
       getTextAnchor: 'middle',

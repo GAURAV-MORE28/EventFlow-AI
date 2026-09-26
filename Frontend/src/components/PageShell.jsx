@@ -3,6 +3,7 @@
  * content area with a page heading.
  */
 import { riskColor } from '../lib/colors.js';
+import { useStore } from '../store/useStore.js';
 import NavBar from './NavBar.jsx';
 import TopBar from './TopBar.jsx';
 
@@ -13,6 +14,7 @@ export default function PageShell({ title, subtitle, actions = null, children })
       <NavBar />
       <main className="min-h-0 flex-1 overflow-y-auto">
         <div className="mx-auto max-w-7xl px-4 py-4">
+          <ReplayBanner />
           <header className="mb-4 flex flex-wrap items-end justify-between gap-3 border-b border-surface-700/60 pb-3">
             <div>
               <h1 className="text-lg font-bold tracking-tight text-slate-100">{title}</h1>
@@ -23,6 +25,23 @@ export default function PageShell({ title, subtitle, actions = null, children })
           {children}
         </div>
       </main>
+    </div>
+  );
+}
+
+/**
+ * Shown on every page in replay mode (`npm run dev`, no backend): the data is
+ * a recording of a real simulation run, so nothing here is live and actions
+ * that would change the city are disabled rather than silently faked.
+ */
+export function ReplayBanner({ className = 'mb-3' }) {
+  const mockMode = useStore((s) => s.mockMode);
+  if (!mockMode) return null;
+  return (
+    <div className={`rounded border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-800 ${className}`}>
+      <b>Recorded replay.</b> You are viewing data recorded from a real run of the simulation, not a live
+      city. Actions that change the city, plan a new journey or run a new simulation are disabled. Start the
+      backend and run <code>npm run dev:live</code> for the live product.
     </div>
   );
 }

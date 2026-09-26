@@ -53,9 +53,10 @@ cd Frontend && npm install && npm run dev
 ```
 
 `npm run dev` replays fixtures recorded from a real backend run
-(`src/mocks/*.json`, schema-validated). Read-only pages work; actions that
-change the city (schedule changes, disruptions, sim controls) say they need
-the live backend.
+(`src/mocks/*.json`, schema-validated). Every page shows a "Recorded replay"
+banner. Read-only pages work; controls that would change the city (schedule
+changes, disruptions, sim controls), plan a new journey, answer a nudge or run a
+new what-if are disabled, and What-If shows the one recorded scenario.
 
 ## How the product works
 
@@ -92,7 +93,7 @@ the live backend.
 
 ```bash
 cd Backend
-python -m pytest tests/ -q       # 71 tests; uses a temporary database (tests/conftest.py)
+python -m pytest tests/ -q       # 76 tests; uses a temporary database (tests/conftest.py)
 cd ../Frontend
 npm run validate:mocks            # fixtures vs contracts/schemas
 npm run build

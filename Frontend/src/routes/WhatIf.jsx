@@ -94,7 +94,7 @@ function newScenario(type = 'gate_closure') {
 }
 
 export default function WhatIf() {
-  const { graph, events, toast, setWhatIfOverlay, setDisruptions, upsertEvent, nodesById } = useStore();
+  const { graph, events, toast, setWhatIfOverlay, setDisruptions, upsertEvent, nodesById, mockMode } = useStore();
   const [scenarios, setScenarios] = useState([newScenario()]);
   const [horizon, setHorizon] = useState(3600);
   const [status, setStatus] = useState('idle');
@@ -102,6 +102,16 @@ export default function WhatIf() {
   const [error, setError] = useState(null);
   const timer = useRef(null);
   useEffect(() => () => clearInterval(timer.current), []);
+  // Replay mode has exactly one recorded what-if; show it for what it is
+  // instead of pretending to simulate whatever the builder says.
+  useEffect(() => {
+    if (!mockMode) return;
+    api.simulation('sim_mock1').then((r) => {
+      setResult(r);
+      setStatus('complete');
+      setScenarios(r.scenarios?.length ? r.scenarios : [newScenario()]);
+    });
+  }, [mockMode]);
   const entities = [...graph.nodes].sort((a, b) => a.display_name.localeCompare(b.display_name));
   const name = (id) => nodesById[id]?.display_name || id;
 
@@ -173,7 +183,12 @@ export default function WhatIf() {
       subtitle="Simulate disruptions, demand changes and schedule changes against two copies of the live city: one unchanged, one with your scenario. The live city is untouched until you choose to apply."
     >
       <section className="panel p-3">
-        <div className="space-y-2">
+        {mockMode && result && (
+          <p className="mb-2 text-xs text-amber-800">
+            Showing the recorded scenario <b>{result.label}</b>. Composing and running new scenarios needs the live backend.
+          </p>
+        )}
+        <fieldset disabled={mockMode} className="space-y-2 disabled:opacity-60">
           {scenarios.map((s, i) => (
             <div key={i} className="flex flex-wrap items-center gap-2 rounded border border-surface-700/60 bg-surface-850 p-2">
               <select
@@ -201,8 +216,8 @@ export default function WhatIf() {
               )}
             </div>
           ))}
-        </div>
-        <div className="mt-2 flex flex-wrap items-center gap-2">
+        </fieldset>
+        <fieldset disabled={mockMode} className="mt-2 flex flex-wrap items-center gap-2 disabled:opacity-60">
           <button type="button" className="btn-secondary" onClick={() => setScenarios((l) => [...l, newScenario('weather_rain')])}>
             <Plus className="h-3.5 w-3.5" /> Combine another change
           </button>
@@ -220,7 +235,7 @@ export default function WhatIf() {
               <Zap className="h-3.5 w-3.5" /> Apply to live city
             </button>
           )}
-        </div>
+        </fieldset>
         {status === 'failed' && <p className="mt-2 text-xs text-red-600">The simulation did not complete. Check the scenario and try again.</p>}
         <ErrorNote error={error} />
       </section>

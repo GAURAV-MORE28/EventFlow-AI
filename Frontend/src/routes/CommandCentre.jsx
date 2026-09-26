@@ -19,6 +19,7 @@ import EntityDetailPanel from '../components/EntityDetailPanel.jsx';
 import InterventionQueue from '../components/InterventionQueue.jsx';
 import MapCanvas from '../components/MapCanvas.jsx';
 import NavBar from '../components/NavBar.jsx';
+import { ReplayBanner } from '../components/PageShell.jsx';
 import PressureTimeline from '../components/PressureTimeline.jsx';
 import TopBar from '../components/TopBar.jsx';
 import TwinFidelityGauge from '../components/TwinFidelityGauge.jsx';
@@ -52,6 +53,7 @@ export default function CommandCentre() {
       <NavBar />
 
       <main className="flex min-h-0 flex-1 flex-col gap-2 overflow-hidden p-2">
+        <ReplayBanner className="shrink-0" />
 
         {/* ── Top row: Interactive Map (flex-1) + C2 Intelligence Sidebar ───────────────── */}
         <div className="grid min-h-0 flex-1 grid-cols-1 lg:grid-cols-[1fr_320px] xl:grid-cols-[1fr_340px] gap-2">

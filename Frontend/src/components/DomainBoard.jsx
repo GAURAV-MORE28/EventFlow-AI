@@ -43,7 +43,7 @@ const DOMAIN_TITLES = {
 };
 
 export function DisruptionsPanel() {
-  const { disruptions, nodesById, toast, setDisruptions } = useStore();
+  const { disruptions, nodesById, toast, setDisruptions, mockMode } = useStore();
   const [busy, setBusy] = useState(null);
 
   async function clear(id) {
@@ -76,7 +76,7 @@ export function DisruptionsPanel() {
               {d.params?.delta_pct !== undefined && <> · {d.params.delta_pct}%</>}
               <span className="text-slate-400"> since {clock(d.started_at)}</span>
             </span>
-            <button type="button" className="btn-secondary" disabled={busy === d.disruption_id} onClick={() => clear(d.disruption_id)}>
+            <button type="button" className="btn-secondary" disabled={mockMode || busy === d.disruption_id} onClick={() => clear(d.disruption_id)}>
               <X className="h-3 w-3" /> Clear
             </button>
           </li>
@@ -87,6 +87,7 @@ export function DisruptionsPanel() {
 }
 
 function EntityRow({ row, onReport, busy }) {
+  const mockMode = useStore((s) => s.mockMode);
   const actions = ACTIONS[row.entity_type] || [];
   return (
     <tr className="border-t border-surface-700/40">
@@ -122,7 +123,8 @@ function EntityRow({ row, onReport, busy }) {
               key={a.label}
               type="button"
               className="btn-secondary px-1.5 py-0.5 text-[10px]"
-              disabled={busy || row.closed}
+              disabled={busy || row.closed || mockMode}
+              title={mockMode ? 'Needs the live backend' : undefined}
               onClick={() => onReport(row, a)}
             >
               {a.label}

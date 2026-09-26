@@ -291,7 +291,7 @@ URLS AND PORTS
 RUNNING TESTS
 --------------------------------------------------------------------------------
 
-Backend (71 tests):
+Backend (76 tests):
   cd Backend
   python -m pytest tests/ -q
 

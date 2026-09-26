@@ -93,7 +93,7 @@ export default function TopBar() {
         <div className="flex items-center gap-1.5 rounded-full border border-surface-700/60 bg-surface-900/80 px-2.5 py-0.5 text-[10px] font-semibold tracking-wider">
           <span className={wsStatus === 'connected' ? 'live-dot' : 'h-1.5 w-1.5 rounded-full bg-slate-500'} />
           <span className={wsStatus === 'connected' ? 'text-emerald-400' : 'text-slate-400'}>
-            {mockMode ? 'SIMULATION' : 'LIVE FEED'}
+            {mockMode ? 'RECORDED REPLAY' : 'LIVE FEED'}
           </span>
         </div>
       </div>
@@ -188,7 +188,7 @@ export default function TopBar() {
       <div className="flex items-center gap-2">
         {mockMode && (
           <span className="rounded border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-amber-300">
-            DEMO MOCK
+            OFFLINE
           </span>
         )}
         <WsChip status={wsStatus} />
