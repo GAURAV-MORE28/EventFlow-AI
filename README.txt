@@ -73,10 +73,13 @@ EventFlow-AI/
     vite.config.js
 
   ML/
-    cascade.py            HX-Cascade GNN (2-layer R-GCN) trained model
-    hx_cascade.pt         PyTorch checkpoint
-    feature_norm.json     Feature normalisation config
-    topology_meta_FINAL.pkl  Topology metadata for the GNN
+    cascade.py            HX-Cascade GNN (2-layer R-GCN) loader + inference
+    manifest.py           Model bundle manifest (sha256 binding) helpers
+    artifacts/hx_cascade_v2/  Bundle in use (config cascade.gnn_artifact):
+                          model.pt, feature_norm.json, eval.json (held-out
+                          scenarios on the training map), manifest.json
+    hx_cascade.pt, feature_norm.json, *.parquet, topology_meta_FINAL.pkl,
+    swap_decision_v1.json  v1 artifacts (32-entity map); not used at runtime
 
   contracts/
     schemas/              JSON Schemas auto-exported from backend Pydantic models
@@ -147,7 +150,9 @@ Cycle behaviour
   - Forecaster projects entity utilisation at 900/1800/3600s horizons
   - Risk scorer bands every entity (low/moderate/high/critical)
   - Anomaly detector flags z-score outliers
-  - Cascade predictor (HX-Cascade GNN + deterministic fallback) marks paths
+  - Deterministic flow cascade (services/cascade_flow.py) marks paths; the
+    HX-Cascade GNN runs alongside in shadow mode (cascade.gnn_mode, see
+    RUNNING.md) and does not change what is published
   - If any entity is predicted critical within 3600s:
       optimiser generates up to 5 candidate interventions
       equilibrium solver certifies each (STABLE / UNSTABLE verdict)
@@ -313,9 +318,11 @@ TROUBLESHOOTING
   If using npm run dev:live, make sure the backend (python run.py) is running
   at localhost:8000 first.
 
-"Backend won't start — import error for torch or torch_geometric"
-  PyTorch 2.10 and torch_geometric 2.8 are required for the HX-Cascade GNN.
-  Install them:  pip install torch==2.10.0 torch_geometric==2.8.0.post1
+"Log warning: ml.cascade found at ML/cascade.py but failed to import"
+  PyTorch 2.10 and torch_geometric 2.8 are needed for the HX-Cascade GNN.
+  Without them the backend still starts and runs; /health then reports
+  cascade gnn_mode "off". Install them:
+    pip install torch==2.10.0 torch_geometric==2.8.0.post1
   These are CPU-only; no GPU or CUDA is required.
 
 "First 30-45 seconds show no interventions (live mode)"

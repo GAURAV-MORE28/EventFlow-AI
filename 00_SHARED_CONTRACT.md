@@ -2,7 +2,7 @@
 
 > **Every team reads this file first. If a field name appears here, it is spelled EXACTLY this way in the database, in the API, in the ML module, and in the frontend. No synonyms, no camelCase/snake_case drift.**
 
-**Version:** `1.0.0`
+**Version:** `1.1.0` (additive over 1.0.0 — see §7)
 **Owner:** Backend lead (only the backend lead may edit this file; changes are announced in the team channel with a version bump).
 
 ---
@@ -68,6 +68,7 @@
 "reroute_transport" | "deploy_shuttle" | "stagger_entry" | "gate_redistribution"
 | "parking_redistribution" | "zone_incentive" | "accommodation_rebalance"
 | "emergency_corridor" | "notify_only"
+| "event_delay" | "transport_redistribution"          // 1.1.0
 ```
 
 ### 1.7 `intervention_status`
@@ -84,7 +85,7 @@ Exactly five. The ML equilibrium solver and the attendee PWA both key off this l
 
 ### 1.9 `forecast_source`
 ```
-"persistence" | "tsfm" | "local_model"
+"persistence" | "tsfm" | "local_model" | "twin_model"     // twin_model: 1.1.0
 ```
 Every forecast payload declares which produced it. The frontend shows this as a small badge; the KPI panel groups by it.
 
@@ -98,6 +99,8 @@ Every forecast payload declares which produced it. The frontend shows this as a 
 "attendance_delta" | "metro_capacity_delta" | "road_capacity_delta"
 | "weather_rain" | "gate_closure" | "transport_outage" | "parking_loss"
 | "hotel_shortage" | "concurrent_event" | "combined"
+| "event_delay" | "event_cancellation" | "road_closure"   // 1.1.0
+| "station_closure" | "capacity_reduction"               // 1.1.0
 ```
 
 ---
@@ -381,7 +384,7 @@ This mirrors the fallback strategy in the strategy report. **Every consumer must
 | Component | Degraded state | How it is signalled | Consumer behaviour |
 |---|---|---|---|
 | TSFM forecaster | Falls back to `local_model`, then `persistence` | `forecast.source` field | Show source badge. No error. |
-| Cascade GNN | Falls back to deterministic propagator | `cascade.source` field | Identical rendering. No error. |
+| Cascade model | Published cascades are always the deterministic flow cascade; the model only annotates it (`gnn_mode: annotate`) or runs in shadow. Unavailable model → `gnn_mode: "off"` | `/health.modules.cascade.gnn_mode`, `model_ready`; `cascade.ml_enhanced`, `step.confidence = null` | Identical rendering. No error. |
 | Equilibrium solver non-convergence | `converged: false`, `verdict: "UNSTABLE"` | Certificate fields | Show red badge, reason reads "Did not converge within iteration cap." |
 | EnKF assimilation | `twin_fidelity.assimilated_rmse` present but `improvement_pct` may be low | Numeric | Chart still renders. |
 | LLM Commander | Returns cached scripted answer | `commander.response.is_cached: true` | Small "cached" chip. |
@@ -419,3 +422,22 @@ So the three teams can hardcode against the same demo without waiting for each o
 2. Announce in channel with a one-line diff summary.
 3. Backend updates `00_SHARED_CONTRACT.md` + `01_BACKEND_CONTRACT.md` in the same commit.
 4. **Additive changes only after H20.** After hour 20 of the build, no field may be renamed or removed — only added, and only with a default value.
+
+---
+
+## 7. Changes in 1.1.0 (additive only)
+
+Every item is a new enum value or a new optional field; nothing was renamed, removed or retyped.
+
+| Where | Addition |
+|---|---|
+| §1.6 `intervention_type` | `event_delay`, `transport_redistribution` |
+| §1.9 `forecast_source` | `twin_model` — the digital twin's plan projection corrected by the live gap (not a learned model) |
+| §1.11 `scenario_type` | `event_delay`, `event_cancellation`, `road_closure`, `station_closure`, `capacity_reduction` |
+| §2.3 `EntityState` | `inflow_per_min`, `outflow_per_min`, `queue_people` (null = not modelled for the entity type) |
+| §2.4 `Forecast.baseline_comparison` | Defined precisely: the producing `source`'s 900 s point vs the value observed 900 s later, against persistence over the same interval, per entity; `null` until 10 such forecasts have been validated |
+| §2.5 `CascadeResult` | `ml_enhanced` (bool). `CascadeStep`: `source_entity_id`, `utilisation_before`, `utilisation_after`, `flow_change_people`, `reason`, `confidence` |
+| §2.5 `CascadeStep.confidence` | The cascade model's failure probability for the step's entity at the first horizon ≥ `eta_sec` (3600 s beyond that). `null` unless `gnn_mode` is `annotate` and the model saw this topology. Uncalibrated unless `/health` reports a calibrated model. Never derived from utilisation arithmetic |
+| §2.5 `CascadeResult.source` | Always the producer of the cascade structure (`"deterministic"`); ML annotation is signalled by `ml_enhanced`, not by `source` |
+| §2.7 `Intervention` | `evaluation` (simulated effect before proposal), `live_effect` (live vs do-nothing world while executing) |
+

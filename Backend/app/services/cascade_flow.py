@@ -66,9 +66,23 @@ def select_roots(node_state: dict[str, dict], lines: Callable[[str], tuple[float
     return roots[:limit]
 
 
+def _confidence_at(confidence: dict[str, Any], entity_id: str, eta_sec: int) -> float | None:
+    """The model's probability for `entity_id` at the first horizon that covers
+    `eta_sec` (the last horizon beyond them). A plain float applies to any eta."""
+    value = confidence.get(entity_id)
+    if value is None or not isinstance(value, dict):
+        return value
+    if not value:
+        return None
+    for h in sorted(value):
+        if eta_sec <= h:
+            return value[h]
+    return value[max(value)]
+
+
 def build_cascade(root: str, node_state: dict[str, dict], out_edges: dict[str, list[dict]],
                   lines: Callable[[str], tuple[float, float]], closed: set[str], max_depth: int,
-                  max_steps: int, generated_at: str, confidence: dict[str, float] | None = None) -> dict:
+                  max_steps: int, generated_at: str, confidence: dict[str, Any] | None = None) -> dict:
     confidence = confidence or {}
     rs = node_state[root]
     r_warn, r_crit = lines(rs.get("entity_type", ""))
@@ -83,7 +97,7 @@ def build_cascade(root: str, node_state: dict[str, dict], out_edges: dict[str, l
         "utilisation_after": round(r_proj, 4), "flow_change_people": round(overflow, 1),
         "reason": f"{rs.get('display_name', root)} is at or forecast over its critical line "
                   f"({r_proj:.0%} of capacity); {overflow:,.0f} people above the line must go elsewhere.",
-        "confidence": confidence.get(root),
+        "confidence": _confidence_at(confidence, root, root_eta),
     }]
     visited = {root}
     frontier: deque[tuple[str, int, float, int]] = deque([(root, 0, overflow, root_eta)])
@@ -133,7 +147,7 @@ def build_cascade(root: str, node_state: dict[str, dict], out_edges: dict[str, l
                     f"{node_state[node].get('display_name', node)} via {e['edge_type'].replace('_', ' ')}: "
                     f"{before:.0%} -> {after:.0%} of capacity."
                 ),
-                "confidence": confidence.get(dst),
+                "confidence": _confidence_at(confidence, dst, eta),
             })
             if len(steps) >= max_steps + 1:
                 break
@@ -155,7 +169,7 @@ def build_cascade(root: str, node_state: dict[str, dict], out_edges: dict[str, l
 
 def build_cascades(node_state: dict[str, dict], edges: list[dict], lines: Callable[[str], tuple[float, float]],
                    cfg: dict[str, Any], generated_at: str, closed: set[str] | None = None,
-                   confidence: dict[str, float] | None = None) -> list[dict]:
+                   confidence: dict[str, Any] | None = None) -> list[dict]:
     closed = set(closed or set())
     out_edges: dict[str, list[dict]] = {}
     for e in edges:
@@ -178,12 +192,28 @@ def cascade_for(root: str, node_state: dict[str, dict], edges: list[dict],
 
 
 def ml_confidence(ml_cascades: list[dict] | None) -> dict[str, float]:
-    """Per-entity failure probability from an ML cascade model's output (if any)."""
+    """Per-entity failure probability from an ML cascade model's output (if any).
+
+    Root steps (depth 0) are skipped: a cascade model reports its root's
+    `failure_probability` as utilisation / critical line, which is arithmetic,
+    not a model output, and must not be published as ML confidence."""
     out: dict[str, float] = {}
     for c in ml_cascades or []:
         if c.get("source") != "gnn":
             continue
         for s in c.get("steps", []):
+            if s.get("depth", 0) == 0:
+                continue
             p = float(s.get("failure_probability", 0.0))
             out[s["entity_id"]] = max(out.get(s["entity_id"], 0.0), p)
+    return out
+
+
+def horizon_probabilities(risk: dict | None) -> dict[str, dict[int, float]]:
+    """`node_risk()` output -> {entity_id: {horizon_sec: probability}} for `confidence`."""
+    out: dict[str, dict[int, float]] = {}
+    for eid, row in ((risk or {}).get("nodes") or {}).items():
+        by_h = {int(k.rsplit("_", 1)[1]): float(v) for k, v in row.items() if k.startswith("p_fail_") and v is not None}
+        if by_h:
+            out[eid] = by_h
     return out

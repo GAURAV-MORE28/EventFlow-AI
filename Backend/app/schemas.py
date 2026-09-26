@@ -459,6 +459,13 @@ class ModuleHealth(Base):
     ready: bool
     active_source: Optional[str] = None
     ensemble_size: Optional[int] = None
+    # cascade only: what the loaded cascade model does (config `cascade.gnn_mode`);
+    # `active_source` is always the source the published cascades carry.
+    gnn_mode: Optional[Literal["off", "shadow", "annotate"]] = None
+    # cascade only: `<model_version>@<checkpoint sha8>` of the loaded model, and
+    # whether its verified bundle loaded (False -> gnn_mode "off").
+    model_version: Optional[str] = None
+    model_ready: Optional[bool] = None
 
 
 class HealthResponse(Base):

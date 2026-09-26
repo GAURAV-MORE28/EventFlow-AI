@@ -21,7 +21,7 @@ name. The registry imports it as `ML.<file>.<Class>`:
 | File | Class | Constructor gets |
 |---|---|---|
 | `forecaster.py` | `Forecaster` | `{seed, critical_utilisation, risk_bands, horizons_sec, tsfm_model, tsfm_enabled, warm_start_after_points, device, step_sec}` |
-| `cascade.py` | `CascadePredictor` | `{seed, critical_utilisation, risk_bands, use_gnn, max_depth, propagation_threshold, gnn_checkpoint}` |
+| `cascade.py` | `CascadePredictor` | `{seed, critical_utilisation, risk_bands, use_gnn, max_depth, propagation_threshold, gnn_artifact, gnn_mode, gnn_min_probability}` |
 | `twin.py` | `AssimilatedTwin` | `{seed, ensemble_size, inflation_factor, obs_noise_var, process_noise_var, drift_mode_enabled}` |
 | `equilibrium.py` | `EquilibriumSolver` | `{seed, max_iterations, convergence_tol, damping, compliance_sweep, alpha, beta, sigmoid_k}` |
 | `optimiser.py` | `InterventionOptimiser` | `{seed, max_candidates, min_feasibility, weights}` |
@@ -39,6 +39,16 @@ HX-Cascade beats the deterministic propagator on held-out topologies (03 §4.3
 swap criterion), drop it in here, flip `use_gnn: true` in `Backend/config.yaml`,
 and the backend's `active_source` field switches from `"deterministic"` to
 `"gnn"` automatically — no other file changes.
+
+## Model bundles
+
+A trained model ships as `ML/artifacts/<version>/` with `model.pt`,
+`feature_norm.json`, optional `eval.json` / `calibration.json`, and a
+`manifest.json` that binds every file by SHA-256 (`ML/manifest.py`:
+`write_manifest()` creates it, `load_manifest()` verifies it). Point
+`cascade.gnn_artifact` at the directory. A bundle that fails verification is not
+loaded; `/health` then reports `gnn_mode: "off"` and `model_ready: false`. How the
+backend uses the model (`shadow` / `annotate` / `off`) is 03 §4.5.
 
 ## Rules (03_ML_CONTRACT.md §0 — non-negotiable)
 

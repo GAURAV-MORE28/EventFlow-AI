@@ -13,7 +13,7 @@ from typing import Any, Iterable
 
 from ..simtime import parse, shift
 from ..catalog import verify_catalogue
-from ..topology import verify
+from ..topology import verify, verify_structure
 
 HISTORY_LIMIT = 240          # ~2 hours of sim at 30s steps
 TWIN_HISTORY_LIMIT = 20      # 00 §2.8 — last 20 cycles, oldest first
@@ -21,14 +21,17 @@ ANOMALY_LIMIT = 50
 
 
 class StateStore:
-    def __init__(self, sim_start: str) -> None:
+    def __init__(self, sim_start: str, provider: Any | None = None, demo_checks: bool = True) -> None:
+        """`provider` defaults to the configured data provider; a caller that
+        simulates other maps (the cascade dataset generator) injects its own and
+        turns off the demo-only checks (`demo_checks=False`)."""
         self._lock = threading.RLock()
 
         from ..providers.data import get_data_provider
 
-        provider = get_data_provider()
+        provider = provider or get_data_provider()
         topology = provider.topology()
-        verify(topology)
+        (verify if demo_checks else verify_structure)(topology)
         self.nodes: dict[str, dict] = {n["entity_id"]: n for n in topology["nodes"]}
         self.edges: list[dict] = topology["edges"]
         self.segments: list[dict] = topology["segments"]
@@ -70,19 +73,22 @@ class StateStore:
 
         self.cascades: dict[str, dict] = {}
         self.active_cascade_source = "deterministic"
+        # The cascade model's latest per-entity failure probabilities and the
+        # mode they were produced under (`cascade.gnn_mode`); None when off.
+        # In shadow mode nothing published or decided reads this.
+        self.cascade_ml: dict[str, Any] | None = None
         # H4 fix: a root that was already an active cascade last cycle does not
         # re-fire `cascade_alert` just because the prediction refreshed — only a
         # root that newly appears does. Tracked separately from `self.cascades`
         # (which is replaced wholesale every cycle) so the diff survives it.
         self.previously_active_cascade_roots: set[str] = set()
 
-        # Online precision/recall for the cascade predictor (03 §4.4), measured
-        # against what the generator's own downstream entities actually do —
-        # never against field data, and never a formula (01 §3.10 metrics.py
-        # used to synthesise these from `cascade_count` alone).
-        self.cascade_pending_checks: deque[tuple[int, str]] = deque()
-        self.cascade_predicted_at: dict[str, int] = {}
-        self.cascade_eval = {"alerts_confirmed": 0, "alerts_false": 0, "events_caught": 0, "events_missed": 0}
+        # Online precision/recall/lead time (03 §4.4) of the published cascade
+        # and of the cascade model, one definition for both (prediction_eval.py),
+        # measured against what the simulated city actually does.
+        from .prediction_eval import OnlineEvaluator
+
+        self.online_eval = OnlineEvaluator(horizon_sec=3600)
 
         self.interventions: dict[str, dict] = {}
         self.certificates: dict[str, dict] = {}
@@ -122,7 +128,6 @@ class StateStore:
         # rollout of the same scenario — populated in
         # Engine._maybe_generate_interventions, read in metrics.build_metrics.
         self.certificates_scored: list[bool] = []
-        self.cascade_lead_times: list[float] = []
         self.observed_compliance: list[bool] = []
 
         # Consecutive cycles each entity has spent at/above the critical line
@@ -267,10 +272,9 @@ class StateStore:
         self.forecasts.clear()
         self.pressure_timeline.clear()
         self.cascades.clear()
+        self.cascade_ml = None
         self.previously_active_cascade_roots.clear()
-        self.cascade_pending_checks.clear()
-        self.cascade_predicted_at.clear()
-        self.cascade_eval = {"alerts_confirmed": 0, "alerts_false": 0, "events_caught": 0, "events_missed": 0}
+        self.online_eval.reset()
         self.interventions.clear()
         self.certificates.clear()
         self.twin_fidelity = None
@@ -283,7 +287,6 @@ class StateStore:
         self.forecast_errors = {"model": [], "persistence": []}
         self.unstable_caught = 0
         self.certificates_scored.clear()
-        self.cascade_lead_times.clear()
         self.observed_compliance.clear()
         self.commander_calls = 0
         self.commander_ungrounded = 0

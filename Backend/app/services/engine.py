@@ -29,6 +29,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import copy
 import logging
 import threading
 import time
@@ -42,7 +43,8 @@ from ..ml_registry import MLRegistry, call_ml
 from ..simtime import iso, parse, shift
 from ..ws.manager import MANAGER
 from .events import EventSchedule
-from .cascade_flow import build_cascades, ml_confidence
+from .prediction_eval import SCORED_TYPES
+from .cascade_flow import build_cascades, horizon_probabilities, ml_confidence
 from .state_store import StateStore
 
 log = logging.getLogger("eventflow.cycle")
@@ -57,7 +59,9 @@ PRIOR_COMPLIANCE_WEIGHT = 10.0
 class Engine:
     """Owns the clock, the ML registry, the simulated worlds, and the only writer to StateStore."""
 
-    def __init__(self) -> None:
+    def __init__(self, provider: Any | None = None, demo_checks: bool = True) -> None:
+        """`provider` injects a map and schedule other than the configured one
+        (the cascade dataset generator simulates randomised maps this way)."""
         self.config = get_config()
         raw = self.config.raw
         event_cfg = raw["event"]
@@ -68,11 +72,12 @@ class Engine:
         self.paused = False
         self.icfg = raw.get("interventions", {})
 
-        self.store = StateStore(sim_start=event_cfg["sim_start_time"])
         from ..providers.data import get_data_provider
 
+        self._provider = provider
+        self.store = StateStore(sim_start=event_cfg["sim_start_time"], provider=provider, demo_checks=demo_checks)
         self.events = EventSchedule(
-            get_data_provider().events(raw.get("events") or [self._primary_from_event_cfg(event_cfg)]),
+            (provider or get_data_provider()).events(raw.get("events") or [self._primary_from_event_cfg(event_cfg)]),
             event_cfg["event_id"], raw.get("demand"),
         )
         # Guards every generator mutation and every clone, so a what-if or a
@@ -99,7 +104,7 @@ class Engine:
 
     # --- worlds ----------------------------------------------------------------
     def _build_worlds(self) -> None:
-        self.registry = MLRegistry()
+        self.registry = MLRegistry(self._provider)
         topology = {
             "nodes": list(self.store.nodes.values()),
             "edges": self.store.edges,
@@ -226,15 +231,17 @@ class Engine:
             except Exception:
                 log.exception("twin.step failed; assimilation will run against a stale ensemble")
 
-        fidelity, twin_degraded, assimilate_ms = await call_ml(
-            "twin.assimilate",
-            self.registry.twin.assimilate,
-            self.registry.twin.fallback,
-            self.config.budget_sec("assimilate") * 4,
-            observations,
-            sim_time,
-            {e: v["current_count"] for e, v in truth.items()},
-        )
+        # No hard timeout: 01 §2 says assimilation is never skipped (extend the
+        # budget, log), and a timed-out worker thread would keep mutating the
+        # ensemble while the next cycle steps it.
+        started = time.perf_counter()
+        truth_counts = {e: v["current_count"] for e, v in truth.items()}
+        try:
+            fidelity = await asyncio.to_thread(self.registry.twin.assimilate, observations, sim_time, truth_counts)
+        except Exception:
+            log.exception("twin.assimilate raised; using its fallback")
+            fidelity = self.registry.twin.fallback(observations, sim_time)
+        assimilate_ms = (time.perf_counter() - started) * 1000.0
         if assimilate_ms > self.config.budget_ms("assimilate"):
             log.warning("assimilate took %.0fms (budget %dms)", assimilate_ms, self.config.budget_ms("assimilate"))
 
@@ -310,22 +317,19 @@ class Engine:
 
         # 7. cascades ----------------------------------------------------------------
         node_state = store.node_state_for_ml()
-        # ML (optional): per-entity failure probabilities that annotate the
-        # deterministic cascade. None / timeout / exception -> no annotation.
-        ml_cascades, cascade_degraded, cascade_ms = await call_ml(
-            "cascade.predict_all",
-            self.registry.cascade.predict_all,
-            None,
-            self.config.budget_sec("cascade"),
-            node_state,
-            store.edges,
-            sim_time,
-        )
+        # ML (optional): per-entity failure probabilities from the cascade model.
+        # `cascade.gnn_mode` decides whether they annotate the published
+        # cascade or are only kept for evaluation (shadow).
+        mode = self.cascade_ml_mode()
+        risk = await self._cascade_node_risk(node_state, sim_time) if mode != "off" else None
+        store.cascade_ml = None if risk is None else {"mode": mode, **risk}
+        annotate = (mode == "annotate" and risk is not None and risk["source"] == "gnn"
+                    and risk.get("topology_match") is not False)   # never annotate a map the model has not seen
         with self.world_lock:
             closed = set(self.generator.closed_entities()) if hasattr(self.generator, "closed_entities") else set()
         cascades = build_cascades(node_state, store.edges, self.config.thresholds_for,
                                   self.config.raw.get("cascade", {}), sim_time, closed,
-                                  ml_confidence(ml_cascades))
+                                  horizon_probabilities(risk) if annotate else None)
         new_cascades = self._apply_cascades(cascades)
 
         # Re-score risk now that cascade exposure is known, so `cascading` is real.
@@ -345,8 +349,7 @@ class Engine:
             self._stabilise_bands(previous_states)
         self._recompute_summary()
         if not reconcile:
-            self._resolve_cascade_predictions()
-            self._track_cascade_recall(previous_states)
+            self._evaluate_predictors()
         return anomalies or [], new_cascades
 
 
@@ -696,6 +699,49 @@ class Engine:
         }
 
     # --- step 7 -------------------------------------------------------------------------------
+    CASCADE_ML_MODES = ("off", "shadow", "annotate")
+
+    def cascade_ml_mode(self) -> str:
+        """What the cascade model does this cycle (`cascade.gnn_mode`): "off" unless
+        a real ML cascade model (not the reference propagator) is loaded."""
+        mode = str(self.config.raw.get("cascade", {}).get("gnn_mode", "shadow")).lower()
+        if mode not in self.CASCADE_ML_MODES:
+            log.warning("unknown cascade.gnn_mode %r; treating it as 'off'", mode)
+            return "off"
+        cascade = self.registry.cascade
+        loaded = (self.registry.provenance.get("cascade") == "ml"
+                  and getattr(cascade, "active_source", lambda: "deterministic")() == "gnn")
+        return mode if loaded else "off"
+
+    async def _cascade_node_risk(self, node_state: dict[str, dict], sim_time: str) -> dict:
+        """The cascade model's per-entity risk (`node_risk`, 03 §4 addendum); a drop-in
+        without it is read through its `predict_all` cascades (3600s probability only)."""
+        cascade = self.registry.cascade
+        budget = self.config.budget_sec("cascade")
+        if hasattr(cascade, "node_risk"):
+            risk, _, _ = await call_ml("cascade.node_risk", cascade.node_risk,
+                                       getattr(cascade, "node_risk_fallback", None), budget,
+                                       node_state, self.store.edges, sim_time)
+            if risk:
+                return risk
+        else:
+            ml_cascades, _, _ = await call_ml("cascade.predict_all", cascade.predict_all, None, budget,
+                                              node_state, self.store.edges, sim_time)
+            probabilities = ml_confidence(ml_cascades)
+            if probabilities:
+                return {"source": "gnn", "model_version": None, "generated_at": sim_time, "calibrated": False,
+                        "topology_match": None,
+                        "nodes": {e: {"p_fail_900": None, "p_fail_1800": None, "p_fail_3600": p, "ttc_sec": None}
+                                  for e, p in probabilities.items()}}
+        return {"source": "deterministic", "model_version": None, "generated_at": sim_time, "calibrated": False,
+                "topology_match": None, "nodes": {}}
+
+    def cascade_model_info(self) -> dict[str, Any]:
+        cascade = self.registry.cascade
+        info = cascade.model_info() if hasattr(cascade, "model_info") else {}
+        return {"model_version": info.get("model_version"),
+                "model_ready": bool(info.get("ready", cascade.ready())) if info else None}
+
     def _apply_cascades(self, cascades: list[dict]) -> list[dict]:
         store = self.store
         store.cascades = {}
@@ -707,76 +753,27 @@ class Engine:
                 active_roots.add(c["root_entity_id"])
                 if c["root_entity_id"] not in store.previously_active_cascade_roots:
                     newly_active.append(c)
-                self._schedule_cascade_checks(c)
         store.previously_active_cascade_roots = active_roots
         if cascades:
             store.active_cascade_source = cascades[0]["source"]
         return newly_active
 
-    def _schedule_cascade_checks(self, cascade: dict) -> None:
+    def _evaluate_predictors(self) -> None:
+        """Score the published cascade and (when it runs) the cascade model under
+        one definition — see `prediction_eval.py`."""
         store = self.store
-        pending_entities = {eid for _, eid in store.cascade_pending_checks}
-        for step in cascade["steps"][1:]:
-            eid = step["entity_id"]
-            # Keep the *first* prediction inside the look-back window: a cascade
-            # re-predicted every cycle must not reset its own lead time (that
-            # made every caught transition look unpredicted).
-            first = store.cascade_predicted_at.get(eid)
-            lookback = max(1, self.CASCADE_RECALL_LOOKBACK_SEC // self.sim_dt)
-            if first is None or store.cycle_number - first > lookback:
-                store.cascade_predicted_at[eid] = store.cycle_number
-            if eid in pending_entities:
-                continue
-            due = store.cycle_number + max(1, round(step["eta_sec"] / self.sim_dt))
-            store.cascade_pending_checks.append((due, eid))
-            pending_entities.add(eid)
-
-    def _resolve_cascade_predictions(self) -> None:
-        store = self.store
-        remaining: deque[tuple[int, str]] = deque()
-        for due, eid in store.cascade_pending_checks:
-            if due > store.cycle_number:
-                remaining.append((due, eid))
-                continue
-            state = store.entity_states.get(eid)
-            band = state["risk_band"] if state else "low"
-            if band in ("high", "critical"):
-                store.cascade_eval["alerts_confirmed"] += 1
-            else:
-                store.cascade_eval["alerts_false"] += 1
-        store.cascade_pending_checks = remaining
-
-    CASCADE_RECALL_LOOKBACK_SEC = 3600
-
-    # What a cascade claims to predict: a downstream entity of these types
-    # crossing into critical (the same definition the model is evaluated on
-    # offline, ML/cascade_eval_v2.json). Venues, zones, parking and hotels fill
-    # from their own demand, not from a cascade, so they are not scored here.
-    CASCADE_SCORED_TYPES = ("gate", "road", "transport_node", "emergency_facility")
-
-    def _track_cascade_recall(self, previous_states: dict[str, dict]) -> None:
-        """Recall: of the non-root entities that just turned critical, how
-        many had been predicted in advance by a cascade?"""
-        store = self.store
-        lookback_cycles = max(1, self.CASCADE_RECALL_LOOKBACK_SEC // self.sim_dt)
-        roots = set(store.cascades)
-        for eid, state in store.entity_states.items():
-            if state["risk_band"] != "critical":
-                continue
-            if store.nodes[eid]["entity_type"] not in self.CASCADE_SCORED_TYPES:
-                continue
-            prev = previous_states.get(eid)
-            if bool(prev) and prev["risk_band"] == "critical":
-                continue
-            predicted_cycle = store.cascade_predicted_at.get(eid)
-            if predicted_cycle is not None and 1 <= store.cycle_number - predicted_cycle <= lookback_cycles:
-                store.cascade_eval["events_caught"] += 1
-                # Measured lead time: how long before the crossing it was predicted.
-                store.cascade_lead_times.append(float((store.cycle_number - predicted_cycle) * self.sim_dt))
-            elif eid not in roots:
-                # An unpredicted root is where a cascade starts, not a failure
-                # the cascade model was asked to foresee.
-                store.cascade_eval["events_missed"] += 1
+        scored = [e for e, n in store.nodes.items() if n["entity_type"] in SCORED_TYPES]
+        over = {e: float(store.entity_states[e]["utilisation"]) >= self.critical_lines[e]
+                for e in scored if e in store.entity_states}
+        alerts: dict[str, set[str]] = {"deterministic_cascade": {
+            s["entity_id"] for c in store.cascades.values() for s in c["steps"]
+            if s["predicted_band"] == "critical" and s["entity_id"] in over}}
+        ml = store.cascade_ml
+        if ml and ml.get("source") == "gnn":
+            threshold = float(self.config.raw.get("cascade", {}).get("gnn_min_probability", 0.6))
+            alerts["gnn"] = {e for e, row in (ml.get("nodes") or {}).items()
+                             if e in over and (row.get("p_fail_3600") or 0.0) >= threshold}
+        store.online_eval.update(store.cycle_number, self.sim_dt, over, alerts)
 
     def _cascade_exposure(self) -> dict[str, float]:
         store = self.store
@@ -878,17 +875,7 @@ class Engine:
 
         # Simulate each candidate on a clone of the live city.
         if hasattr(self.generator, "clone"):
-            from .evaluation import evaluate_candidates
-
-            try:
-                await asyncio.wait_for(
-                    asyncio.to_thread(evaluate_candidates, self, candidates, root, self.current_compliance()),
-                    timeout=self.config.budget_sec("evaluate"),
-                )
-            except asyncio.TimeoutError:
-                log.warning("candidate evaluation exceeded its budget; keeping template estimates")
-            except Exception:
-                log.exception("candidate evaluation failed; keeping template estimates")
+            candidates = await self._evaluate_safely(candidates, root)
             # Simulation showed these would not help: do not put them in front of
             # an operator. If nothing helps, escalate (notify_only) instead.
             min_relief = float(self.icfg.get("min_relief_pct", 1.0))
@@ -925,6 +912,27 @@ class Engine:
                 store.certificates[i["intervention_id"]] = cert
         self._count_unstable_caught(ranked)
         return ranked
+
+    async def _evaluate_safely(self, candidates: list[dict], root: str) -> list[dict]:
+        """Simulate candidates on deep copies. A worker thread cannot be cancelled,
+        so after a timeout it keeps writing into the list it was given; handing it
+        copies means those late writes land nowhere, and the template estimates
+        are kept."""
+        from . import evaluation
+
+        work = copy.deepcopy(candidates)
+        try:
+            await asyncio.wait_for(
+                asyncio.to_thread(evaluation.evaluate_candidates, self, work, root, self.current_compliance()),
+                timeout=self.config.budget_sec("evaluate"),
+            )
+        except asyncio.TimeoutError:
+            log.warning("candidate evaluation exceeded its budget; keeping template estimates")
+            return candidates
+        except Exception:
+            log.exception("candidate evaluation failed; keeping template estimates")
+            return candidates
+        return work
 
     def _count_unstable_caught(self, ranked: list[dict]) -> None:
         """01 §3.10 — how many UNSTABLE options a relief-only ranking would have picked."""
@@ -1145,6 +1153,46 @@ class Engine:
                 session.commit()
         except Exception:
             log.exception("persistence failed for cycle %s", store.cycle_number)
+        self._persist_predictions(ts)
+
+    def _persist_predictions(self, ts) -> None:
+        """Risk breakdowns, the published cascades and the cascade model's output —
+        the record offline evaluation reads. Own session: a failure here never
+        loses the cycle's entity states."""
+        from ..db import models
+        from ..db.base import SessionLocal
+
+        store = self.store
+        ml = store.cascade_ml
+        try:
+            with SessionLocal() as session:
+                # Same cadence as forecasts (every 10th cycle): ~270 rows per write.
+                if store.cycle_number % 10 == 0:
+                    session.bulk_save_objects([
+                        models.RiskState(entity_id=eid, sim_time=ts, risk_type=row["risk_type"], score=int(row["score"]))
+                        for eid, rows in store.risk_breakdown.items() for row in rows
+                    ])
+                session.bulk_save_objects([
+                    models.CascadePrediction(
+                        root_entity_id=c["root_entity_id"], generated_at=ts, source=c["source"], steps=c["steps"],
+                        total_downstream_failures=c["total_downstream_failures"],
+                        model_version=(ml or {}).get("model_version") if c.get("ml_enhanced") else None,
+                    )
+                    for c in store.cascades.values()
+                ])
+                if ml and ml.get("source") == "gnn":
+                    session.bulk_save_objects([
+                        models.MLNodePrediction(
+                            entity_id=eid, sim_time=ts, model_version=ml.get("model_version"), gnn_mode=ml["mode"],
+                            p_fail_900=row.get("p_fail_900"), p_fail_1800=row.get("p_fail_1800"),
+                            p_fail_3600=row.get("p_fail_3600"), ttc_sec=row.get("ttc_sec"),
+                            calibrated=bool(ml.get("calibrated")), topology_match=ml.get("topology_match"),
+                        )
+                        for eid, row in (ml.get("nodes") or {}).items()
+                    ])
+                session.commit()
+        except Exception:
+            log.exception("prediction persistence failed for cycle %s", store.cycle_number)
 
     def _write_cache(self) -> None:
         store = self.store
@@ -1413,6 +1461,7 @@ class Engine:
                     self.counterfactuals.clear()
                 self.store.reset_clock(seek_to_sim_time)
                 self.store.cycle_number = int(max(0.0, elapsed) // self.sim_dt)
+                self.store.online_eval.reset()   # alerts from another point in time are not comparable
                 self.world_changed()
 
         if inject:

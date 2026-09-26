@@ -32,7 +32,17 @@ cascade:
   use_gnn: true
   max_depth: 4
   propagation_threshold: 0.15
-  gnn_checkpoint: "ML/hx_cascade_v2.pt"   # retrained on flow-sim data with forecast features; see ML/cascade_eval_v2.json
+  # Verified model bundle (manifest.json binds model.pt, feature_norm.json, eval.json
+  # by sha256; a mismatch means the model is not loaded and gnn_mode reads "off").
+  gnn_artifact: "ML/artifacts/hx_cascade_v2"
+  # What the loaded GNN is allowed to do. The cascade itself is always the
+  # deterministic flow cascade (services/cascade_flow.py).
+  #   shadow   - the model runs every cycle, its predictions are kept for
+  #              evaluation, nothing published or decided uses them (default:
+  #              v2 has not passed the 03 §4.3 held-out-topology swap criterion)
+  #   annotate - model probabilities are attached to cascade steps as `confidence`
+  #   off      - the model is not called
+  gnn_mode: shadow
   # Output hygiene: a cascade is only useful if an operator can read it.
   max_roots: 5              # most severe roots per cycle
   max_steps: 8              # downstream steps kept per cascade (highest probability first)

@@ -416,6 +416,25 @@ class TopologyIntegrityError(RuntimeError):
     """A structural guarantee the demo depends on does not hold."""
 
 
+def verify_structure(topology: dict[str, Any]) -> None:
+    """What any map must satisfy to be simulated: unique ids, no dangling
+    edges, segment shares summing to 1. (Randomised training maps are checked
+    against this, not against the demo guarantees in `verify`.)"""
+    ids = [n["entity_id"] for n in topology["nodes"]]
+    if len(set(ids)) != len(ids):
+        raise TopologyIntegrityError("duplicate entity ids")
+    known = set(ids)
+    edge_ids = [e["edge_id"] for e in topology["edges"]]
+    if len(set(edge_ids)) != len(edge_ids):
+        raise TopologyIntegrityError("duplicate edge ids")
+    for e in topology["edges"]:
+        if e["src_entity_id"] not in known or e["dst_entity_id"] not in known:
+            raise TopologyIntegrityError(f"dangling edge {e['edge_id']}")
+    shares = sum(s["share"] for s in topology["segments"])
+    if abs(shares - 1.0) >= 1e-6:
+        raise TopologyIntegrityError(f"segment shares must sum to 1.0, got {shares}")
+
+
 def verify(topology: dict[str, Any]) -> None:
     """Fail loudly at startup rather than quietly at demo time.
 
@@ -424,6 +443,7 @@ def verify(topology: dict[str, Any]) -> None:
     silent no-op — exactly the "fails quietly at demo time" this function
     exists to prevent.
     """
+    verify_structure(topology)
     ids = {n["entity_id"] for n in topology["nodes"]}
     if len(topology["nodes"]) < 60:
         raise TopologyIntegrityError(f"01 §8 requires >=60 nodes, got {len(topology['nodes'])}")

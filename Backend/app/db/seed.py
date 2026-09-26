@@ -89,8 +89,10 @@ def clear_run_tables() -> None:
             session.query(models.EntityState).delete()
             session.query(models.RiskState).delete()
             session.query(models.Forecast).delete()
+            session.query(models.CascadePrediction).delete()
+            session.query(models.MLNodePrediction).delete()
             session.commit()
-        log.info("cleared entity_state/risk_state/forecast for a fresh run")
+        log.info("cleared entity_state/risk_state/forecast/cascade_prediction/ml_node_prediction for a fresh run")
     except Exception:
         log.exception("clearing run tables failed; continuing with in-memory topology")
 

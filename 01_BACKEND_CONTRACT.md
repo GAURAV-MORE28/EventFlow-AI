@@ -77,7 +77,8 @@ Backpressure rule (from the strategy report): **skip the forecast refresh before
   "cycle_number": 47,
   "modules": {
     "forecaster": { "ready": true,  "active_source": "tsfm" },
-    "cascade":    { "ready": true,  "active_source": "deterministic" },
+    "cascade":    { "ready": true,  "active_source": "deterministic",
+                    "gnn_mode": "shadow", "model_version": "hx_cascade_v2@745b2205", "model_ready": true },
     "twin":       { "ready": true,  "ensemble_size": 20 },
     "equilibrium":{ "ready": true },
     "commander":  { "ready": true }
@@ -85,6 +86,11 @@ Backpressure rule (from the strategy report): **skip the forecast refresh before
 }
 ```
 Frontend polls this once on mount to decide which panels to enable.
+
+*(1.1.0)* `cascade.active_source` is the source the published cascades carry
+(always equal to `/cascade/active.source`). `gnn_mode` (`off` | `shadow` |
+`annotate`), `model_version` and `model_ready` describe the cascade model
+(03 §4.5); `ready` refers to the published cascade, which does not need the model.
 
 ---
 
@@ -355,7 +361,10 @@ The judging/KPI panel. Every value carries its baseline.
     "forecast_mae":            { "value": 0.061, "baseline": 0.094, "baseline_name": "persistence", "improvement_pct": 35.1 },
     "cascade_lead_time_sec":   { "value": 1044,  "baseline": 0,     "baseline_name": "threshold_rule" },
     "cascade_precision":       { "value": 0.79,  "baseline": 0.31,  "baseline_name": "random_propagation" },
-    "cascade_recall":          { "value": 0.73,  "baseline": 0.30,  "baseline_name": "random_propagation" }
+    "cascade_recall":          { "value": 0.73,  "baseline": 0.30,  "baseline_name": "random_propagation" },
+    "gnn_lead_time_sec":       { "value": 1320,  "baseline": 0,     "baseline_name": "threshold_rule", "sample_size": 12 },
+    "gnn_precision":           { "value": 0.61,  "sample_size": 40 },
+    "gnn_recall":              { "value": 0.80,  "sample_size": 15 }
   },
   "twin": {
     "rmse":              { "value": 41.2, "baseline": 118.7, "baseline_name": "uncorrected_abm", "improvement_pct": 65.3 },
@@ -374,6 +383,10 @@ The judging/KPI panel. Every value carries its baseline.
   }
 }
 ```
+*(1.1.0)* `cascade_*` score the published cascade and `gnn_*` the cascade model
+(also in shadow mode), under one definition (03 §4.5); every one carries
+`sample_size`.
+
 **`unstable_interventions_caught` is the single most important number in the demo.** It is the entire argument for the equilibrium layer.
 
 ---
@@ -616,8 +629,28 @@ CREATE TABLE cascade_prediction (
   generated_at    TIMESTAMPTZ NOT NULL,
   source          TEXT NOT NULL,
   steps           JSONB NOT NULL,
-  total_downstream_failures INTEGER NOT NULL
+  total_downstream_failures INTEGER NOT NULL,
+  model_version   TEXT                     -- (1.1.0) model whose probabilities annotate steps; null if none
 );
+
+-- (1.1.0) The cascade model's per-entity output every cycle it runs (shadow included).
+CREATE TABLE ml_node_prediction (
+  prediction_id   BIGSERIAL PRIMARY KEY,
+  entity_id       TEXT NOT NULL REFERENCES entity(entity_id),
+  sim_time        TIMESTAMPTZ NOT NULL,
+  model_version   TEXT,
+  gnn_mode        TEXT NOT NULL,
+  p_fail_900      DOUBLE PRECISION,
+  p_fail_1800     DOUBLE PRECISION,
+  p_fail_3600     DOUBLE PRECISION,
+  ttc_sec         INTEGER,
+  calibrated      BOOLEAN NOT NULL,
+  topology_match  BOOLEAN
+);
+CREATE INDEX ON ml_node_prediction (entity_id, sim_time);
+-- Run tables (cleared on startup and reset): entity_state, risk_state, forecast,
+-- cascade_prediction, ml_node_prediction. risk_state and forecast are written every
+-- 10th cycle; cascade_prediction and ml_node_prediction every cycle.
 
 CREATE TABLE intervention (
   intervention_id        TEXT PRIMARY KEY,
@@ -778,6 +811,8 @@ cascade:
   use_gnn: false                   # flip to true only if GNN beats deterministic
   max_depth: 4
   propagation_threshold: 0.15
+  gnn_artifact: "ML/artifacts/hx_cascade_v2"   # (1.1.0) verified model bundle
+  gnn_mode: shadow                 # (1.1.0) off | shadow | annotate — see 03 §4.5
 
 twin:
   ensemble_size: 20

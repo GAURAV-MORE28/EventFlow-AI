@@ -3,6 +3,7 @@
 > **Reads:** `00_SHARED_CONTRACT.md` (mandatory).
 > **Owner:** ML workstream.
 > **Consumer:** Backend only (`01_BACKEND_CONTRACT.md` §6).
+> **Shared contract version:** 1.1.0 — additions in this file are marked *(1.1.0)*.
 
 ---
 
@@ -61,6 +62,7 @@ class Forecaster:
         capacities: dict[str, float],        # entity_id -> nominal_capacity
         horizons_sec: list[int] = [900, 1800, 3600],
         sim_time: str = None,
+        model_prior: dict[str, dict] | None = None,   # (1.1.0) entity_id -> {"now": u, "points": {h: u}}
     ) -> dict[str, dict]:                    # entity_id -> Forecast (SHARED §2.4, minus entity_id key)
         ...
 
@@ -87,6 +89,17 @@ class Forecaster:
   }
 }
 ```
+
+**`model_prior` (1.1.0).** The twin's process-model projection (announced plan +
+approved actions) at the forecast horizons. When given, the forecast is that
+projection corrected by the gap between the latest reading and the model's own
+"now", decaying with horizon, and `source = "twin_model"`. A forecaster that does
+not accept the argument still works: the backend retries without it.
+
+**`baseline_comparison` (1.1.0, precise definition).** For each entity and for the
+`source` that produced the forecast: the mean absolute error of that source's
+900 s points against the value observed 900 s later, and of persistence over the
+same interval, over the last 30 validated forecasts; `null` until 10 exist.
 
 ### 2.3 Model selection ladder
 ```
@@ -240,6 +253,17 @@ class CascadePredictor:
 
     def fallback(self, root_entity_id, node_state, edges, max_depth) -> dict:
         """Deterministic flow propagation. source='deterministic'."""
+
+    # (1.1.0) — what the backend calls (see §4.5)
+    def node_risk(self, node_state, edges, generated_at=None) -> dict:
+        """{"source": "gnn"|"deterministic", "model_version": str|None, "generated_at": str,
+            "calibrated": bool, "topology_match": bool|None,
+            "nodes": {entity_id: {"p_fail_900", "p_fail_1800", "p_fail_3600": float, "ttc_sec": int}}}"""
+    def node_risk_fallback(self, node_state, edges, generated_at=None) -> dict:
+        """Same shape, source="deterministic", nodes={}."""
+    def model_info(self) -> dict:
+        """{"model_version", "ready", "bundle", "checkpoint_sha256", "norm_sha256",
+            "topology_hash", "calibrated", "trained_on", "evaluated_outputs", "error"}"""
 ```
 
 ### 4.2 Deterministic propagator — **BUILD THIS FIRST**
@@ -307,6 +331,42 @@ Training data: 5,000 scenarios from SyntheticGenerator (§8)
 | Precision on downstream failure set | random propagation | ≥0.75 |
 | Recall | random propagation | ≥0.70 |
 | Generalisation | held-out topologies | report separately, never conflate with in-sample |
+
+### 4.5 Integration, bundles and modes *(1.1.0)*
+
+**The published cascade is always the deterministic flow cascade**
+(`Backend/app/services/cascade_flow.py`, overflow split over every outbound people
+edge). The cascade model contributes per-entity failure probabilities only, through
+`node_risk()`. `predict_all()` is kept for drop-ins that lack `node_risk()`.
+
+**Modes** (`config.cascade.gnn_mode`, reported by `/health`):
+
+| Mode | Model called | Published cascades | Persisted |
+|---|---|---|---|
+| `shadow` (default) | yes | unchanged: `confidence = null`, `ml_enhanced = false` | `ml_node_prediction` every cycle |
+| `annotate` | yes | `confidence` = `p_fail_h` at the first horizon ≥ the step's `eta_sec`; never on a topology the model was not trained on (`topology_match == false`) | same |
+| `off` | no | unchanged | — |
+
+A model that is not loaded (bundle missing or failing verification) forces `off`.
+A model graduates from `shadow` to `annotate` only by the §4.3 swap criterion.
+
+**Bundles.** A model is loaded only from a directory with a `manifest.json` that
+binds `model.pt`, `feature_norm.json` and any `eval.json` / `calibration.json` by
+SHA-256 (`ML/manifest.py`); no filename guessing. `model_version` =
+`<manifest model_version>@<first 8 hex of model.pt sha256>`. If any hash does not
+match, `ready()` is False and the backend runs without the model. The manifest also
+records the training topology's hash; `node_risk()` reports `topology_match`.
+
+**Calibration.** `calibration.json` = `{"temperature": {"900": T, "1800": T, "3600": T}}`;
+probabilities are `sigmoid(logit / T)`. Without it, `calibrated` is false and
+probabilities must not be read as frequencies.
+
+**Online evaluation** (backend, `prediction_eval.py`), one definition for every
+predictor: an alert is "this gate/road/station/emergency post, not over its critical
+line now, will cross it within 3600 s" (model: `p_fail_3600 ≥ gnn_min_probability`;
+published cascade: a step projected critical). Precision is over closed alerts,
+recall over actual crossings, lead time from first alert to crossing. Reported in
+`/metrics` as `cascade_*` and `gnn_*`.
 
 ---
 
@@ -564,7 +624,9 @@ cascade:
   use_gnn: false
   max_depth: 4
   propagation_threshold: 0.15
-  gnn_checkpoint: "ml/checkpoints/hx_cascade.pt"
+  gnn_artifact: "ML/artifacts/hx_cascade_v2"   # (1.1.0) verified bundle; replaces gnn_checkpoint
+  gnn_mode: shadow                             # (1.1.0) off | shadow | annotate (§4.5)
+  gnn_min_probability: 0.6                     # alert threshold for online evaluation / annotation
 
 twin:
   ensemble_size: 20

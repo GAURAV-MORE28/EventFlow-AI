@@ -1,0 +1,35 @@
+{
+  "model_name": "hx_cascade",
+  "model_version": "hx_cascade_v2",
+  "architecture": {
+    "class": "HXCascade",
+    "node_feat_dim": 15,
+    "hidden": 64,
+    "num_layers": 2,
+    "num_edge_types": 6
+  },
+  "topology_hash": "fceb4736f52693dc20d3e47d605513f3683ff6c505deda9cefaee5123137581a",
+  "calibrated": false,
+  "evaluated_outputs": [
+    "failure_900",
+    "failure_1800",
+    "failure_3600"
+  ],
+  "unevaluated_outputs": [
+    "ttc"
+  ],
+  "trained_on": "flow simulator (Backend/app/ml_reference/generator.py): 80 train / 20 held-out scenarios on ONE topology (the synthetic 67-node map); held-out scenarios, not held-out topologies",
+  "created_by": "Backend/scripts/train_cascade.py",
+  "source_commit": "7a2a9e9",
+  "files": {
+    "eval.json": {
+      "sha256": "e30c037d4e8e3b6589a7561fe30380e8fd509560e0b1acba9d3bd88688ccda9e"
+    },
+    "feature_norm.json": {
+      "sha256": "03bd151a4950be4e173a0abebfba1e0931e86a51b243154a76433ba37ec9f073"
+    },
+    "model.pt": {
+      "sha256": "745b2205ec4f4c876e3007f8cbdb0664cd83df6781c8d16ac247d9baa4cd1c19"
+    }
+  }
+}

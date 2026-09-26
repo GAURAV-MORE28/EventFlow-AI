@@ -45,7 +45,8 @@ mid-cycle.
    estimate. Flows/queues come from the simulation.
 4. Forecast (twin-model forecast; ML forecaster drop-in optional).
 5. Risk score, anomaly detection.
-6. Cascades: deterministic flow cascade (+ ML confidence if a model answered).
+6. Cascades: deterministic flow cascade; the cascade model runs per
+   `cascade.gnn_mode` (shadow by default: kept for evaluation, not published).
 7. Risk re-score with cascade exposure, then band hysteresis.
 8. Interventions: propose (optimiser) → simulate each on a clone → certify →
    rank; expire; settle executing ones against their counterfactual.
@@ -144,8 +145,10 @@ band floor meanwhile).
 ## 9. Cascade
 
 See `contracts.md §6`. Deterministic, topology- and flow-based, all outbound
-paths, multi-level, stops at spare capacity; ML annotates steps with
-`confidence`. The same function serves the live cycle, `GET /cascade/{id}` and
+paths, multi-level, stops at spare capacity. The ML cascade model runs per
+`cascade.gnn_mode`: `shadow` (default; its probabilities are kept in
+`store.cascade_ml`, nothing published reads them), `annotate` (they are
+attached to non-root steps as `confidence`) or `off`. The same function serves the live cycle, `GET /cascade/{id}` and
 What-If.
 
 ## 10. Interventions

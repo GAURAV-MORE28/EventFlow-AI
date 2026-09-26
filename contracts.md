@@ -118,10 +118,13 @@ returns (no waiting for the next cycle, also while paused).
 SIMULATION STATE (store.node_state_for_ml(): plain dicts)
   → ML INPUT (model builds its own features; no backend imports)
   → ML PREDICTION (e.g. cascade failure probabilities, forecasts)
-  → enhancement only (cascade step confidence; forecaster drop-in)
+  → enhancement only (cascade step confidence when `cascade.gnn_mode: annotate`;
+    forecaster drop-in)
 ```
-Every ML call goes through `call_ml` (latency budget, thread, fallback). If a
+Every ML call goes through `call_ml` (latency budget, thread, fallback), except
+twin assimilation, which is never skipped (01 §2) and so has no hard timeout. If a
 model is missing, slow, or raises: cascades are produced unchanged with
 `confidence = null` / `ml_enhanced = false`; forecasts come from the
-deterministic reference; the cycle never stops. `/health` reports the active
-source honestly.
+deterministic reference; the cycle never stops. `/health` reports the cascade
+`active_source` the published cascades carry, plus `gnn_mode`. `confidence` is
+set only on non-root steps and only in `annotate` mode.

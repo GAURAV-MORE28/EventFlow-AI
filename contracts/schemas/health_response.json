@@ -30,6 +30,47 @@
           ],
           "default": null,
           "title": "Ensemble Size"
+        },
+        "gnn_mode": {
+          "anyOf": [
+            {
+              "enum": [
+                "off",
+                "shadow",
+                "annotate"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Gnn Mode"
+        },
+        "model_version": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Model Version"
+        },
+        "model_ready": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Model Ready"
         }
       },
       "required": [

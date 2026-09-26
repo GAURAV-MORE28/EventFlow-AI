@@ -64,10 +64,13 @@ async def health() -> S.HealthResponse:
                 ready=registry.forecaster.ready(), active_source=store.active_forecast_source
             ),
             "cascade": S.ModuleHealth(
-                ready=registry.cascade.ready(),
-                # the loaded cascade model (it annotates the deterministic cascade)
-                active_source=(registry.cascade.active_source() if hasattr(registry.cascade, "active_source")
-                               else store.active_cascade_source)
+                # The published cascade (deterministic flow) is always available;
+                # the model's own readiness is `model_ready`.
+                ready=True,
+                # Same value the published cascades carry (`/cascade/active.source`).
+                active_source=store.active_cascade_source,
+                gnn_mode=engine.cascade_ml_mode(),
+                **engine.cascade_model_info(),
             ),
             "twin": S.ModuleHealth(
                 ready=twin_ready,

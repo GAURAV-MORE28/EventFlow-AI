@@ -164,9 +164,13 @@ Per `RUNNING.md`, `RiskScorer`, `AnomalyDetector`, `EquilibriumSolver.certify()`
 `InterventionOptimiser`, and `SyntheticGenerator` are contractually *arithmetic, not ML* and are
 "real" in `ml_reference/`. `Forecaster` there is the twin-model forecast (the nominal world's projection plus a decaying
 live-gap correction; trend reference without it); `CascadePredictor` is the real R-GCN
-(`ML/hx_cascade_v2.pt`, retrained on flow-simulator scenarios with forecast features by
-`Backend/scripts/train_cascade.py`; held-out results in `ML/cascade_eval_v2.json`) with the
-deterministic propagator wired as its `.fallback()`.
+(bundle `ML/artifacts/hx_cascade_v2/` — `model.pt`, `feature_norm.json`, `eval.json`, bound by
+SHA-256 in `manifest.json`; retrained on flow-simulator scenarios by `Backend/scripts/train_cascade.py`,
+which writes new bundles the same way). A bundle that fails verification is not loaded.
+Published cascades always come from the deterministic `services/cascade_flow.py`;
+`cascade.gnn_mode` decides what the R-GCN does: `shadow` (default — predictions kept in
+`store.cascade_ml`, never published), `annotate` (non-root steps get `confidence`) or `off`.
+`/health` reports the published `active_source` plus `gnn_mode`.
 
 Pluggable sources live in `Backend/app/providers/`: `geo.py` (travel times; synthetic by default,
 OSRM/Google via env vars, cached with timeout/retry/fallback) and `data.py` (topology/hotels/events;

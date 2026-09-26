@@ -1,6 +1,6 @@
 """Retrain the HX-Cascade R-GCN on the flow-coupled city simulator.
 
-    python -m scripts.train_cascade --scenarios 80 --epochs 40
+    python -m scripts.train_cascade --scenarios 80 --epochs 40 --name hx_cascade_v2b
 
 The v1 checkpoint was trained on data from the old per-entity curve generator,
 which has no flow between entities. This script generates training data from
@@ -9,14 +9,16 @@ the current simulator (the same physics the live product runs), trains the same
 added, and evaluates it on held-out scenarios against a transparent rule
 baseline ("the node's own forecast crosses its critical line").
 
-Outputs (ML/):
-  hx_cascade_v2.pt         weights
-  feature_norm_v2.json     feature layout the inference code reads
-  cascade_eval_v2.json     held-out metrics for the model AND the baseline
+Output: a verified bundle ML/artifacts/<name>/ (see ML/manifest.py)
+  model.pt             weights
+  feature_norm.json    feature layout the inference code reads
+  eval.json            held-out metrics for the model AND the baseline
+  manifest.json        sha256 of each file, topology hash, provenance
 
-The checkpoint is only switched on (config.yaml `cascade.gnn_checkpoint`) if the
+The bundle is only switched on (config.yaml `cascade.gnn_artifact`) if the
 held-out results justify it; the evaluation file records the numbers either way.
-Scenarios are seeded, so the run is reproducible.
+Scenarios are seeded, so the run is reproducible. Held-out data here are
+held-out *scenarios on the training map*, not held-out topologies.
 """
 from __future__ import annotations
 
@@ -179,12 +181,27 @@ def prf(pred: np.ndarray, labels: np.ndarray) -> dict:
     return {"precision": round(p, 3), "recall": round(r, 3), "f1": round(2 * p * r / (p + r), 3) if p + r else 0.0}
 
 
+def _git_commit() -> str | None:
+    import subprocess
+
+    try:
+        return subprocess.run(["git", "rev-parse", "HEAD"], cwd=REPO, capture_output=True, text=True,
+                              check=True).stdout.strip()
+    except Exception:
+        return None
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--scenarios", type=int, default=80)
     ap.add_argument("--heldout", type=int, default=20)
     ap.add_argument("--epochs", type=int, default=40)
+    ap.add_argument("--name", default="hx_cascade_v2b", help="bundle directory under ML/artifacts/")
+    ap.add_argument("--force", action="store_true", help="overwrite an existing bundle")
     args = ap.parse_args()
+    out_dir = REPO / "ML" / "artifacts" / args.name
+    if out_dir.exists() and not args.force:
+        raise SystemExit(f"{out_dir} exists; pick another --name or pass --force")
 
     import torch
     import torch.nn.functional as F
@@ -268,19 +285,35 @@ def main() -> int:
         report["model"][str(h)]["positives"] = int(y.sum())
     print(json.dumps(report, indent=1))
 
-    ml = REPO / "ML"
-    torch.save(model.state_dict(), ml / "hx_cascade_v2.pt")
-    norm = json.loads((ml / "feature_norm.json").read_text())
-    norm.update({
+    from ML.manifest import topology_hash, write_manifest
+
+    out_dir.mkdir(parents=True, exist_ok=True)
+    torch.save(model.state_dict(), out_dir / "model.pt")
+    norm = {
         "capacity_norm_const": cap_const, "max_degree_seen_in_training": max_deg,
-        "node_feature_order": norm["node_feature_order"] + ["forecast_900", "forecast_1800", "forecast_3600"],
-        "node_feat_dim": int(Xtr[0].shape[1]), "forecast_features": True, "training_source": "flow_simulator_v2",
-    })
-    (ml / "feature_norm_v2.json").write_text(json.dumps(norm, indent=2))
+        "entity_type_order": TYPES, "edge_type_order": EDGE_TYPES, "util_clip": 3.0,
+        "node_feature_order": (["util_at_injection_clipped", "capacity_norm"] + [f"entity_type_{t}" for t in TYPES]
+                               + ["degree_norm", "forecast_900", "forecast_1800", "forecast_3600"]),
+        "node_feat_dim": int(Xtr[0].shape[1]), "cascade_relevant_types": RELEVANT,
+        "pos_weight_by_horizon": {str(h): round(float(w), 2) for h, w in zip(HORIZONS, pos_weight.tolist())},
+        "forecast_features": True, "training_source": "flow_simulator_v2",
+    }
+    (out_dir / "feature_norm.json").write_text(json.dumps(norm, indent=2))
     wins = sum(report["model"][str(h)]["average_precision"] > report["baseline_forecast_threshold"][str(h)]["average_precision"]
                for h in HORIZONS)
     report["decision"] = "use_v2" if wins >= 2 else "keep_baseline_rule"
-    (ml / "cascade_eval_v2.json").write_text(json.dumps(report, indent=2))
+    (out_dir / "eval.json").write_text(json.dumps(report, indent=2))
+    write_manifest(
+        out_dir, model_name="hx_cascade", model_version=args.name,
+        architecture={"class": "HXCascade", "node_feat_dim": norm["node_feat_dim"], "hidden": 64,
+                      "num_layers": 2, "num_edge_types": len(EDGE_TYPES)},
+        topology_hash=topology_hash(topo["nodes"], topo["edges"]), calibrated=False,
+        evaluated_outputs=[f"failure_{h}" for h in HORIZONS], unevaluated_outputs=["ttc"],
+        trained_on=(f"flow simulator: {args.scenarios} train / {args.heldout} held-out scenarios on ONE topology; "
+                    "held-out scenarios, not held-out topologies"),
+        created_by="Backend/scripts/train_cascade.py", source_commit=_git_commit(),
+    )
+    print("bundle:", out_dir)
     print("decision:", report["decision"])
     return 0
 
