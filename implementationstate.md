@@ -118,10 +118,17 @@ by route coefficient discounted by congestion, then enter the venue.
 
 ## 6. Graph topology
 
-`app/topology.py` (or `providers/data.py` file mode): entities with lat/lon,
-type, nominal capacity; edges with type (`feeds`, `adjacent_to`, `serves`,
-`last_mile_to`, `evacuates_to`, `substitutes_for`), transfer coefficient and
-travel time. The engine operates on this abstraction, not on coordinates.
+The active **world** supplies the topology: the synthetic demo (`app/topology.py`,
+or `providers/data.py` file mode) or a **generated blueprint** (`app/geospatial/`,
+built from OpenStreetMap around a venue + radius and activated at runtime via
+`Engine.activate_world`). Entities have lat/lon, type, `subtype`, nominal capacity
+(+ `capacity_source`/`capacity_confidence`, provenance); edges have type (`feeds`,
+`adjacent_to`, `serves`, `last_mile_to`, `evacuates_to`, `substitutes_for`,
+`connects_to`), transfer coefficient and travel time (generated: distance, road
+geometry, `via_entity_ids` road path for access→gate routes). The flow model reads
+behaviour from type/subtype only; visitors on an access→gate route load the road
+junctions on its path. Validation is generic (`geospatial/validation.py`); the
+demo's scripted structures are checked only for the demo world (`verify_demo`).
 
 ## 7. Node state (published, per entity)
 

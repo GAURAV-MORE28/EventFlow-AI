@@ -14,13 +14,14 @@
  * and the arc reveal uses `requestAnimationFrame`, never `setInterval`.
  */
 import DeckGL from '@deck.gl/react';
-import { ArcLayer, PathLayer, ScatterplotLayer, TextLayer } from '@deck.gl/layers';
+import { ArcLayer, PathLayer, PolygonLayer, ScatterplotLayer, TextLayer } from '@deck.gl/layers';
 import { MapView, WebMercatorViewport } from '@deck.gl/core';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { TYPE_GLYPH, riskColor, rgba } from '../lib/colors.js';
 import { minutes, percent } from '../lib/format.js';
 import { buildLabels, labelTier, nodeRadiusPx } from '../lib/labels.js';
+import { TILE_ATTRIBUTION, basemapLayers } from '../lib/basemap.js';
 import { useStore } from '../store/useStore.js';
 
 const STEP_REVEAL_MS = 400; // 02 §5.3.2 — 400ms stagger between cascade steps
@@ -138,7 +139,15 @@ export default function MapCanvas() {
     simTime,
     interventions,
     whatIfOverlay,
+    world,
   } = useStore();
+  // A generated world is real geography: basemap, road geometry, footprint.
+  const generated = world?.source === 'generated_blueprint';
+  const dotRadius = useCallback(
+    // Real geography: a big venue must not hide the streets around it.
+    (d) => (generated ? (d.entity_type === 'road' ? 2.5 : Math.min(14, nodeRadiusPx(d))) : nodeRadiusPx(d)),
+    [generated],
+  );
 
   const containerRef = useRef(null);
   const [size, setSize] = useState({ width: 900, height: 600 });
@@ -289,6 +298,18 @@ export default function MapCanvas() {
     [selectedEntityId, nodesById],
   );
 
+  // Road centrelines by junction pair, so a route can be drawn along real roads.
+  const roadGeometry = useMemo(() => {
+    const out = {};
+    for (const e of graph.edges) {
+      if (e.edge_type === 'adjacent_to' && e.geometry?.length >= 2) {
+        out[`${e.src_entity_id}|${e.dst_entity_id}`] = e.geometry;
+        out[`${e.dst_entity_id}|${e.src_entity_id}`] = [...e.geometry].reverse();
+      }
+    }
+    return out;
+  }, [graph.edges]);
+
   const feedEdges = useMemo(
     () =>
       graph.edges
@@ -297,10 +318,39 @@ export default function MapCanvas() {
           const src = nodesById[e.src_entity_id];
           const dst = nodesById[e.dst_entity_id];
           if (!src || !dst) return null;
+          // Generated worlds: an access -> gate route follows its road path,
+          // never a straight line across the map.
+          if (e.via_entity_ids?.length) {
+            const path = [[src.lon, src.lat]];
+            const via = e.via_entity_ids;
+            for (let i = 0; i < via.length; i += 1) {
+              const seg = i > 0 ? roadGeometry[`${via[i - 1]}|${via[i]}`] : null;
+              const n = nodesById[via[i]];
+              if (seg) path.push(...seg.slice(1));
+              else if (n) path.push([n.lon, n.lat]);
+            }
+            path.push([dst.lon, dst.lat]);
+            return { ...e, path, route: true };
+          }
           return { ...e, path: [[src.lon, src.lat], [dst.lon, dst.lat]] };
         })
         .filter(Boolean),
-    [graph.edges, nodesById],
+    [graph.edges, nodesById, roadGeometry],
+  );
+
+  // Road segments along their OSM geometry, coloured by the busier endpoint.
+  const roadSegments = useMemo(
+    () =>
+      generated
+        ? graph.edges.filter(
+            (e) =>
+              e.edge_type === 'adjacent_to' &&
+              e.geometry?.length >= 2 &&
+              nodesById[e.src_entity_id]?.entity_type === 'road' &&
+              nodesById[e.dst_entity_id]?.entity_type === 'road',
+          )
+        : [],
+    [generated, graph.edges, nodesById],
   );
 
   const arcData = useMemo(() => {
@@ -386,20 +436,70 @@ export default function MapCanvas() {
   );
 
   const labelData = useMemo(
-    () => buildLabels({ nodes: nodeData, viewport: declutterViewport, tier, pinnedIds }),
+    () =>
+      buildLabels({
+        // Hundreds of generated road junctions: only label the stressed ones.
+        nodes: generated
+          ? nodeData.filter((n) => n.entity_type !== 'road' || n.risk_band === 'high' || n.risk_band === 'critical')
+          : nodeData,
+        viewport: declutterViewport,
+        tier,
+        pinnedIds,
+      }),
     // `nodeData` is read for geometry and band rank but is deliberately not a
     // dependency — `bandSignature` is the stable proxy. See note above.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [bandSignature, declutterViewport, tier, pinnedIds],
+    [bandSignature, declutterViewport, tier, pinnedIds, generated],
   );
 
+  const footprintRing = generated && world?.footprint?.ring ? [{ path: world.footprint.ring }] : [];
+  const venueOutline = generated && world?.venue_geometry ? [{ polygon: world.venue_geometry }] : [];
+  const bandOf = (id) => entities[id]?.risk_band ?? 'low';
+  const worse = (a, b) => {
+    const order = ['low', 'moderate', 'high', 'critical'];
+    return order.indexOf(a) >= order.indexOf(b) ? a : b;
+  };
+
   const layers = [
+    ...(generated ? basemapLayers(viewState, size.width, size.height) : []),
+    new PolygonLayer({
+      id: 'venue-outline',
+      data: venueOutline,
+      getPolygon: (d) => d.polygon,
+      getFillColor: [255, 255, 255, 25],
+      getLineColor: [226, 232, 240, 200],
+      getLineWidth: 1.5,
+      lineWidthUnits: 'pixels',
+      pickable: false,
+    }),
+    new PathLayer({
+      id: 'footprint-ring',
+      data: footprintRing,
+      getPath: (d) => d.path,
+      getColor: [45, 212, 191, 170],
+      getWidth: 2,
+      widthUnits: 'pixels',
+      pickable: false,
+    }),
+    new PathLayer({
+      id: 'road-segments',
+      data: roadSegments,
+      getPath: (d) => d.geometry,
+      getColor: (d) => {
+        const band = worse(bandOf(d.src_entity_id), bandOf(d.dst_entity_id));
+        return band === 'low' ? [71, 85, 105, 200] : rgba(riskColor(band).hex, 230);
+      },
+      getWidth: (d) => (d.capacity_per_min && d.capacity_per_min > 45 ? 3 : 2),
+      widthUnits: 'pixels',
+      pickable: false,
+      updateTriggers: { getColor: [simTime] },
+    }),
     new PathLayer({
       id: 'static-edges',
       data: feedEdges,
       getPath: (d) => d.path,
-      getColor: [148, 163, 184, 160], // slate-400
-      getWidth: 1.5,
+      getColor: (d) => (d.route ? [45, 212, 191, 70] : [148, 163, 184, 160]), // routes: faint teal
+      getWidth: (d) => (d.route ? 1 : 1.5),
       widthUnits: 'pixels',
       pickable: false,
     }),
@@ -411,7 +511,7 @@ export default function MapCanvas() {
       id: 'entity-glow',
       data: glowNodes,
       getPosition: (d) => [d.lon, d.lat],
-      getRadius: (d) => nodeRadiusPx(d) * 3.0,
+      getRadius: (d) => dotRadius(d) * 3.0,
       radiusUnits: 'pixels',
       getFillColor: (d) =>
         d.risk_band === 'critical'
@@ -427,7 +527,7 @@ export default function MapCanvas() {
       getPosition: (d) => [d.lon, d.lat],
       // Radius scales with nominal_capacity so a station reads bigger than a
       // post. Shared with the label placement so offsets clear the dot.
-      getRadius: (d) => nodeRadiusPx(d),
+      getRadius: (d) => dotRadius(d),
       radiusUnits: 'pixels',
       getFillColor: (d) => rgba(riskColor(d.risk_band).hex, d.is_observed ? 220 : 90),
       // Estimated entities (is_observed === false) get a visible outline instead
@@ -456,7 +556,7 @@ export default function MapCanvas() {
     }),
     new TextLayer({
       id: 'types',
-      data: nodeData,
+      data: generated ? nodeData.filter((d) => d.entity_type !== 'road') : nodeData,
       getPosition: (d) => [d.lon, d.lat],
       getText: (d) => TYPE_GLYPH[d.entity_type] || '•',
       // deck.gl's default atlas is ASCII only; the type symbols must be listed
@@ -627,13 +727,32 @@ export default function MapCanvas() {
       <div className="pointer-events-none absolute left-3 top-3 z-10 flex items-center gap-2 rounded border border-surface-700/60 bg-surface-950/85 px-2.5 py-1 text-[10px] backdrop-blur select-none">
         <span className="h-1.5 w-1.5 rounded-full bg-teal-400" />
         <span className="font-semibold uppercase tracking-wider text-slate-300">
-          Live Network Topology
+          {generated ? 'Generated network' : world?.source === 'synthetic_demo' ? 'Synthetic demo network' : 'Live Network Topology'}
         </span>
+        {generated && (
+          <>
+            <span className="text-slate-600">·</span>
+            <span className={`font-semibold ${world.data_source === 'live_osm' ? 'text-emerald-300' : 'text-amber-300'}`}>
+              {world.data_source === 'live_osm' ? 'LIVE OSM' : 'OSM SNAPSHOT'}
+            </span>
+            <span className="text-slate-600">·</span>
+            <span className="font-mono text-slate-400">r = {(world.footprint?.radius_m / 1000).toFixed(1)} km</span>
+          </>
+        )}
         <span className="text-slate-600">·</span>
         <span className="font-mono text-slate-400">{nodeData.length} Nodes</span>
         <span className="text-slate-600">·</span>
         <span className="font-mono text-slate-400">{feedEdges.length} Feeds</span>
       </div>
+
+      {generated && (
+        <div className="pointer-events-auto absolute bottom-1 left-2 z-10 rounded bg-surface-950/80 px-1.5 py-0.5 text-[9px] text-slate-300">
+          <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer" className="underline">
+            {TILE_ATTRIBUTION}
+          </a>
+          {world?.attribution ? <span className="text-slate-500"> · network data {world.attribution}</span> : null}
+        </div>
+      )}
 
       <DeckGL
         views={new MapView({ repeat: false })}

@@ -54,7 +54,7 @@ npm run validate:mocks   # AJV-validates every mock against contracts/schemas/*.
 cd Backend
 pip install -r requirements.txt
 python run.py                       # http://localhost:8000, OpenAPI docs at /docs
-python -m pytest tests/ -q          # 126 tests (temp DB via tests/conftest.py)
+python -m pytest tests/ -q          # 192 tests (temp DB via tests/conftest.py; no network)
 python -m pytest tests/test_contract.py::test_name -q     # single test
 ```
 No DB/Redis setup required — SQLite (`Backend/eventflow.db`) and an in-process cache are the
@@ -129,18 +129,50 @@ reset}` so a restart never collides on `(entity_id, sim_time)`. `intervention` /
 `twin.branch()` "do nothing" counterfactual; 900s later the regret-ledger entry's
 `realised_` vs `counterfactual_relief_pct` are genuine measurements.
 
+## Venue → radius → footprint → blueprint → event graph (`app/geospatial/`)
+
+The engine simulates a **world**: the synthetic demo city (`topology.py`, the default and the
+offline fallback) or a **generated blueprint** built from OpenStreetMap around an organiser's
+venue. Pipeline: `venues.py` (VenueResolver: coordinates → optional Google Places, discovery
+only → Nominatim, explicit search, 1 req/s) → `footprint.py` (radius validated, never clamped;
+monitoring circle + bounds) → `overpass.py` (one focused Overpass query per build; endpoints are
+trusted config with failover; `SnapshotProvider` replays a recorded payload, labelled
+`osm_snapshot`) → `blueprint.py` (BlueprintBuilder: junction graph, access points only from
+mapped entrances / road approaches, snapped POIs, access→gate routes along road paths,
+provenance + capacity_source/confidence on everything) → `validation.py` (generic invariants —
+no demo ids, no size minimum) → `service.py` (build jobs, DB persistence of the normalised
+blueprint, `world_from_blueprint`).
+
+- **Activation is a world swap, not a display change:** `Engine.activate_world()` (under the cycle
+  guard; atomic — on failure the old world keeps running) builds a new `StateStore`, events,
+  registry, generator/nominal worlds and twin from the blueprint, clears caches/what-ifs/Commander
+  cache, starts a new `run_id` at sim start, and the route broadcasts a full `resync` carrying
+  `world`. The frontend store clears the old graph on a new `world_id` and `App.jsx` refetches.
+- **Behaviour comes from `entity_type` + `subtype`, never from ids.** Generated ids are opaque
+  hashes (`n_…`, `e_…`); the demo's former id assumptions live in `topology.py` data
+  (`subtype`, `defaults.popup_venue`). `tests/test_geo_world.py` greps for id-prefix logic.
+- **GNN honesty:** `world.gnn_supported` is true only for the synthetic demo topology; generated
+  worlds use the deterministic flow cascade and `/health` says so.
+- Last activated blueprint is restored on startup (`geospatial.restore_active_world`).
+- Tests never hit the network: `tests/geo_fixtures.py` builds Overpass-format grid cities.
+
 ## Frontend architecture
 
-Vite + React 18 + React Router + Zustand + Tailwind; deck.gl for the map, Recharts for KPI
-charts. Three routes (`App.jsx`): `/` Command Centre, `/attendee` PWA, `/metrics` judging panel.
+Vite + React 18 + React Router + Zustand + Tailwind; deck.gl for the map (OSM raster basemap via
+`lib/basemap.js` for generated worlds, attribution always visible), Recharts for KPI charts.
+Routes (`App.jsx`): `/` Command Centre, `/venue` Venue & Network setup, operator pages
+(`/events`, `/accommodation`, `/transport`, `/crowd`, `/interventions`, `/whatif`, `/commander`),
+`/attendee` PWA, `/metrics` judging panel.
 
 - **`App.jsx` bootstraps once:** fetch static topology (`/event`, `/graph`), then either
-  `startMockDriver(store)` or seed from REST + `connectWebSocket(store)`. **No component fetches
+  `startMockDriver(store)` or seed from REST + `connectWebSocket(store)`. It refetches the topology
+  only when a `resync` names a different `world_id` (blueprint activation / back to the demo). **No component fetches
   its own data** — everything flows through the store.
 - **`lib/api.js`** is the only file that speaks HTTP. `MOCK_MODE` (anything but `VITE_MOCK=0`)
   routes every call through `lib/mocks.js` instead. Flipping `VITE_MOCK` is the entire
   mock↔live switch; both paths share the identical store/WS code.
-- **`lib/ws.js`** (`02 §6`): drop any message with `seq <= lastSeq`; exponential backoff
+- **`lib/ws.js`** (`02 §6`): drop any message with `seq <= lastSeq` (per connection — `lastSeq`
+  resets on every open because the server's `seq` restarts with the process); exponential backoff
   (1/2/4/8s) with an amber TopBar chip and last-known data left on screen (**never blank**); on
   reconnect send `{action:"resync", last_seq}` and apply the reply as a full replace.
 - **`store/useStore.js`** (`02 §7`): `state_update` is a **delta** — `mergeEntities` merges by

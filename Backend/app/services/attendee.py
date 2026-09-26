@@ -32,19 +32,26 @@ TRAVERSABLE = {
     "last_mile_to": "walk",
     "adjacent_to": "walk",
     "serves": "shuttle",
+    "connects_to": "walk",      # generated worlds: a station / hotel / car park onto its road
 }
+RAIL_SUBTYPES = {"metro_station", "rail_station", "metro_line"}
+BUS_SUBTYPES = {"bus_hub", "bus_station", "bus_stop_cluster", "bus_stop", "shuttle_hub"}
 CROWD_WEIGHT = {"fastest": 0.0, "balanced": 1.0, "least_crowded": 3.0}
 # Travel-mode preference: a soft cost on the nodes of other modes, so the
 # preferred mode wins unless it is closed or unreasonably slow.
 MODE_PENALTY, MODE_BONUS = 5.0, 0.7
 
 
-def mode_class(entity_id: str, entity_type: str | None) -> str | None:
-    if entity_id.startswith(("metro_", "line_")):
+def mode_class(node: dict | None) -> str | None:
+    """Travel mode an entity belongs to, from its type/subtype (never its id)."""
+    if not node:
+        return None
+    sub = node.get("subtype")
+    if node.get("entity_type") == "transport_route" or sub in RAIL_SUBTYPES:
         return "metro"
-    if entity_id.startswith(("bus_hub", "shuttle_hub")):
+    if sub in BUS_SUBTYPES:
         return "bus"
-    if entity_type == "parking":
+    if node.get("entity_type") == "parking":
         return "car"
     return None
 
@@ -54,7 +61,7 @@ def preference_penalty(store: Any, preference: str | None) -> dict[str, float]:
         return {}
     out = {}
     for eid, node in store.nodes.items():
-        cls = mode_class(eid, node["entity_type"])
+        cls = mode_class(node)
         if cls is None:
             continue
         out[eid] = MODE_BONUS if cls == preference else MODE_PENALTY
@@ -64,9 +71,8 @@ def preference_penalty(store: Any, preference: str | None) -> dict[str, float]:
 def preference_met(store: Any, route: dict, preference: str | None) -> bool | None:
     if not preference or preference == "any":
         return None
-    used = {mode_class(l["to_entity_id"], store.nodes.get(l["to_entity_id"], {}).get("entity_type"))
-            for l in route["legs"]} | {mode_class(l["from_entity_id"], store.nodes.get(l["from_entity_id"], {}).get("entity_type"))
-                                        for l in route["legs"]}
+    used = {mode_class(store.nodes.get(l["to_entity_id"])) for l in route["legs"]} | \
+        {mode_class(store.nodes.get(l["from_entity_id"])) for l in route["legs"]}
     used.discard(None)
     return not used if preference == "walk" else preference in used
 
@@ -230,8 +236,7 @@ class Planner:
         legs.reverse()
         return legs
 
-    @staticmethod
-    def _mode(a: str, b: str, types: dict[str, str]) -> str:
+    def _mode(self, a: str, b: str, types: dict[str, str]) -> str:
         """How the traveller actually moves on a leg, from what it connects."""
         ends = {types.get(a), types.get(b)}
         if "transport_route" in ends:
@@ -239,7 +244,7 @@ class Planner:
         if "parking" in ends:
             # Drive to/from the car park; the car park <-> gate stretch is on foot.
             return "walk" if "gate" in ends else "drive"
-        if any(x.startswith("shuttle_hub") or x.startswith("bus_hub") for x in (a, b)) and "gate" not in ends:
+        if any(mode_class(self.store.nodes.get(x)) == "bus" for x in (a, b)) and "gate" not in ends:
             return "shuttle"
         return "walk"
 
@@ -281,7 +286,7 @@ def _event_at(engine: Any, venue: str) -> dict | None:
 def _resolve_origin(engine: Any, origin: str, property_id: str | None) -> tuple[str, dict | None]:
     store = engine.store
     prop = None
-    pid = property_id or (origin if origin.startswith("htl_") else None)
+    pid = property_id or (origin if any(p["property_id"] == origin for p in store.properties) else None)
     if pid:
         prop = next((p for p in store.properties if p["property_id"] == pid), None)
         if prop is None:

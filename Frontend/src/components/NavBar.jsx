@@ -22,6 +22,7 @@ import {
   Play,
   RotateCcw,
   Gauge,
+  MapPin,
 } from 'lucide-react';
 
 import { api } from '../lib/api.js';
@@ -29,6 +30,7 @@ import { useStore } from '../store/useStore.js';
 
 const LINKS = [
   { to: '/', label: 'Command Centre', icon: LayoutDashboard, end: true },
+  { to: '/venue', label: 'Venue & Network', icon: MapPin },
   { to: '/events', label: 'Events', icon: CalendarClock },
   { to: '/accommodation', label: 'Hotels', icon: BedDouble },
   { to: '/transport', label: 'Transport', icon: TrainFront },

@@ -75,6 +75,13 @@ def build_entities() -> list[dict[str, Any]]:
     ]
     for tid, name, dlat, dlon, cap, lines, platforms in transport_nodes:
         n.append(_e(tid, "transport_node", name, dlat, dlon, cap, lines=lines, platforms=platforms))
+    # Behaviour is carried by `subtype`, never parsed from the id.
+    subtype = {"metro_a": "metro_station", "metro_b": "metro_station", "metro_c": "metro_station",
+               "metro_d": "metro_station", "metro_e": "metro_station", "bus_hub_north": "bus_hub",
+               "bus_hub_south": "bus_hub", "shuttle_hub_east": "shuttle_hub", "shuttle_hub_west": "shuttle_hub"}
+    for node in n:
+        if node["entity_id"] in subtype:
+            node["subtype"] = subtype[node["entity_id"]]
 
     # --- transport routes (capacity is people/hour) ----------------------
     n.append(_e("line_blue", "transport_route", "Blue Line", 0.0110, 0.0005, 24000, colour="blue"))
@@ -396,14 +403,27 @@ def build_bounds(entities: list[dict[str, Any]]) -> dict[str, float]:
     }
 
 
+# World-level defaults the legacy demo relies on (previously hard-coded in the
+# simulator): where an unplaced pop-up event goes. Generated worlds carry their own.
+DEMO_DEFAULTS = {"popup_venue": "zone_fanpark"}
+
+
 def build_topology() -> dict[str, Any]:
     entities = build_entities()
     edges = build_edges()
+    for n in entities:
+        n.setdefault("subtype", {"transport_route": "metro_line"}.get(n["entity_type"]))
+        n.setdefault("capacity_source", "synthetic_demo")
+        n.setdefault("capacity_confidence", "low")
+        n.setdefault("provenance", {"source": "synthetic_demo", "source_id": None, "confidence": "low",
+                                    "generated": False, "inferred": False})
     return {
         "nodes": entities,
         "edges": edges,
         "segments": SEGMENTS,
         "bounds": build_bounds(entities),
+        "defaults": dict(DEMO_DEFAULTS),
+        "source": "synthetic_demo",
     }
 
 
@@ -417,7 +437,17 @@ class TopologyIntegrityError(RuntimeError):
 
 
 def verify(topology: dict[str, Any]) -> None:
-    """Fail loudly at startup rather than quietly at demo time.
+    """Generic graph invariants for ANY topology (no demo IDs, no size minimum)."""
+    from .geospatial.validation import validate_topology
+
+    report = validate_topology(topology)
+    if not report["valid"]:
+        raise TopologyIntegrityError("; ".join(report["errors"]))
+
+
+def verify_demo(topology: dict[str, Any]) -> None:
+    """Legacy synthetic demo only: the structures its scripted demo depends on.
+    Fail loudly at startup rather than quietly at demo time.
 
     Plain `raise`, not `assert` (M8): `assert` is compiled out entirely under
     `python -O` / `PYTHONOPTIMIZE`, which would make every guarantee here a

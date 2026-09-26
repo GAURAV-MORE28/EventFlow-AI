@@ -153,9 +153,15 @@ class AssimilatedTwin:
         index = {e: i for i, e in enumerate(self.entity_ids)}
         mask = np.ones(n)
         denom = max(self.m - 1, 1)
-        for e, y in observations.items():
-            i = index.get(e)
-            if i is None or not np.isfinite(y):
+        # Canonical entity order, never the observation dict's order: the RNG draws
+        # per reading, so an order that depends on per-process string hashing made
+        # two processes with the same seed diverge.
+        for e in self.entity_ids:
+            if e not in observations:
+                continue
+            y = observations[e]
+            i = index[e]
+            if not np.isfinite(y):
                 continue
             mask[i] = 0.0
             xi = self._X[i]

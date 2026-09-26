@@ -45,6 +45,10 @@ class SimulationRegistry:
         self._counter += 1
         return "sim_" + f"{int(stable_unit('sim', self._counter) * 0xFFFF):04x}"
 
+    def clear(self) -> None:
+        """A new world was activated: results computed on the old graph are meaningless."""
+        self._jobs.clear()
+
     def get(self, simulation_id: str) -> dict | None:
         return self._jobs.get(simulation_id)
 

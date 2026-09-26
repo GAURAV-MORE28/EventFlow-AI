@@ -1,0 +1,591 @@
+{
+  "$defs": {
+    "BlueprintHeader": {
+      "additionalProperties": false,
+      "properties": {
+        "blueprint_id": {
+          "title": "Blueprint Id",
+          "type": "string"
+        },
+        "graph_hash": {
+          "title": "Graph Hash",
+          "type": "string"
+        },
+        "venue": {
+          "$ref": "#/$defs/Venue"
+        },
+        "venue_entity_id": {
+          "title": "Venue Entity Id",
+          "type": "string"
+        },
+        "radius_m": {
+          "title": "Radius M",
+          "type": "number"
+        },
+        "footprint": {
+          "$ref": "#/$defs/Footprint"
+        },
+        "summary": {
+          "$ref": "#/$defs/BlueprintSummary"
+        },
+        "warnings": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Warnings",
+          "type": "array"
+        },
+        "provenance_summary": {
+          "additionalProperties": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object"
+          },
+          "title": "Provenance Summary",
+          "type": "object"
+        },
+        "metadata": {
+          "$ref": "#/$defs/BlueprintMetadata"
+        },
+        "validation": {
+          "$ref": "#/$defs/ValidationReport"
+        },
+        "persistable": {
+          "title": "Persistable",
+          "type": "boolean"
+        },
+        "generated_at": {
+          "title": "Generated At",
+          "type": "string"
+        },
+        "active": {
+          "default": false,
+          "title": "Active",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "blueprint_id",
+        "graph_hash",
+        "venue",
+        "venue_entity_id",
+        "radius_m",
+        "footprint",
+        "summary",
+        "warnings",
+        "provenance_summary",
+        "metadata",
+        "validation",
+        "persistable",
+        "generated_at"
+      ],
+      "title": "BlueprintHeader",
+      "type": "object"
+    },
+    "BlueprintMetadata": {
+      "additionalProperties": false,
+      "properties": {
+        "data_source": {
+          "title": "Data Source",
+          "type": "string"
+        },
+        "provider": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Provider"
+        },
+        "endpoint": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Endpoint"
+        },
+        "osm_base_timestamp": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Osm Base Timestamp"
+        },
+        "attribution": {
+          "title": "Attribution",
+          "type": "string"
+        },
+        "query_sha1": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Query Sha1"
+        },
+        "fetch_ms": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Fetch Ms"
+        },
+        "parameters": {
+          "title": "Parameters",
+          "type": "object"
+        },
+        "timings_ms": {
+          "additionalProperties": {
+            "type": "number"
+          },
+          "title": "Timings Ms",
+          "type": "object"
+        }
+      },
+      "required": [
+        "data_source",
+        "attribution",
+        "parameters"
+      ],
+      "title": "BlueprintMetadata",
+      "type": "object"
+    },
+    "BlueprintSummary": {
+      "additionalProperties": false,
+      "properties": {
+        "road_nodes": {
+          "title": "Road Nodes",
+          "type": "integer"
+        },
+        "road_edges": {
+          "title": "Road Edges",
+          "type": "integer"
+        },
+        "transport_nodes": {
+          "title": "Transport Nodes",
+          "type": "integer"
+        },
+        "hotels": {
+          "title": "Hotels",
+          "type": "integer"
+        },
+        "parking": {
+          "title": "Parking",
+          "type": "integer"
+        },
+        "emergency": {
+          "title": "Emergency",
+          "type": "integer"
+        },
+        "access_points": {
+          "title": "Access Points",
+          "type": "integer"
+        },
+        "zones": {
+          "title": "Zones",
+          "type": "integer"
+        },
+        "venues": {
+          "title": "Venues",
+          "type": "integer"
+        },
+        "total_nodes": {
+          "title": "Total Nodes",
+          "type": "integer"
+        },
+        "total_edges": {
+          "title": "Total Edges",
+          "type": "integer"
+        },
+        "transit_by_subtype": {
+          "additionalProperties": {
+            "type": "integer"
+          },
+          "title": "Transit By Subtype",
+          "type": "object"
+        },
+        "gate_inference": {
+          "title": "Gate Inference",
+          "type": "string"
+        }
+      },
+      "required": [
+        "road_nodes",
+        "road_edges",
+        "transport_nodes",
+        "hotels",
+        "parking",
+        "emergency",
+        "access_points",
+        "zones",
+        "venues",
+        "total_nodes",
+        "total_edges",
+        "transit_by_subtype",
+        "gate_inference"
+      ],
+      "title": "BlueprintSummary",
+      "type": "object"
+    },
+    "Bounds": {
+      "additionalProperties": false,
+      "properties": {
+        "min_lat": {
+          "title": "Min Lat",
+          "type": "number"
+        },
+        "max_lat": {
+          "title": "Max Lat",
+          "type": "number"
+        },
+        "min_lon": {
+          "title": "Min Lon",
+          "type": "number"
+        },
+        "max_lon": {
+          "title": "Max Lon",
+          "type": "number"
+        }
+      },
+      "required": [
+        "min_lat",
+        "max_lat",
+        "min_lon",
+        "max_lon"
+      ],
+      "title": "Bounds",
+      "type": "object"
+    },
+    "Footprint": {
+      "additionalProperties": false,
+      "properties": {
+        "center_lat": {
+          "title": "Center Lat",
+          "type": "number"
+        },
+        "center_lon": {
+          "title": "Center Lon",
+          "type": "number"
+        },
+        "radius_m": {
+          "title": "Radius M",
+          "type": "number"
+        },
+        "bounds": {
+          "$ref": "#/$defs/Bounds"
+        },
+        "area_km2": {
+          "title": "Area Km2",
+          "type": "number"
+        },
+        "ring": {
+          "items": {
+            "items": {
+              "type": "number"
+            },
+            "type": "array"
+          },
+          "title": "Ring",
+          "type": "array"
+        }
+      },
+      "required": [
+        "center_lat",
+        "center_lon",
+        "radius_m",
+        "bounds",
+        "area_km2",
+        "ring"
+      ],
+      "title": "Footprint",
+      "type": "object"
+    },
+    "ValidationReport": {
+      "additionalProperties": false,
+      "properties": {
+        "valid": {
+          "title": "Valid",
+          "type": "boolean"
+        },
+        "errors": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Errors",
+          "type": "array"
+        },
+        "warnings": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Warnings",
+          "type": "array"
+        },
+        "checks": {
+          "additionalProperties": {
+            "type": "boolean"
+          },
+          "title": "Checks",
+          "type": "object"
+        },
+        "counts": {
+          "additionalProperties": {
+            "type": "integer"
+          },
+          "title": "Counts",
+          "type": "object"
+        }
+      },
+      "required": [
+        "valid",
+        "errors",
+        "warnings",
+        "checks",
+        "counts"
+      ],
+      "title": "ValidationReport",
+      "type": "object"
+    },
+    "Venue": {
+      "additionalProperties": false,
+      "properties": {
+        "venue_id": {
+          "title": "Venue Id",
+          "type": "string"
+        },
+        "display_name": {
+          "title": "Display Name",
+          "type": "string"
+        },
+        "formatted_address": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Formatted Address"
+        },
+        "lat": {
+          "title": "Lat",
+          "type": "number"
+        },
+        "lon": {
+          "title": "Lon",
+          "type": "number"
+        },
+        "source": {
+          "enum": [
+            "coordinates",
+            "nominatim",
+            "google_places"
+          ],
+          "title": "Source",
+          "type": "string"
+        },
+        "source_id": {
+          "title": "Source Id",
+          "type": "string"
+        },
+        "confidence": {
+          "enum": [
+            "high",
+            "medium",
+            "low"
+          ],
+          "title": "Confidence",
+          "type": "string"
+        },
+        "category": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Category"
+        },
+        "osm_type": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Osm Type"
+        },
+        "osm_id": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Osm Id"
+        },
+        "bbox": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "number"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Bbox"
+        },
+        "google_place_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Google Place Id"
+        },
+        "persistable": {
+          "default": true,
+          "title": "Persistable",
+          "type": "boolean"
+        },
+        "osm_capacity": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Osm Capacity"
+        }
+      },
+      "required": [
+        "venue_id",
+        "display_name",
+        "lat",
+        "lon",
+        "source",
+        "source_id",
+        "confidence"
+      ],
+      "title": "Venue",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "build_id": {
+      "title": "Build Id",
+      "type": "string"
+    },
+    "status": {
+      "enum": [
+        "running",
+        "complete",
+        "failed"
+      ],
+      "title": "Status",
+      "type": "string"
+    },
+    "stage": {
+      "title": "Stage",
+      "type": "string"
+    },
+    "stages": {
+      "items": {
+        "type": "object"
+      },
+      "title": "Stages",
+      "type": "array"
+    },
+    "error": {
+      "anyOf": [
+        {
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Error"
+    },
+    "blueprint_id": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Blueprint Id"
+    },
+    "header": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/BlueprintHeader"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    }
+  },
+  "required": [
+    "build_id",
+    "status",
+    "stage",
+    "stages"
+  ],
+  "title": "blueprint_job",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

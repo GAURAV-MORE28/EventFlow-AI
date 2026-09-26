@@ -50,7 +50,7 @@ export function connectWebSocket(store, { client = 'command_centre', attendeeId 
   };
 
   function url() {
-    const configured = import.meta.env.VITE_WS_URL || '/ws';
+    const configured = import.meta.env?.VITE_WS_URL || '/ws';
     const base = configured.startsWith('ws')
       ? configured
       : `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}${configured}`;
@@ -63,16 +63,23 @@ export function connectWebSocket(store, { client = 'command_centre', attendeeId 
     if (closedByCaller) return;
     store.setWsStatus(attempt === 0 ? 'connecting' : 'reconnecting');
 
-    socket = new WebSocket(url());
+    const ws = new WebSocket(url());
+    socket = ws;
 
-    socket.onopen = () => {
+    ws.onopen = () => {
+      if (ws !== socket) return;
       attempt = 0;
+      // A new connection is a new sequence context: `seq` is per server process
+      // and restarts at 1 after a backend restart; carrying the old lastSeq
+      // forward would drop every frame (including the resync) and freeze the UI.
+      lastSeq = 0;
       store.setWsStatus('connected');
       // Ask for the full picture rather than waiting for the next delta.
-      socket.send(JSON.stringify({ action: 'resync', last_seq: lastSeq }));
+      ws.send(JSON.stringify({ action: 'resync', last_seq: lastSeq }));
     };
 
-    socket.onmessage = (raw) => {
+    ws.onmessage = (raw) => {
+      if (ws !== socket) return; // a superseded socket must not poison the new sequence
       let message;
       try {
         message = JSON.parse(raw.data);
@@ -88,12 +95,12 @@ export function connectWebSocket(store, { client = 'command_centre', attendeeId 
       if (handler) handler(message.payload || {});
     };
 
-    socket.onerror = () => {
+    ws.onerror = () => {
       // `onclose` always follows; retry logic lives there so it runs once.
     };
 
-    socket.onclose = () => {
-      if (closedByCaller) return;
+    ws.onclose = () => {
+      if (closedByCaller || ws !== socket) return;
       store.setWsStatus('reconnecting');
       const wait = BACKOFF_MS[Math.min(attempt, BACKOFF_MS.length - 1)];
       attempt += 1;

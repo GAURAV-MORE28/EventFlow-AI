@@ -1,4 +1,82 @@
 {
+  "$defs": {
+    "Provenance": {
+      "additionalProperties": false,
+      "description": "Where an entity/edge came from (additive). `source`: osm | organizer | derived | synthetic_demo.",
+      "properties": {
+        "source": {
+          "title": "Source",
+          "type": "string"
+        },
+        "source_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source Id"
+        },
+        "confidence": {
+          "enum": [
+            "high",
+            "medium",
+            "low"
+          ],
+          "title": "Confidence",
+          "type": "string"
+        },
+        "generated": {
+          "default": false,
+          "title": "Generated",
+          "type": "boolean"
+        },
+        "inferred": {
+          "default": false,
+          "title": "Inferred",
+          "type": "boolean"
+        },
+        "travel_time_confidence": {
+          "anyOf": [
+            {
+              "enum": [
+                "high",
+                "medium",
+                "low"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Travel Time Confidence"
+        },
+        "lanes_source": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Lanes Source"
+        }
+      },
+      "required": [
+        "source",
+        "confidence"
+      ],
+      "title": "Provenance",
+      "type": "object"
+    }
+  },
   "additionalProperties": false,
   "properties": {
     "edge_id": {
@@ -20,7 +98,8 @@
         "serves",
         "last_mile_to",
         "substitutes_for",
-        "evacuates_to"
+        "evacuates_to",
+        "connects_to"
       ],
       "title": "Edge Type",
       "type": "string"
@@ -37,6 +116,102 @@
       "default": 0.0,
       "title": "Substitutability",
       "type": "number"
+    },
+    "distance_m": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Distance M"
+    },
+    "capacity_per_min": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Capacity Per Min"
+    },
+    "directionality": {
+      "anyOf": [
+        {
+          "enum": [
+            "oneway",
+            "bidirectional"
+          ],
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Directionality"
+    },
+    "travel_time_source": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Travel Time Source"
+    },
+    "geometry": {
+      "anyOf": [
+        {
+          "items": {
+            "items": {
+              "type": "number"
+            },
+            "type": "array"
+          },
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Geometry"
+    },
+    "via_entity_ids": {
+      "anyOf": [
+        {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Via Entity Ids"
+    },
+    "provenance": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Provenance"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
     }
   },
   "required": [

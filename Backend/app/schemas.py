@@ -17,7 +17,9 @@ EntityType = Literal[
 ]
 EdgeType = Literal[
     "feeds", "adjacent_to", "serves", "last_mile_to", "substitutes_for", "evacuates_to",
+    "connects_to",   # additive: a station / hotel / car park's physical connector onto the road graph
 ]
+Confidence = Literal["high", "medium", "low"]
 RiskBand = Literal["low", "moderate", "high", "critical"]
 RiskType = Literal[
     "crowd", "capacity", "transport", "traffic", "hospitality",
@@ -53,6 +55,17 @@ class Base(BaseModel):
 
 
 # --- 00 §2.1 / §2.2 ------------------------------------------------------
+class Provenance(Base):
+    """Where an entity/edge came from (additive). `source`: osm | organizer | derived | synthetic_demo."""
+    source: str
+    source_id: Optional[str] = None
+    confidence: Confidence
+    generated: bool = False
+    inferred: bool = False
+    travel_time_confidence: Optional[Confidence] = None
+    lanes_source: Optional[str] = None
+
+
 class Entity(Base):
     entity_id: str
     entity_type: EntityType
@@ -62,6 +75,11 @@ class Entity(Base):
     nominal_capacity: float
     parent_id: Optional[str] = None
     meta: dict[str, Any] = Field(default_factory=dict)
+    # --- additive: semantic subtype and capacity provenance ---
+    subtype: Optional[str] = None
+    capacity_source: Optional[str] = None
+    capacity_confidence: Optional[Confidence] = None
+    provenance: Optional[Provenance] = None
 
 
 class GraphEdge(Base):
@@ -72,6 +90,14 @@ class GraphEdge(Base):
     transfer_coefficient: float
     travel_time_sec: int
     substitutability: float = 0.0
+    # --- additive: generated-world geometry, derivation and provenance ---
+    distance_m: Optional[float] = None
+    capacity_per_min: Optional[float] = None
+    directionality: Optional[Literal["oneway", "bidirectional"]] = None
+    travel_time_source: Optional[str] = None
+    geometry: Optional[list[list[float]]] = None          # [[lon, lat], ...] road centreline
+    via_entity_ids: Optional[list[str]] = None            # road path an access -> gate route follows
+    provenance: Optional[Provenance] = None
 
 
 class Segment(Base):
@@ -91,11 +117,41 @@ class Bounds(Base):
     max_lon: float
 
 
+class Footprint(Base):
+    center_lat: float
+    center_lon: float
+    radius_m: float
+    bounds: Bounds
+    area_km2: float
+    ring: list[list[float]]                     # closed [lon, lat] ring
+
+
+class WorldInfo(Base):
+    """Which world the engine is simulating (additive)."""
+    world_id: str
+    source: Literal["synthetic_demo", "file", "generated_blueprint"]
+    data_source: str                            # live_osm | osm_snapshot | synthetic | file
+    blueprint_id: Optional[str] = None
+    graph_hash: Optional[str] = None
+    run_id: int
+    venue_entity_id: Optional[str] = None
+    venue_name: Optional[str] = None
+    footprint: Optional[Footprint] = None
+    venue_geometry: Optional[list[list[float]]] = None   # [lon, lat] ring when OSM maps the venue
+    cascade_source: CascadeSource
+    cascade_note: Optional[str] = None
+    attribution: Optional[str] = None
+    activated_at: str
+    node_count: int
+    edge_count: int
+
+
 class GraphResponse(Base):
     nodes: list[Entity]
     edges: list[GraphEdge]
     segments: list[Segment]
     bounds: Bounds
+    world: Optional[WorldInfo] = None
 
 
 class EventResponse(Base):
@@ -459,6 +515,7 @@ class ModuleHealth(Base):
     ready: bool
     active_source: Optional[str] = None
     ensemble_size: Optional[int] = None
+    detail: Optional[str] = None
 
 
 class HealthResponse(Base):
@@ -779,10 +836,13 @@ class HotelProperty(Base):
     zone: str
     lat: float
     lon: float
-    tier: Tier
+    tier: Optional[Tier] = None                 # null = unknown (generated hotels without stars)
     accessible: bool
-    price_per_night_paise: int
+    price_per_night_paise: Optional[int] = None  # null = unknown: generated hotels have no sourced price
     rooms_total: int
+    rooms_source: Optional[str] = None
+    rooms_confidence: Optional[Confidence] = None
+    price_source: Optional[str] = None
     rooms_in_service: int
     rooms_occupied: int
     rooms_available: int
@@ -923,3 +983,180 @@ class WsMessage(Base):
     sim_time: str
     seq: int
     payload: dict[str, Any]
+
+
+# --- venue → radius → footprint → blueprint → event graph (additive) ----------------
+class Venue(Base):
+    venue_id: str
+    display_name: str
+    formatted_address: Optional[str] = None
+    lat: float
+    lon: float
+    source: Literal["coordinates", "nominatim", "google_places"]
+    source_id: str
+    confidence: Confidence
+    category: Optional[str] = None
+    osm_type: Optional[str] = None
+    osm_id: Optional[int] = None
+    bbox: Optional[list[float]] = None
+    google_place_id: Optional[str] = None
+    persistable: bool = True
+    osm_capacity: Optional[int] = None
+
+
+class ProviderAttempt(Base):
+    provider: str
+    status: Literal["ok", "failed", "not_configured"]
+    reason: Optional[str] = None
+    results: Optional[int] = None
+
+
+class VenueSearchResponse(Base):
+    query: str
+    results: list[Venue]
+    provider: Optional[str] = None
+    attempts: list[ProviderAttempt]
+    all_failed: bool
+    attribution: list[str]
+
+
+class VenueSelection(Base):
+    """A search result (venue_id), an OSM reference, or organiser coordinates."""
+    venue_id: Optional[str] = None
+    source: Optional[Literal["coordinates", "nominatim", "google_places"]] = None
+    osm_type: Optional[Literal["node", "way", "relation"]] = None
+    osm_id: Optional[int] = Field(default=None, ge=1)
+    lat: Optional[float] = None
+    lon: Optional[float] = None
+    display_name: Optional[str] = Field(default=None, max_length=120)
+
+
+class BlueprintBuildRequest(Base):
+    venue: VenueSelection
+    radius_m: float
+    venue_capacity: Optional[int] = Field(default=None, ge=100, le=500000)
+    max_gates: Optional[int] = Field(default=None, ge=1, le=16)
+
+
+class BlueprintSummary(Base):
+    road_nodes: int
+    road_edges: int
+    transport_nodes: int
+    hotels: int
+    parking: int
+    emergency: int
+    access_points: int
+    zones: int
+    venues: int
+    total_nodes: int
+    total_edges: int
+    transit_by_subtype: dict[str, int]
+    gate_inference: str
+
+
+class ValidationReport(Base):
+    valid: bool
+    errors: list[str]
+    warnings: list[str]
+    checks: dict[str, bool]
+    counts: dict[str, int]
+
+
+class BlueprintMetadata(Base):
+    data_source: str
+    provider: Optional[str] = None
+    endpoint: Optional[str] = None
+    osm_base_timestamp: Optional[str] = None
+    attribution: str
+    query_sha1: Optional[str] = None
+    fetch_ms: Optional[float] = None
+    parameters: dict[str, Any]
+    timings_ms: dict[str, float] = Field(default_factory=dict)
+
+
+class BlueprintHeader(Base):
+    blueprint_id: str
+    graph_hash: str
+    venue: Venue
+    venue_entity_id: str
+    radius_m: float
+    footprint: Footprint
+    summary: BlueprintSummary
+    warnings: list[str]
+    provenance_summary: dict[str, dict[str, int]]
+    metadata: BlueprintMetadata
+    validation: ValidationReport
+    persistable: bool
+    generated_at: str
+    active: bool = False
+
+
+class BlueprintListResponse(Base):
+    blueprints: list[BlueprintHeader]
+
+
+class HotelPropertyRecord(Base):
+    property_id: str
+    name: str
+    cluster_entity_id: str
+    zone: str
+    lat: float
+    lon: float
+    rooms_total: int
+    price_per_night_paise: Optional[int] = None
+    tier: Optional[Tier] = None
+    accessible: bool
+    transport_entity_id: Optional[str] = None
+    walk_to_transport_sec: int
+    base_occupancy: float
+    rooms_source: Optional[str] = None
+    rooms_confidence: Optional[Confidence] = None
+    price_source: Optional[str] = None
+    tier_source: Optional[str] = None
+    provenance: Optional[Provenance] = None
+
+
+class Blueprint(BlueprintHeader):
+    venue_geometry: Optional[list[list[float]]] = None
+    nodes: list[Entity]
+    edges: list[GraphEdge]
+    zones: list[str]
+    properties: list[HotelPropertyRecord]
+    bounds: Bounds
+    source_summary: dict[str, dict[str, int]]
+
+
+class BlueprintJob(Base):
+    build_id: str
+    status: Literal["running", "complete", "failed"]
+    stage: str
+    stages: list[dict[str, Any]]
+    error: Optional[dict[str, Any]] = None
+    blueprint_id: Optional[str] = None
+    header: Optional[BlueprintHeader] = None
+
+
+class ActivationEvent(Base):
+    name: Optional[str] = Field(default=None, max_length=120)
+    expected_attendance: Optional[int] = Field(default=None, ge=0, le=500000)
+    start_time: Optional[str] = None
+    end_time: Optional[str] = None
+    category: str = Field(default="event", max_length=40)
+    out_of_town_share: float = Field(default=0.25, ge=0.0, le=1.0)
+
+
+class BlueprintActivateRequest(Base):
+    operator_id: str = "operator"
+    event: Optional[ActivationEvent] = None
+
+
+class GeospatialStatus(Base):
+    venue_providers: list[dict[str, Any]]
+    geo_provider: str
+    geo_live: bool
+    overpass_endpoints: list[str]
+    radius_min_m: float
+    radius_max_m: float
+    radius_default_m: float
+    attribution: list[str]
+    world: WorldInfo

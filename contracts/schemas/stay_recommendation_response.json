@@ -28,26 +28,83 @@
           "type": "number"
         },
         "tier": {
-          "enum": [
-            "budget",
-            "midscale",
-            "upscale",
-            "luxury"
+          "anyOf": [
+            {
+              "enum": [
+                "budget",
+                "midscale",
+                "upscale",
+                "luxury"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
           ],
-          "title": "Tier",
-          "type": "string"
+          "default": null,
+          "title": "Tier"
         },
         "accessible": {
           "title": "Accessible",
           "type": "boolean"
         },
         "price_per_night_paise": {
-          "title": "Price Per Night Paise",
-          "type": "integer"
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Price Per Night Paise"
         },
         "rooms_total": {
           "title": "Rooms Total",
           "type": "integer"
+        },
+        "rooms_source": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Rooms Source"
+        },
+        "rooms_confidence": {
+          "anyOf": [
+            {
+              "enum": [
+                "high",
+                "medium",
+                "low"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Rooms Confidence"
+        },
+        "price_source": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Price Source"
         },
         "rooms_in_service": {
           "title": "Rooms In Service",
@@ -147,9 +204,7 @@
         "zone",
         "lat",
         "lon",
-        "tier",
         "accessible",
-        "price_per_night_paise",
         "rooms_total",
         "rooms_in_service",
         "rooms_occupied",

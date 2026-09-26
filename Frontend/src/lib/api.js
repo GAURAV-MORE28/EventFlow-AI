@@ -131,6 +131,20 @@ export const api = {
   createDisruption: (body) =>
     MOCK_MODE ? mocks.liveOnly() : post('/disruptions', { operator_id: 'op_demo', ...body }),
   clearDisruption: (id) => (MOCK_MODE ? mocks.liveOnly() : del(`/disruptions/${id}`)),
+
+  // --- venue -> radius -> footprint -> blueprint -> event graph -----------------
+  // Every call needs the live backend (real OSM / Nominatim); mock mode never
+  // pretends to have queried an external provider.
+  geoStatus: () => (MOCK_MODE ? mocks.liveOnly() : get('/geospatial/status')),
+  venueSearch: (q) => (MOCK_MODE ? mocks.liveOnly() : get(`/venues/search${query({ q })}`)),
+  startBlueprint: (body) => (MOCK_MODE ? mocks.liveOnly() : post('/blueprints', body)),
+  blueprintBuild: (buildId) => (MOCK_MODE ? mocks.liveOnly() : get(`/blueprints/builds/${buildId}`)),
+  blueprints: () => (MOCK_MODE ? Promise.resolve({ blueprints: [] }) : get('/blueprints')),
+  blueprint: (id) => (MOCK_MODE ? mocks.liveOnly() : get(`/blueprints/${id}`)),
+  activateBlueprint: (id, body) =>
+    MOCK_MODE ? mocks.liveOnly() : post(`/blueprints/${id}/activate`, { operator_id: 'op_demo', ...body }),
+  world: () => (MOCK_MODE ? Promise.resolve(null) : get('/world')),
+  activateSyntheticDemo: () => (MOCK_MODE ? mocks.liveOnly() : post('/world/synthetic-demo', {})),
 };
 
 /** `{a: 1, b: null}` -> `?a=1` (null/undefined/'' dropped). */

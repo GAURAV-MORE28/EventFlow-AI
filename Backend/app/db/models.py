@@ -255,9 +255,38 @@ class HotelProperty(Base):
     lat: Mapped[float] = mapped_column(Float, nullable=False)
     lon: Mapped[float] = mapped_column(Float, nullable=False)
     rooms_total: Mapped[int] = mapped_column(Integer, nullable=False)
-    price_per_night_paise: Mapped[int] = mapped_column(BigInteger, nullable=False)
-    tier: Mapped[str] = mapped_column(Text, nullable=False)
+    # null = unknown (hotels discovered from OSM carry no sourced price or tier)
+    price_per_night_paise: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    tier: Mapped[str | None] = mapped_column(Text, nullable=True)
     accessible: Mapped[bool] = mapped_column(Boolean, nullable=False)
     transport_entity_id: Mapped[str | None] = mapped_column(Text, nullable=True)
     walk_to_transport_sec: Mapped[int] = mapped_column(Integer, nullable=False)
     base_occupancy: Mapped[float] = mapped_column(Float, nullable=False)
+
+
+class BlueprintRecord(Base):
+    """A normalised, validated blueprint (OSM-derived; ODbL, attributed). Never raw
+    provider responses, and never Google Places content (only its place_id)."""
+
+    __tablename__ = "blueprint"
+
+    blueprint_id: Mapped[str] = mapped_column(Text, primary_key=True)
+    graph_hash: Mapped[str] = mapped_column(Text, nullable=False)
+    venue_name: Mapped[str] = mapped_column(Text, nullable=False)
+    venue_source: Mapped[str] = mapped_column(Text, nullable=False)
+    radius_m: Mapped[float] = mapped_column(Float, nullable=False)
+    data_source: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    payload: Mapped[dict] = mapped_column(JSON, nullable=False)
+
+
+class ActiveWorld(Base):
+    """Which world the engine runs (restored on startup when configured)."""
+
+    __tablename__ = "active_world"
+
+    key: Mapped[str] = mapped_column(Text, primary_key=True)
+    source: Mapped[str] = mapped_column(Text, nullable=False)
+    blueprint_id: Mapped[str | None] = mapped_column(Text, nullable=True)
+    event: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)

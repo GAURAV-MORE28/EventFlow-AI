@@ -87,18 +87,22 @@ function Field({ field, scenario, setParam, entities, events }) {
   );
 }
 
+// The active world's primary event (demo or generated), set by the page.
+let PRIMARY_EVENT_ID = null;
+
 function newScenario(type = 'gate_closure') {
   const params = {};
   for (const f of TYPES[type].fields) {
     const n = f.split(':')[0];
     if (DEFAULTS[n] !== undefined) params[n] = DEFAULTS[n];
   }
-  if (type === 'event_delay' || type === 'event_cancellation') params.event_id = 'evt_demo';
+  if ((type === 'event_delay' || type === 'event_cancellation') && PRIMARY_EVENT_ID) params.event_id = PRIMARY_EVENT_ID;
   return { scenario_type: type, params };
 }
 
 export default function WhatIf() {
   const { graph, events, toast, setWhatIfOverlay, setDisruptions, upsertEvent, nodesById, mockMode } = useStore();
+  PRIMARY_EVENT_ID = useStore((st) => st.event?.event_id) || null;
   const [scenarios, setScenarios] = useState([newScenario()]);
   const [horizon, setHorizon] = useState(3600);
   const [status, setStatus] = useState('idle');

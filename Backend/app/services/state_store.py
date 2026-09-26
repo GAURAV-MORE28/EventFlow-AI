@@ -13,7 +13,7 @@ from typing import Any, Iterable
 
 from ..simtime import parse, shift
 from ..catalog import verify_catalogue
-from ..topology import verify
+from ..topology import verify, verify_demo
 
 HISTORY_LIMIT = 240          # ~2 hours of sim at 30s steps
 TWIN_HISTORY_LIMIT = 20      # 00 §2.8 — last 20 cycles, oldest first
@@ -21,19 +21,24 @@ ANOMALY_LIMIT = 50
 
 
 class StateStore:
-    def __init__(self, sim_start: str) -> None:
+    def __init__(self, sim_start: str, topology: dict | None = None) -> None:
         self._lock = threading.RLock()
 
-        from ..providers.data import get_data_provider
+        if topology is None:
+            from ..providers.data import get_data_provider
 
-        provider = get_data_provider()
-        topology = provider.topology()
-        verify(topology)
+            provider = get_data_provider()
+            topology = provider.topology()
+            topology["properties"] = provider.properties(topology["nodes"], topology["edges"])
+        verify(topology)                      # generic graph invariants, any world
+        if topology.get("source") == "synthetic_demo":
+            verify_demo(topology)             # the legacy demo's scripted structures
         self.nodes: dict[str, dict] = {n["entity_id"]: n for n in topology["nodes"]}
         self.edges: list[dict] = topology["edges"]
         self.segments: list[dict] = topology["segments"]
         self.bounds: dict[str, float] = topology["bounds"]
-        self.properties: list[dict] = provider.properties(topology["nodes"], topology["edges"])
+        self.defaults: dict = dict(topology.get("defaults") or {})
+        self.properties: list[dict] = list(topology.get("properties") or [])
         verify_catalogue(self.properties, topology["nodes"])
 
         self.edges_by_src: dict[str, list[dict]] = {}

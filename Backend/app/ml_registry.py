@@ -79,17 +79,18 @@ def _load_class(module_key: str) -> tuple[type, str]:
 
 
 class MLRegistry:
-    def __init__(self) -> None:
+    def __init__(self, nodes: list[dict] | None = None) -> None:
         cfg = get_config()
         raw = cfg.raw
         seed = cfg.demo_seed
         thresholds = raw["thresholds"]
 
-        from .providers.data import get_data_provider
+        if nodes is None:
+            from .providers.data import get_data_provider
 
-        critical_by_entity = {
-            n["entity_id"]: cfg.thresholds_for(n["entity_type"])[1] for n in get_data_provider().topology()["nodes"]
-        }
+            nodes = get_data_provider().topology()["nodes"]
+        # The ACTIVE world's entities (a generated blueprint replaces the demo graph).
+        critical_by_entity = {n["entity_id"]: cfg.thresholds_for(n["entity_type"])[1] for n in nodes}
 
         # Each module gets its own config block plus the shared thresholds it needs.
         # ML modules receive plain dicts only — never a Config object, never a session.

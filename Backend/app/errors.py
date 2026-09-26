@@ -35,6 +35,14 @@ CODE_STATUS: dict[str, int] = {
     "INSUFFICIENT_HISTORY": 422,
     "INTERNAL_ERROR": 500,
     "ML_MODULE_UNAVAILABLE": 503,
+    # venue -> blueprint -> world (additive)
+    "INVALID_VENUE": 400,
+    "INVALID_RADIUS": 400,
+    "BUILD_NOT_FOUND": 404,
+    "BLUEPRINT_NOT_FOUND": 404,
+    "BLUEPRINT_INVALID": 422,
+    "ACTIVATION_FAILED": 500,
+    "GEO_PROVIDER_UNAVAILABLE": 503,
 }
 
 

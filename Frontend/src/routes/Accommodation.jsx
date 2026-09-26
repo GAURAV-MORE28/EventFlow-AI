@@ -79,8 +79,8 @@ function StayOption({ option, rank }) {
 }
 
 function StayFinder({ events }) {
-  const { toast } = useStore();
-  const [form, setForm] = useState({ event_id: 'evt_demo', segment_id: 'price_sensitive', max_price_paise: '', accessible_only: false, rooms: 1 });
+  const { toast, event } = useStore();
+  const [form, setForm] = useState({ event_id: event?.event_id || '', segment_id: 'price_sensitive', max_price_paise: '', accessible_only: false, rooms: 1 });
   const [result, setResult] = useState(null);
   const [busy, setBusy] = useState(false);
 

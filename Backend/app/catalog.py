@@ -60,6 +60,8 @@ def build_properties(nodes: list[dict[str, Any]], edges: list[dict[str, Any]], s
 
     out: list[dict[str, Any]] = []
     for pid, name, cluster, rooms, rupees, tier, accessible in _PROPERTIES:
+        if cluster not in by_id:
+            continue          # a topology without the demo hotel clusters (file / generated worlds)
         c = by_id[cluster]
         station, cluster_walk = station_of.get(cluster, (None, 600))
         u = stable_unit(seed, "property", pid)
@@ -83,6 +85,29 @@ def build_properties(nodes: list[dict[str, Any]], edges: list[dict[str, Any]], s
                 "base_occupancy": round(0.30 + 0.18 * stable_unit(seed, "baseocc", pid), 3),
             }
         )
+    covered = {p["cluster_entity_id"] for p in out}
+    out.extend(properties_from_hotel_nodes([n for n in nodes if n["entity_id"] not in covered], edges))
+    return out
+
+
+def properties_from_hotel_nodes(nodes: list[dict[str, Any]], edges: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """One property per hotel entity that has no catalogue entry: rooms = the entity's
+    capacity, price and tier unknown (null) — nothing is fabricated."""
+    station_of: dict[str, tuple[str, int]] = {}
+    for e in sorted(edges, key=lambda e: e["edge_id"]):
+        if e["edge_type"] == "last_mile_to":
+            station_of.setdefault(e["src_entity_id"], (e["dst_entity_id"], int(e["travel_time_sec"])))
+    out = []
+    for n in sorted((n for n in nodes if n["entity_type"] == "hotel"), key=lambda n: n["entity_id"]):
+        station, walk = station_of.get(n["entity_id"], (None, 900))
+        out.append({
+            "property_id": "p_" + n["entity_id"], "name": n["display_name"], "cluster_entity_id": n["entity_id"],
+            "zone": "Within footprint", "lat": n["lat"], "lon": n["lon"],
+            "rooms_total": int(round(n["nominal_capacity"])), "price_per_night_paise": None, "tier": None,
+            "accessible": False, "transport_entity_id": station, "walk_to_transport_sec": walk,
+            "base_occupancy": 0.45, "rooms_source": n.get("capacity_source", "entity_capacity"),
+            "rooms_confidence": n.get("capacity_confidence", "low"), "price_source": "unknown",
+        })
     return out
 
 

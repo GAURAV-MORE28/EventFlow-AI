@@ -31,8 +31,8 @@ SEGMENT_EMPHASIS = {
 }
 
 
-def _rupees(paise: int) -> str:
-    return f"Rs {paise // 100:,}"
+def _rupees(paise: int | None) -> str:
+    return "price unknown" if paise is None else f"Rs {paise // 100:,}"
 
 
 def _minutes(sec: float) -> int:
@@ -66,8 +66,11 @@ def property_views(engine: Any, venue: str | None = None) -> list[dict[str, Any]
             "lon": p["lon"],
             "tier": p["tier"],
             "accessible": p["accessible"],
-            "price_per_night_paise": p["price_per_night_paise"],
+            "price_per_night_paise": p.get("price_per_night_paise"),
             "rooms_total": p["rooms_total"],
+            "rooms_source": p.get("rooms_source", "catalogue"),
+            "rooms_confidence": p.get("rooms_confidence", "medium"),
+            "price_source": p.get("price_source", "catalogue"),
             "rooms_in_service": p["rooms_available_total"],
             "rooms_occupied": p["rooms_occupied"],
             "rooms_available": p["rooms_available"],
@@ -103,14 +106,15 @@ def hotel_list(
         v for v in views
         if (zone is None or v["zone"].lower() == zone.lower())
         and (tier is None or v["tier"] == tier)
-        and (max_price_paise is None or v["price_per_night_paise"] <= max_price_paise)
+        and (max_price_paise is None or (v["price_per_night_paise"] is not None
+                                         and v["price_per_night_paise"] <= max_price_paise))
         and v["rooms_available"] >= min_rooms
         and (not accessible_only or v["accessible"])
         and (status is None or v["status"] == status)
     ]
     keys = {
         "occupancy": lambda v: (-v["occupancy"], v["property_id"]),
-        "price": lambda v: (v["price_per_night_paise"], v["property_id"]),
+        "price": lambda v: (v["price_per_night_paise"] is None, v["price_per_night_paise"] or 0, v["property_id"]),
         "availability": lambda v: (-v["rooms_available"], v["property_id"]),
         "travel_time": lambda v: (v["travel_time_to_venue_sec"] or 10**9, v["property_id"]),
     }
@@ -186,7 +190,9 @@ def recommend(
     ]
     excluded_budget = 0
     if max_price_paise is not None:
-        within = [v for v in pool if v["price_per_night_paise"] <= max_price_paise * 1.25]
+        # A property whose price is unknown cannot be shown to be within budget.
+        within = [v for v in pool if v["price_per_night_paise"] is not None
+                  and v["price_per_night_paise"] <= max_price_paise * 1.25]
         excluded_budget = len(pool) - len(within)
         pool = within
     if not pool:
@@ -196,14 +202,17 @@ def recommend(
             "current": current,
         }
 
-    prices = [v["price_per_night_paise"] for v in pool]
+    prices = [v["price_per_night_paise"] for v in pool if v["price_per_night_paise"] is not None]
     times = [v["travel_time_to_venue_sec"] for v in pool]
-    pmin, pmax, tmin, tmax = min(prices), max(prices), min(times), max(times)
+    pmin, pmax = (min(prices), max(prices)) if prices else (0, 1)
+    tmin, tmax = min(times), max(times)
     options = []
     for v in pool:
         free_share = v["rooms_available"] / max(v["rooms_total"], 1)
         f_avail = clamp(free_share / 0.30, 0.0, 1.0)
-        if max_price_paise:
+        if v["price_per_night_paise"] is None:
+            f_price = 0.5   # unknown price: neutral, never assumed cheap or expensive
+        elif max_price_paise:
             over = max(0, v["price_per_night_paise"] - max_price_paise)
             f_price = clamp(1.0 - over / max(max_price_paise, 1) * 2.0, 0.0, 1.0)
         else:
@@ -222,7 +231,8 @@ def recommend(
         reasons = [
             f"{v['rooms_available']} rooms free ({int(round((1 - v['occupancy']) * 100))}% of rooms)",
             f"{_rupees(v['price_per_night_paise'])} per night"
-            + ("" if not max_price_paise else (" (within budget)" if v["price_per_night_paise"] <= max_price_paise else " (above budget)")),
+            + ("" if not max_price_paise or v["price_per_night_paise"] is None else
+               (" (within budget)" if v["price_per_night_paise"] <= max_price_paise else " (above budget)")),
             f"{_minutes(v['travel_time_to_venue_sec'])} min to {store.nodes[venue]['display_name']}",
             f"{_minutes(v['walk_to_transport_sec'])} min walk to {v['transport_name'] or 'transport'}"
             + (", which is currently closed" if v["transport_closed"]

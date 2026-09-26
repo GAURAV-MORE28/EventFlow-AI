@@ -7,6 +7,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from .api.geo_routes import router as geo_router
 from .api.routes import router as api_router
 from .api.ws_routes import router as ws_router
 from .db.base import create_all
@@ -38,6 +39,7 @@ async def lifespan(app: FastAPI):
     engine.prime_state()
     for h in engine.store.history.values():
         h.clear()
+    await _restore_active_world(engine)
     await engine.start()
     log.info("EventFlow AI backend ready on /api/v1")
     try:
@@ -45,6 +47,31 @@ async def lifespan(app: FastAPI):
     finally:
         await engine.stop()
         set_engine(None)
+
+
+async def _restore_active_world(engine: Engine) -> None:
+    """Re-activate the last activated generated blueprint (normalised, stored in the
+    DB) so a restart does not silently fall back to the demo city. Never fetches
+    anything external; on any problem the synthetic demo world stays active."""
+    from .config import get_config
+    from .geospatial.service import get_blueprint_service
+
+    if not (get_config().raw.get("geospatial") or {}).get("restore_active_world", True):
+        return
+    svc = get_blueprint_service()
+    active = svc.load_active()
+    if not active or active.get("source") != "generated_blueprint" or not active.get("blueprint_id"):
+        return
+    bp = svc.get(active["blueprint_id"])
+    if bp is None:
+        log.warning("active blueprint %s is no longer stored; staying on the synthetic demo world",
+                    active["blueprint_id"])
+        return
+    try:
+        await engine.activate_world(svc.world_from_blueprint(bp, active.get("event")))
+        log.info("restored active world %s", active["blueprint_id"])
+    except Exception:
+        log.exception("could not restore blueprint %s; staying on the synthetic demo world", active["blueprint_id"])
 
 
 app = FastAPI(
@@ -65,6 +92,7 @@ app.add_middleware(
 
 install_error_handlers(app)
 app.include_router(api_router)
+app.include_router(geo_router)
 app.include_router(ws_router)
 
 

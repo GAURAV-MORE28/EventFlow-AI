@@ -56,6 +56,14 @@ EXPORTS: dict[str, type] = {
     "stay_recommendation_response": S.StayRecommendationResponse,
     "saturation_response": S.SaturationResponse,
     "disruption_list_response": S.DisruptionListResponse,
+    # venue -> radius -> footprint -> blueprint -> event graph (additive)
+    "venue_search_response": S.VenueSearchResponse,
+    "venue": S.Venue,
+    "blueprint_job": S.BlueprintJob,
+    "blueprint": S.Blueprint,
+    "blueprint_list_response": S.BlueprintListResponse,
+    "world_info": S.WorldInfo,
+    "geospatial_status": S.GeospatialStatus,
 }
 
 

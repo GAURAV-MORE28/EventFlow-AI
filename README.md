@@ -116,3 +116,14 @@ When time runs short, delete in exactly this order. Do not deliberate:
 4. **After H20: additive changes only.** New fields with defaults. No renames, no removals, no type changes.
 
 The reason for that H20 freeze is simple — a rename at H28 costs three people an hour each and buys nothing a judge will ever see.
+
+---
+
+## Generated worlds (venue → blueprint → event graph)
+
+Besides the synthetic demo city, the engine can simulate a network generated from OpenStreetMap
+around any venue (`/venue` in the UI; `app/geospatial/` in the backend). All new wire types are
+additive (`Entity.subtype/capacity_source/capacity_confidence/provenance`, `GraphEdge.geometry/
+distance_m/via_entity_ids/provenance`, edge type `connects_to`, `GraphResponse.world`, blueprint
+and venue endpoints) and exported to `contracts/schemas/`. See `RUNNING.md` and
+`PHASE2_BLUEPRINT_VALIDATION_REPORT.md`.

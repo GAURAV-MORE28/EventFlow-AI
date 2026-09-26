@@ -1,0 +1,298 @@
+{
+  "$defs": {
+    "Bounds": {
+      "additionalProperties": false,
+      "properties": {
+        "min_lat": {
+          "title": "Min Lat",
+          "type": "number"
+        },
+        "max_lat": {
+          "title": "Max Lat",
+          "type": "number"
+        },
+        "min_lon": {
+          "title": "Min Lon",
+          "type": "number"
+        },
+        "max_lon": {
+          "title": "Max Lon",
+          "type": "number"
+        }
+      },
+      "required": [
+        "min_lat",
+        "max_lat",
+        "min_lon",
+        "max_lon"
+      ],
+      "title": "Bounds",
+      "type": "object"
+    },
+    "Footprint": {
+      "additionalProperties": false,
+      "properties": {
+        "center_lat": {
+          "title": "Center Lat",
+          "type": "number"
+        },
+        "center_lon": {
+          "title": "Center Lon",
+          "type": "number"
+        },
+        "radius_m": {
+          "title": "Radius M",
+          "type": "number"
+        },
+        "bounds": {
+          "$ref": "#/$defs/Bounds"
+        },
+        "area_km2": {
+          "title": "Area Km2",
+          "type": "number"
+        },
+        "ring": {
+          "items": {
+            "items": {
+              "type": "number"
+            },
+            "type": "array"
+          },
+          "title": "Ring",
+          "type": "array"
+        }
+      },
+      "required": [
+        "center_lat",
+        "center_lon",
+        "radius_m",
+        "bounds",
+        "area_km2",
+        "ring"
+      ],
+      "title": "Footprint",
+      "type": "object"
+    },
+    "WorldInfo": {
+      "additionalProperties": false,
+      "description": "Which world the engine is simulating (additive).",
+      "properties": {
+        "world_id": {
+          "title": "World Id",
+          "type": "string"
+        },
+        "source": {
+          "enum": [
+            "synthetic_demo",
+            "file",
+            "generated_blueprint"
+          ],
+          "title": "Source",
+          "type": "string"
+        },
+        "data_source": {
+          "title": "Data Source",
+          "type": "string"
+        },
+        "blueprint_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Blueprint Id"
+        },
+        "graph_hash": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Graph Hash"
+        },
+        "run_id": {
+          "title": "Run Id",
+          "type": "integer"
+        },
+        "venue_entity_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Venue Entity Id"
+        },
+        "venue_name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Venue Name"
+        },
+        "footprint": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Footprint"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "venue_geometry": {
+          "anyOf": [
+            {
+              "items": {
+                "items": {
+                  "type": "number"
+                },
+                "type": "array"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Venue Geometry"
+        },
+        "cascade_source": {
+          "enum": [
+            "deterministic",
+            "gnn"
+          ],
+          "title": "Cascade Source",
+          "type": "string"
+        },
+        "cascade_note": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Cascade Note"
+        },
+        "attribution": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Attribution"
+        },
+        "activated_at": {
+          "title": "Activated At",
+          "type": "string"
+        },
+        "node_count": {
+          "title": "Node Count",
+          "type": "integer"
+        },
+        "edge_count": {
+          "title": "Edge Count",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "world_id",
+        "source",
+        "data_source",
+        "run_id",
+        "cascade_source",
+        "activated_at",
+        "node_count",
+        "edge_count"
+      ],
+      "title": "WorldInfo",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "venue_providers": {
+      "items": {
+        "type": "object"
+      },
+      "title": "Venue Providers",
+      "type": "array"
+    },
+    "geo_provider": {
+      "title": "Geo Provider",
+      "type": "string"
+    },
+    "geo_live": {
+      "title": "Geo Live",
+      "type": "boolean"
+    },
+    "overpass_endpoints": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Overpass Endpoints",
+      "type": "array"
+    },
+    "radius_min_m": {
+      "title": "Radius Min M",
+      "type": "number"
+    },
+    "radius_max_m": {
+      "title": "Radius Max M",
+      "type": "number"
+    },
+    "radius_default_m": {
+      "title": "Radius Default M",
+      "type": "number"
+    },
+    "attribution": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Attribution",
+      "type": "array"
+    },
+    "world": {
+      "$ref": "#/$defs/WorldInfo"
+    }
+  },
+  "required": [
+    "venue_providers",
+    "geo_provider",
+    "geo_live",
+    "overpass_endpoints",
+    "radius_min_m",
+    "radius_max_m",
+    "radius_default_m",
+    "attribution",
+    "world"
+  ],
+  "title": "geospatial_status",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

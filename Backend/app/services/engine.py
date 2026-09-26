@@ -39,7 +39,7 @@ from ..cache import CACHE, TTL
 from ..config import get_config
 from ..ml_reference.common import band_from_score, clamp, variance
 from ..ml_registry import MLRegistry, call_ml
-from ..simtime import iso, parse, shift
+from ..simtime import iso, parse, server_now, shift
 from ..ws.manager import MANAGER
 from .events import EventSchedule
 from .cascade_flow import build_cascades, ml_confidence
@@ -57,10 +57,9 @@ PRIOR_COMPLIANCE_WEIGHT = 10.0
 class Engine:
     """Owns the clock, the ML registry, the simulated worlds, and the only writer to StateStore."""
 
-    def __init__(self) -> None:
+    def __init__(self, world: dict[str, Any] | None = None) -> None:
         self.config = get_config()
         raw = self.config.raw
-        event_cfg = raw["event"]
 
         self.seed = self.config.demo_seed
         self.speed_multiplier = float(raw.get("speed_multiplier", 10))
@@ -68,26 +67,109 @@ class Engine:
         self.paused = False
         self.icfg = raw.get("interventions", {})
 
-        self.store = StateStore(sim_start=event_cfg["sim_start_time"])
-        from ..providers.data import get_data_provider
-
-        self.events = EventSchedule(
-            get_data_provider().events(raw.get("events") or [self._primary_from_event_cfg(event_cfg)]),
-            event_cfg["event_id"], raw.get("demand"),
-        )
         # Guards every generator mutation and every clone, so a what-if or a
         # projection never copies a half-applied cycle.
         self.world_lock = threading.RLock()
         self.world_version = 0
+        self.run_id = 0
         self.counterfactuals: dict[str, Any] = {}
-        self._build_worlds()
+        self.commander = None
+        self._install_world(world or self.legacy_world())
 
         self._task: asyncio.Task | None = None
         self._stopping = asyncio.Event()
         self._last_cycle_ms = 0.0
         self._shed_forecast_until = 0
-        self.commander = None
-        self.critical_lines = {e: self.config.thresholds_for(n["entity_type"])[1] for e, n in self.store.nodes.items()}
+
+    # --- worlds: the topology the engine simulates ---------------------------------
+    def legacy_world(self) -> dict[str, Any]:
+        """The configured data provider's world: the synthetic demo city (or a `file`
+        topology). Always available offline."""
+        from ..providers.data import get_data_provider
+
+        raw = self.config.raw
+        event_cfg = raw["event"]
+        provider = get_data_provider()
+        topology = provider.topology()
+        topology["properties"] = provider.properties(topology["nodes"], topology["edges"])
+        source = "synthetic_demo" if topology.get("source") == "synthetic_demo" else "file"
+        return {
+            "world_id": source, "source": source, "data_source": "synthetic" if source == "synthetic_demo" else "file",
+            "blueprint_id": None, "graph_hash": None, "topology": topology,
+            "events": provider.events(raw.get("events") or [self._primary_from_event_cfg(event_cfg)]),
+            "primary_event_id": event_cfg["event_id"], "venue_entity_id": event_cfg.get("venue_entity_id"),
+            "footprint": None, "venue_geometry": None,
+            # The HX-Cascade checkpoint was trained on the synthetic demo topology only.
+            "gnn_supported": source == "synthetic_demo", "attribution": None,
+        }
+
+    def _install_world(self, world: dict[str, Any]) -> None:
+        """Replace everything that belongs to a world. Caller holds the cycle guard
+        (or is the constructor); no cycle can run against a half-built world."""
+        raw = self.config.raw
+        store = StateStore(sim_start=raw["event"]["sim_start_time"], topology=world["topology"])
+        events = EventSchedule(world["events"], world["primary_event_id"], raw.get("demand"))
+        with self.world_lock:
+            saved = {k: getattr(self, k) for k in ("world", "store", "events", "counterfactuals", "critical_lines",
+                                                   "registry", "generator", "nominal") if hasattr(self, k)}
+            try:
+                self.world = dict(world)
+                self.world["activated_at"] = server_now()
+                self.store = store
+                self.events = events
+                self.counterfactuals = {}
+                self.critical_lines = {e: self.config.thresholds_for(n["entity_type"])[1] for e, n in store.nodes.items()}
+                self._build_worlds()
+            except Exception:
+                for k, v in saved.items():       # atomic: the previous world keeps running
+                    setattr(self, k, v)
+                raise
+            self.run_id += 1
+
+    def world_info(self) -> dict[str, Any]:
+        w = self.world
+        venue = w.get("venue_entity_id")
+        gnn_loaded = getattr(self.registry.cascade, "active_source", lambda: "deterministic")() == "gnn"
+        cascade_source = "gnn" if w.get("gnn_supported") and gnn_loaded else "deterministic"
+        return {
+            "world_id": w["world_id"], "source": w["source"], "data_source": w["data_source"],
+            "blueprint_id": w.get("blueprint_id"), "graph_hash": w.get("graph_hash"), "run_id": self.run_id,
+            "venue_entity_id": venue, "venue_name": self.store.nodes.get(venue or "", {}).get("display_name"),
+            "footprint": w.get("footprint"), "venue_geometry": w.get("venue_geometry"),
+            "cascade_source": cascade_source,
+            "cascade_note": None if w.get("gnn_supported") else
+            "HX-Cascade GNN was trained on the synthetic demo topology only; this world uses the deterministic "
+            "flow cascade.",
+            "attribution": w.get("attribution"), "activated_at": w.get("activated_at"),
+            "node_count": len(self.store.nodes), "edge_count": len(self.store.edges),
+        }
+
+    async def activate_world(self, world: dict[str, Any]) -> dict[str, Any]:
+        """Make `world` the one the engine simulates, without a restart: serialised
+        with the cycle, then a fresh run (new run_id, clock back to sim start, no
+        interventions / cascades / what-ifs / caches carried over)."""
+        from ..db.seed import clear_run_tables, persist_events, seed_topology
+        from .projection import PROJECTIONS
+        from .simulation import SIMULATIONS
+
+        async with self._cycle_guard():
+            await asyncio.to_thread(self._install_world, world)
+            self.prime_state()
+            for h in self.store.history.values():
+                h.clear()
+            CACHE.clear()
+            SIMULATIONS.clear()
+            PROJECTIONS.invalidate()
+            if self.commander is not None and hasattr(self.commander, "_cache"):
+                self.commander._cache.clear()
+            self._shed_forecast_until = 0
+            self.world_changed()
+            await asyncio.to_thread(seed_topology, self.store)
+            await asyncio.to_thread(clear_run_tables)
+            await asyncio.to_thread(persist_events, self.events.to_generator())
+        log.info("world activated: %s (%d entities, %d edges, run %d)", self.world["world_id"],
+                 len(self.store.nodes), len(self.store.edges), self.run_id)
+        return self.world_info()
 
     @staticmethod
     def _primary_from_event_cfg(cfg: dict) -> dict:
@@ -99,12 +181,13 @@ class Engine:
 
     # --- worlds ----------------------------------------------------------------
     def _build_worlds(self) -> None:
-        self.registry = MLRegistry()
+        self.registry = MLRegistry(list(self.store.nodes.values()))
         topology = {
             "nodes": list(self.store.nodes.values()),
             "edges": self.store.edges,
             "properties": self.store.properties,
             "events": self.events.to_generator(),
+            "defaults": {**self.store.defaults, "primary_event_id": self.events.primary_event_id},
         }
         self.generator = self.registry.build_generator(topology, self.seed)
         if hasattr(self.generator, "clone"):
@@ -312,15 +395,21 @@ class Engine:
         node_state = store.node_state_for_ml()
         # ML (optional): per-entity failure probabilities that annotate the
         # deterministic cascade. None / timeout / exception -> no annotation.
-        ml_cascades, cascade_degraded, cascade_ms = await call_ml(
-            "cascade.predict_all",
-            self.registry.cascade.predict_all,
-            None,
-            self.config.budget_sec("cascade"),
-            node_state,
-            store.edges,
-            sim_time,
-        )
+        # The GNN is only consulted for the topology it was trained on; a generated
+        # world never shows unvalidated "GNN confidence".
+        if self.world.get("gnn_supported", False):
+            ml_cascades, cascade_degraded, cascade_ms = await call_ml(
+                "cascade.predict_all",
+                self.registry.cascade.predict_all,
+                None,
+                self.config.budget_sec("cascade"),
+                node_state,
+                store.edges,
+                sim_time,
+            )
+        else:
+            ml_cascades = None
+            store.active_cascade_source = "deterministic"
         with self.world_lock:
             closed = set(self.generator.closed_entities()) if hasattr(self.generator, "closed_entities") else set()
         cascades = build_cascades(node_state, store.edges, self.config.thresholds_for,
@@ -1442,6 +1531,7 @@ class Engine:
 
     async def _reset(self) -> None:
         """Full reproducible reset — the rehearsal depends on this being exact."""
+        self.run_id += 1
         self.store.clear_live()
         self.store.reset_clock(self.store.sim_start)
         self.events.reset()

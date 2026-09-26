@@ -35,5 +35,26 @@ SessionLocal = sessionmaker(bind=engine, autoflush=False, expire_on_commit=False
 def create_all() -> None:
     from . import models  # noqa: F401  (import registers the mappers)
 
+    _migrate_hotel_property()
     Base.metadata.create_all(engine)
     log.info("schema ready on %s", engine.url.render_as_string(hide_password=True))
+
+
+def _migrate_hotel_property() -> None:
+    """`hotel_property.price_per_night_paise` / `tier` became nullable (unknown for
+    OSM-discovered hotels). The table is a derived catalogue, re-seeded on every
+    start, so an old NOT NULL copy is simply rebuilt."""
+    from sqlalchemy import inspect, text
+
+    try:
+        insp = inspect(engine)
+        if "hotel_property" not in insp.get_table_names():
+            return
+        cols = {c["name"]: c for c in insp.get_columns("hotel_property")}
+        if cols.get("price_per_night_paise", {}).get("nullable", True):
+            return
+        with engine.begin() as conn:
+            conn.execute(text("DROP TABLE hotel_property"))
+        log.info("hotel_property rebuilt with nullable price/tier (derived catalogue, re-seeded at startup)")
+    except Exception:
+        log.exception("hotel_property migration check failed; continuing")

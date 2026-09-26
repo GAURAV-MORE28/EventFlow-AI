@@ -9,7 +9,7 @@
  * an approved intervention touches this attendee's own route or hotel, and
  * accepting one changes their plan.
  */
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Navigation,
@@ -175,19 +175,31 @@ function HotelCard({ propertyId, eventId, segment }) {
 }
 
 export default function Attendee() {
-  const { nodesById, graph, events, toast, mockMode } = useStore();
+  const { nodesById, graph, events, event, toast, mockMode } = useStore();
   const [plan, setPlan] = useState({
     attendee_id: 'att_demo_1',
     segment_id: 'price_sensitive',
-    origin: 'htl_central_budget',
-    destination: 'stadium_main',
+    origin: '',
+    destination: '',
     priority: 'balanced',
     mode: 'any',
   });
   const [busy, setBusy] = useState(false);
   const hotels = useLiveQuery(() => api.hotels({ sort: 'availability' }), [], { everyCycles: 20 });
+  const hotelIds = useMemo(() => new Set((hotels.data?.hotels || []).map((h) => h.property_id)), [hotels.data]);
 
-  const originIsHotel = plan.origin.startsWith('htl_');
+  // Defaults come from the ACTIVE world (demo or generated): its primary event's
+  // venue and one of its hotels — never hard-coded ids.
+  useEffect(() => {
+    setPlan((p) => {
+      const destination = p.destination && nodesById[p.destination] ? p.destination : event?.venue_entity_id || '';
+      const first = hotels.data?.hotels?.[0]?.property_id;
+      const origin = p.origin && (hotelIds.has(p.origin) || nodesById[p.origin]) ? p.origin : first || p.origin;
+      return destination === p.destination && origin === p.origin ? p : { ...p, destination, origin };
+    });
+  }, [event?.venue_entity_id, hotelIds, nodesById, hotels.data]);
+
+  const originIsHotel = hotelIds.has(plan.origin);
   const request = useMemo(() => ({
     attendee_id: plan.attendee_id,
     segment_id: plan.segment_id,
@@ -197,7 +209,11 @@ export default function Attendee() {
     transport_preference: plan.mode,
     include_return: true,
   }), [plan]);
-  const journey = useLiveQuery(() => api.journey(request), [JSON.stringify(request)], { everyCycles: 10 });
+  const journey = useLiveQuery(
+    () => (request.origin_entity_id && request.destination_entity_id ? api.journey(request) : Promise.resolve(null)),
+    [JSON.stringify(request)],
+    { everyCycles: 10 },
+  );
   const nudges = useLiveQuery(() => api.nudges(plan.attendee_id), [plan.attendee_id], { everyCycles: 2 });
 
   const destinations = useMemo(() => {
@@ -262,7 +278,7 @@ export default function Attendee() {
                 {(hotels.data?.hotels || []).map((h) => (
                   <option key={h.property_id} value={h.property_id}>{h.name} ({h.zone})</option>
                 ))}
-                {!hotels.data && <option value="htl_central_budget">Central Budget Stay</option>}
+                {!hotels.data && plan.origin && <option value={plan.origin}>{plan.origin}</option>}
               </optgroup>
               <optgroup label="Stations, hubs, parking, zones">
                 {origins.map((n) => <option key={n.entity_id} value={n.entity_id}>{n.display_name}</option>)}

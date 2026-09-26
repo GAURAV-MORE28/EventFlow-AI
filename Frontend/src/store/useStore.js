@@ -15,8 +15,11 @@ import { create } from 'zustand';
 const LOAD_VARIANCE_BUFFER = 6; // current + 5 cycles back, for the delta arrow
 
 export const useStore = create((set, get) => ({
-  // --- static, fetched once -------------------------------------------
+  // --- static, fetched once per world ------------------------------------
   event: null,
+  // The world the engine simulates (synthetic demo or a generated blueprint).
+  // A change of world_id / run_id means the graph must be refetched.
+  world: null,
   graph: { nodes: [], edges: [], segments: [], bounds: null },
   nodesById: {},
 
@@ -81,6 +84,7 @@ export const useStore = create((set, get) => ({
       nodesById: Object.fromEntries((graph.nodes || []).map((n) => [n.entity_id, n])),
     }),
   setMockMode: (mockMode) => set({ mockMode }),
+  setWorld: (world) => set({ world: world || null }),
   setSimControl: ({ speed, paused }) =>
     set((s) => ({ speed: speed ?? s.speed, paused: paused ?? s.paused })),
   setWsStatus: (wsStatus) => set({ wsStatus }),
@@ -303,9 +307,15 @@ export const useStore = create((set, get) => ({
   replaceAll: (payload) =>
     set((s) => {
       const state = payload.state || {};
-      // A clock that went backwards is a new run (reset/seek): drop the old
-      // run's transient UI state, not just the server-owned collections.
-      const newRun = (state.cycle_number ?? s.cycleNumber) < s.cycleNumber;
+      const world = payload.world || s.world;
+      const worldChanged = Boolean(payload.world && s.world && payload.world.world_id !== s.world.world_id);
+      // A clock that went backwards, a new run id, or a different world is a new
+      // run (reset / seek / activation): drop the old run's transient UI state,
+      // not just the server-owned collections.
+      const newRun =
+        worldChanged ||
+        Boolean(payload.world && s.world && payload.world.run_id !== s.world.run_id) ||
+        (state.cycle_number ?? s.cycleNumber) < s.cycleNumber;
       const runReset = newRun
         ? {
             trackedActions: [],
@@ -341,6 +351,12 @@ export const useStore = create((set, get) => ({
         disruptions: payload.disruptions || s.disruptions,
         operations: payload.operations || s.operations,
         worldVersion: s.worldVersion + 1,
+        world,
+        // A different world: the old graph must not be drawn against the new
+        // state. App refetches /graph for the new world_id.
+        ...(worldChanged
+          ? { graph: { nodes: [], edges: [], segments: [], bounds: null }, nodesById: {}, event: null }
+          : {}),
         ...runReset,
       };
     }),

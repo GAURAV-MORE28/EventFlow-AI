@@ -54,7 +54,7 @@ function MetricBlock({ label, value, sub = null, tone = 'text-slate-100', icon: 
 }
 
 export default function TopBar() {
-  const { event, summary, simTime, cycleNumber, wsStatus, mockMode } = useStore();
+  const { event, summary, simTime, cycleNumber, wsStatus, mockMode, world } = useStore();
   const delta = useStore(loadVarianceDelta);
   const band = riskColor(summary.overall_risk_band);
 
@@ -95,6 +95,17 @@ export default function TopBar() {
           <span className={wsStatus === 'connected' ? 'text-emerald-400' : 'text-slate-400'}>
             {mockMode ? 'RECORDED REPLAY' : 'LIVE FEED'}
           </span>
+          {!mockMode && world && (
+            <span
+              title={world.source === 'generated_blueprint'
+                ? `Network generated from OpenStreetMap around ${world.venue_name} (r = ${world.footprint?.radius_m} m)`
+                : 'Synthetic demo city: illustrative data, not a real place'}
+              className={`ml-1 rounded border px-1 text-[9px] font-semibold ${
+                world.data_source === 'live_osm' ? 'border-emerald-500/50 text-emerald-300' : 'border-amber-500/50 text-amber-300'}`}
+            >
+              {world.data_source === 'live_osm' ? 'LIVE OSM' : world.data_source === 'osm_snapshot' ? 'OSM SNAPSHOT' : 'SYNTHETIC DEMO'}
+            </span>
+          )}
         </div>
       </div>
 

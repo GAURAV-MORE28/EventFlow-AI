@@ -65,9 +65,10 @@ async def health() -> S.HealthResponse:
             ),
             "cascade": S.ModuleHealth(
                 ready=registry.cascade.ready(),
-                # the loaded cascade model (it annotates the deterministic cascade)
-                active_source=(registry.cascade.active_source() if hasattr(registry.cascade, "active_source")
-                               else store.active_cascade_source)
+                # What actually annotates cascades in THIS world: the GNN only for the
+                # topology it was trained on, otherwise the deterministic flow cascade.
+                active_source=engine.world_info()["cascade_source"],
+                detail=engine.world_info()["cascade_note"],
             ),
             "twin": S.ModuleHealth(
                 ready=twin_ready,
@@ -99,12 +100,14 @@ async def event() -> S.EventResponse:
 
 @router.get("/graph", response_model=S.GraphResponse)
 async def graph() -> S.GraphResponse:
-    store = get_engine().store
+    engine = get_engine()
+    store = engine.store
     return S.GraphResponse(
         nodes=[S.Entity(**n) for n in store.nodes.values()],
         edges=[S.GraphEdge(**e) for e in store.edges],
         segments=[S.Segment(**s) for s in store.segments],
         bounds=S.Bounds(**store.bounds),
+        world=S.WorldInfo(**engine.world_info()),
     )
 
 

@@ -39,6 +39,8 @@ def _resync_payload(engine) -> dict:
         "events": engine.event_views(),
         "disruptions": list(store.disruptions.values()),
         "operations": engine.operations_summary(),
+        # additive: which world (graph) this state belongs to; a change means refetch /graph
+        "world": engine.world_info(),
     }
 
 

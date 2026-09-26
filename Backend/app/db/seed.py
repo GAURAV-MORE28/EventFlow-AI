@@ -24,8 +24,10 @@ def seed_topology(store: Any) -> None:
                 models.Entity(
                     entity_id=n["entity_id"], entity_type=n["entity_type"],
                     display_name=n["display_name"], lat=n["lat"], lon=n["lon"],
-                    nominal_capacity=n["nominal_capacity"], parent_id=n["parent_id"],
-                    meta=n["meta"],
+                    nominal_capacity=n["nominal_capacity"], parent_id=n.get("parent_id"),
+                    # additive semantics travel in `meta` (the DDL is frozen)
+                    meta={**(n.get("meta") or {}), **{k: n[k] for k in (
+                        "subtype", "capacity_source", "capacity_confidence", "provenance") if n.get(k) is not None}},
                 )
                 for n in store.nodes.values()
                 if n["entity_id"] not in existing
@@ -36,7 +38,9 @@ def seed_topology(store: Any) -> None:
             existing_edges = set(session.scalars(select(models.GraphEdge.edge_id)).all())
             session.add_all(
                 [
-                    models.GraphEdge(**e)
+                    models.GraphEdge(**{k: e[k] for k in (
+                        "edge_id", "src_entity_id", "dst_entity_id", "edge_type", "transfer_coefficient",
+                        "travel_time_sec", "substitutability")})
                     for e in store.edges
                     if e["edge_id"] not in existing_edges
                 ]
@@ -44,7 +48,7 @@ def seed_topology(store: Any) -> None:
 
             existing_props = set(session.scalars(select(models.HotelProperty.property_id)).all())
             session.add_all([
-                models.HotelProperty(**{k: p[k] for k in (
+                models.HotelProperty(**{k: p.get(k) for k in (
                     "property_id", "name", "cluster_entity_id", "zone", "lat", "lon", "rooms_total",
                     "price_per_night_paise", "tier", "accessible", "transport_entity_id",
                     "walk_to_transport_sec", "base_occupancy",

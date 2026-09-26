@@ -1,0 +1,252 @@
+{
+  "$defs": {
+    "ProviderAttempt": {
+      "additionalProperties": false,
+      "properties": {
+        "provider": {
+          "title": "Provider",
+          "type": "string"
+        },
+        "status": {
+          "enum": [
+            "ok",
+            "failed",
+            "not_configured"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "reason": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Reason"
+        },
+        "results": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Results"
+        }
+      },
+      "required": [
+        "provider",
+        "status"
+      ],
+      "title": "ProviderAttempt",
+      "type": "object"
+    },
+    "Venue": {
+      "additionalProperties": false,
+      "properties": {
+        "venue_id": {
+          "title": "Venue Id",
+          "type": "string"
+        },
+        "display_name": {
+          "title": "Display Name",
+          "type": "string"
+        },
+        "formatted_address": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Formatted Address"
+        },
+        "lat": {
+          "title": "Lat",
+          "type": "number"
+        },
+        "lon": {
+          "title": "Lon",
+          "type": "number"
+        },
+        "source": {
+          "enum": [
+            "coordinates",
+            "nominatim",
+            "google_places"
+          ],
+          "title": "Source",
+          "type": "string"
+        },
+        "source_id": {
+          "title": "Source Id",
+          "type": "string"
+        },
+        "confidence": {
+          "enum": [
+            "high",
+            "medium",
+            "low"
+          ],
+          "title": "Confidence",
+          "type": "string"
+        },
+        "category": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Category"
+        },
+        "osm_type": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Osm Type"
+        },
+        "osm_id": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Osm Id"
+        },
+        "bbox": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "number"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Bbox"
+        },
+        "google_place_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Google Place Id"
+        },
+        "persistable": {
+          "default": true,
+          "title": "Persistable",
+          "type": "boolean"
+        },
+        "osm_capacity": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Osm Capacity"
+        }
+      },
+      "required": [
+        "venue_id",
+        "display_name",
+        "lat",
+        "lon",
+        "source",
+        "source_id",
+        "confidence"
+      ],
+      "title": "Venue",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "query": {
+      "title": "Query",
+      "type": "string"
+    },
+    "results": {
+      "items": {
+        "$ref": "#/$defs/Venue"
+      },
+      "title": "Results",
+      "type": "array"
+    },
+    "provider": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Provider"
+    },
+    "attempts": {
+      "items": {
+        "$ref": "#/$defs/ProviderAttempt"
+      },
+      "title": "Attempts",
+      "type": "array"
+    },
+    "all_failed": {
+      "title": "All Failed",
+      "type": "boolean"
+    },
+    "attribution": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Attribution",
+      "type": "array"
+    }
+  },
+  "required": [
+    "query",
+    "results",
+    "attempts",
+    "all_failed",
+    "attribution"
+  ],
+  "title": "venue_search_response",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

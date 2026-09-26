@@ -82,6 +82,58 @@
         "meta": {
           "title": "Meta",
           "type": "object"
+        },
+        "subtype": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Subtype"
+        },
+        "capacity_source": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Capacity Source"
+        },
+        "capacity_confidence": {
+          "anyOf": [
+            {
+              "enum": [
+                "high",
+                "medium",
+                "low"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Capacity Confidence"
+        },
+        "provenance": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Provenance"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
         }
       },
       "required": [
@@ -93,6 +145,50 @@
         "nominal_capacity"
       ],
       "title": "Entity",
+      "type": "object"
+    },
+    "Footprint": {
+      "additionalProperties": false,
+      "properties": {
+        "center_lat": {
+          "title": "Center Lat",
+          "type": "number"
+        },
+        "center_lon": {
+          "title": "Center Lon",
+          "type": "number"
+        },
+        "radius_m": {
+          "title": "Radius M",
+          "type": "number"
+        },
+        "bounds": {
+          "$ref": "#/$defs/Bounds"
+        },
+        "area_km2": {
+          "title": "Area Km2",
+          "type": "number"
+        },
+        "ring": {
+          "items": {
+            "items": {
+              "type": "number"
+            },
+            "type": "array"
+          },
+          "title": "Ring",
+          "type": "array"
+        }
+      },
+      "required": [
+        "center_lat",
+        "center_lon",
+        "radius_m",
+        "bounds",
+        "area_km2",
+        "ring"
+      ],
+      "title": "Footprint",
       "type": "object"
     },
     "GraphEdge": {
@@ -117,7 +213,8 @@
             "serves",
             "last_mile_to",
             "substitutes_for",
-            "evacuates_to"
+            "evacuates_to",
+            "connects_to"
           ],
           "title": "Edge Type",
           "type": "string"
@@ -134,6 +231,102 @@
           "default": 0.0,
           "title": "Substitutability",
           "type": "number"
+        },
+        "distance_m": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Distance M"
+        },
+        "capacity_per_min": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Capacity Per Min"
+        },
+        "directionality": {
+          "anyOf": [
+            {
+              "enum": [
+                "oneway",
+                "bidirectional"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Directionality"
+        },
+        "travel_time_source": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Travel Time Source"
+        },
+        "geometry": {
+          "anyOf": [
+            {
+              "items": {
+                "items": {
+                  "type": "number"
+                },
+                "type": "array"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Geometry"
+        },
+        "via_entity_ids": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Via Entity Ids"
+        },
+        "provenance": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Provenance"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
         }
       },
       "required": [
@@ -145,6 +338,82 @@
         "travel_time_sec"
       ],
       "title": "GraphEdge",
+      "type": "object"
+    },
+    "Provenance": {
+      "additionalProperties": false,
+      "description": "Where an entity/edge came from (additive). `source`: osm | organizer | derived | synthetic_demo.",
+      "properties": {
+        "source": {
+          "title": "Source",
+          "type": "string"
+        },
+        "source_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source Id"
+        },
+        "confidence": {
+          "enum": [
+            "high",
+            "medium",
+            "low"
+          ],
+          "title": "Confidence",
+          "type": "string"
+        },
+        "generated": {
+          "default": false,
+          "title": "Generated",
+          "type": "boolean"
+        },
+        "inferred": {
+          "default": false,
+          "title": "Inferred",
+          "type": "boolean"
+        },
+        "travel_time_confidence": {
+          "anyOf": [
+            {
+              "enum": [
+                "high",
+                "medium",
+                "low"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Travel Time Confidence"
+        },
+        "lanes_source": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Lanes Source"
+        }
+      },
+      "required": [
+        "source",
+        "confidence"
+      ],
+      "title": "Provenance",
       "type": "object"
     },
     "Segment": {
@@ -197,6 +466,166 @@
       ],
       "title": "Segment",
       "type": "object"
+    },
+    "WorldInfo": {
+      "additionalProperties": false,
+      "description": "Which world the engine is simulating (additive).",
+      "properties": {
+        "world_id": {
+          "title": "World Id",
+          "type": "string"
+        },
+        "source": {
+          "enum": [
+            "synthetic_demo",
+            "file",
+            "generated_blueprint"
+          ],
+          "title": "Source",
+          "type": "string"
+        },
+        "data_source": {
+          "title": "Data Source",
+          "type": "string"
+        },
+        "blueprint_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Blueprint Id"
+        },
+        "graph_hash": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Graph Hash"
+        },
+        "run_id": {
+          "title": "Run Id",
+          "type": "integer"
+        },
+        "venue_entity_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Venue Entity Id"
+        },
+        "venue_name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Venue Name"
+        },
+        "footprint": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Footprint"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "venue_geometry": {
+          "anyOf": [
+            {
+              "items": {
+                "items": {
+                  "type": "number"
+                },
+                "type": "array"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Venue Geometry"
+        },
+        "cascade_source": {
+          "enum": [
+            "deterministic",
+            "gnn"
+          ],
+          "title": "Cascade Source",
+          "type": "string"
+        },
+        "cascade_note": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Cascade Note"
+        },
+        "attribution": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Attribution"
+        },
+        "activated_at": {
+          "title": "Activated At",
+          "type": "string"
+        },
+        "node_count": {
+          "title": "Node Count",
+          "type": "integer"
+        },
+        "edge_count": {
+          "title": "Edge Count",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "world_id",
+        "source",
+        "data_source",
+        "run_id",
+        "cascade_source",
+        "activated_at",
+        "node_count",
+        "edge_count"
+      ],
+      "title": "WorldInfo",
+      "type": "object"
     }
   },
   "additionalProperties": false,
@@ -224,6 +653,17 @@
     },
     "bounds": {
       "$ref": "#/$defs/Bounds"
+    },
+    "world": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/WorldInfo"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
     }
   },
   "required": [

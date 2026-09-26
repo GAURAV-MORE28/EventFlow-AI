@@ -24,6 +24,7 @@ Open the printed URL (default http://localhost:5173). Pages:
 | Route | What it is for |
 |---|---|
 | `/` | Command Centre: full-size live map (entity detail, cascades, live effect of executing actions) |
+| `/venue` | Venue & Network: search a real venue, choose a radius, build the OSM blueprint, activate it as the simulated world |
 | `/events` | Event schedule: add, edit (exact date/time, windows), delay, cancel, delete; the live city re-plans at once |
 | `/accommodation` | Live hotel availability, saturation with explained alternatives, stay finder |
 | `/transport` | Stations, lines, roads, parking; report outages and capacity cuts |
@@ -100,6 +101,40 @@ new what-if are disabled, and What-If shows the one recorded scenario.
    announced plan implies, the 30-minute forecast, the do-nothing value for
    every executing action, and an over-capacity flag.
 
+## Venue & Network: simulate any real venue
+
+`/venue` turns a real venue into the world EventFlow simulates (live backend + internet needed):
+
+1. **Venue** — type a name and press Search (server-side OpenStreetMap Nominatim, explicit search
+   only, max 1 request/second; Google Places is used first only if `GOOGLE_PLACES_API_KEY` is set,
+   and only for discovery). Offline or rate-limited: type coordinates `lat, lon`.
+2. **Radius** — 0.25–5 km (validated; invalid values are rejected, never clamped).
+3. **Build blueprint** — one focused Overpass query inside the footprint (roads motorway→tertiary,
+   rail/metro stations, bus stops, parking, hotels, hospitals/police/fire, the venue outline and
+   its mapped entrances) → junction graph + access points + walking routes. Typical: 10–20 s
+   (almost all Overpass), 2 km ≈ 100–500 entities, 5 km ≈ 700–2,100.
+4. **Activate network** — the engine switches to this graph without a restart (new run at 14:00
+   sim time; the event defaults to 85% of the venue capacity unless you enter attendance).
+
+Every capacity carries its source (`organizer`, `osm_attribute`, `derived_*`, `estimated_*`,
+`default_estimate`) and confidence; hotel prices are `null` (unknown) — never invented. The TopBar
+chip says **LIVE OSM**, **OSM SNAPSHOT** or **SYNTHETIC DEMO**. If Overpass is unreachable the build
+fails with `GEO_PROVIDER_UNAVAILABLE` and the current world keeps running; saved blueprints can be
+re-activated offline, and "Use the synthetic demo world" switches back to the demo city.
+
+```bash
+curl -s 'localhost:8000/api/v1/venues/search?q=Wembley%20Stadium'
+curl -s -X POST localhost:8000/api/v1/blueprints -H 'Content-Type: application/json' \
+  -d '{"venue": {"lat": 51.5560695, "lon": -0.2796034, "display_name": "Wembley Stadium"}, "radius_m": 2000}'
+curl -s localhost:8000/api/v1/blueprints/builds/<build_id>          # stages, then blueprint_id
+curl -s -X POST localhost:8000/api/v1/blueprints/<blueprint_id>/activate -H 'Content-Type: application/json' -d '{}'
+curl -s -X POST localhost:8000/api/v1/world/synthetic-demo            # back to the demo city
+```
+
+Data © OpenStreetMap contributors (ODbL). Map tiles: tile.openstreetmap.org (only the visible
+tiles, attribution on the map; `VITE_TILE_URL` for another server). Overpass endpoints are set in
+`config.yaml geospatial.overpass_endpoints` (trusted config, tried in order).
+
 ## External data and maps (optional)
 
 Everything runs on synthetic data by default. Two provider seams exist for
@@ -121,7 +156,7 @@ real sources (`Backend/app/providers/`):
 
 ```bash
 cd Backend
-python -m pytest tests/ -q       # 126 tests; uses a temporary database (tests/conftest.py)
+python -m pytest tests/ -q       # 192 tests; temporary database, no network (tests/conftest.py)
 cd ../Frontend
 npm run validate:mocks            # fixtures vs contracts/schemas
 npm run build

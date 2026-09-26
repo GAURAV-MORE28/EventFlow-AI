@@ -72,6 +72,9 @@ ZONE_MAX = 1.6
 EMERGENCY_MAX = 1.6
 
 RAIN_FACTOR = {"light": 1.05, "moderate": 1.12, "heavy": 1.22}
+# Access-node semantics come from the entity's `subtype`, never from its id.
+BUS_SUBTYPES = {"bus_hub", "bus_station", "bus_stop_cluster", "bus_stop"}
+RAIL_SUBTYPES = {"metro_station", "rail_station"}
 TIER_SCORE = {"budget": 0.0, "midscale": 0.35, "upscale": 0.7, "luxury": 1.0}
 
 # Always instrumented: operators put sensors on stations, gates, venues and
@@ -125,6 +128,8 @@ class SyntheticGenerator:
         self.nodes: dict[str, dict[str, Any]] = {n["entity_id"]: n for n in topology["nodes"]}
         self.edges: list[dict[str, Any]] = list(topology["edges"])
         self.properties: list[dict[str, Any]] = list(topology.get("properties") or [])
+        # World-level defaults (primary event, where an unplaced pop-up goes) — data, not code.
+        self.defaults: dict[str, Any] = dict(topology.get("defaults") or {})
         self._build_static()
 
         self._events_base: list[dict[str, Any]] = [dict(e) for e in (topology.get("events") or [])]
@@ -152,8 +157,13 @@ class SyntheticGenerator:
                 self.lines.setdefault(e["src_entity_id"], []).append((e["dst_entity_id"], e["transfer_coefficient"]))
                 self.station_line[e["dst_entity_id"]] = e["src_entity_id"]
         hubs = [e for e, t in typ.items() if t == "transport_node" and e not in self.station_line]
-        self.bus_hubs = [h for h in hubs if h.startswith("bus_")]
-        self.shuttle_hubs = [h for h in hubs if h not in self.bus_hubs]
+        self.subtypes = {e: n.get("subtype") or (n.get("meta") or {}).get("subtype") for e, n in nodes.items()}
+        self.bus_hubs = [h for h in hubs if self.subtypes.get(h) in BUS_SUBTYPES]
+        # Rail/metro stations with no modelled line (generated worlds): metro riders
+        # are split over them directly.
+        self.rail_hubs = [h for h in hubs if self.subtypes.get(h) in RAIL_SUBTYPES]
+        self.shuttle_hubs = [h for h in hubs if h not in self.bus_hubs and h not in self.rail_hubs]
+        self.queue_nodes = list(dict.fromkeys(list(self.station_line) + self.rail_hubs + self.bus_hubs + self.shuttle_hubs))
         self.lots = [e for e, t in typ.items() if t == "parking"]
 
         self.hotel_access: dict[str, list[tuple[str, float, int]]] = {}
@@ -224,6 +234,16 @@ class SyntheticGenerator:
         for e in edges:
             if e["edge_type"] == "evacuates_to":
                 self.evac_in.setdefault(e["dst_entity_id"], []).append((e["src_entity_id"], float(e["transfer_coefficient"])))
+
+        # Generated worlds: access node -> gate edges carry the walking path over the
+        # road graph; visitors on that route load those roads (occupancy = flow x dwell).
+        dwell = {e: float((n.get("meta") or {}).get("dwell_sec") or ROAD_DWELL_MIN * 60.0) / 60.0
+                 for e, n in nodes.items() if typ.get(e) == "road"}
+        self.route_paths: dict[tuple[str, str], list[tuple[str, float]]] = {}
+        for e in edges:
+            via = e.get("via_entity_ids")
+            if via and e["edge_type"] in ("feeds", "serves"):
+                self.route_paths[(e["src_entity_id"], e["dst_entity_id"])] = [(r, dwell[r]) for r in via if r in dwell]
 
         self._props_by_id = {p["property_id"]: p for p in self.properties}
         self._travel_to_venue = self._hotel_travel_times()
@@ -367,11 +387,11 @@ class SyntheticGenerator:
             ]
             return ",".join(ids)
         if scenario_type == "concurrent_event":
-            main = next((e for e in self._events_base if e.get("event_id") == "evt_demo"), None)
-            base_att = float(main.get("expected_attendance", 70000)) if main else 70000.0
+            main = self._primary_event()
+            base_att = float(main.get("expected_attendance", 0)) if main else 0.0
             attendance = float(p.get("attendance") or base_att * float(p.get("overlap_pct", 15.0)) / 100.0)
             start_min = self._elapsed_sec / 60.0 + float(p.get("start_offset_min", 45))
-            p.setdefault("venue_entity_id", "zone_fanpark")
+            p.setdefault("venue_entity_id", self._popup_venue())
             p["_event"] = {
                 "event_id": p.get("event_id") or f"evt_popup_{self._mod_counter + 1:02d}",
                 "name": p.get("name", "Pop-up event"),
@@ -491,7 +511,7 @@ class SyntheticGenerator:
                 if eid in self.nodes:
                     eff["cap_mult"][eid] = eff["cap_mult"].get(eid, 1.0) * max(0.05, 1.0 + delta)
             elif k == "event_cancellation":
-                eff["cancelled_events"].add(p.get("event_id", "evt_demo"))
+                eff["cancelled_events"].add(p.get("event_id") or self._primary_event_id())
             elif k == "hotel_shortage":
                 frac = float(p.get("rooms_offline_pct", abs(delta) * 100.0 if delta else 15.0)) / 100.0
                 for h, t in self.types.items():
@@ -500,7 +520,7 @@ class SyntheticGenerator:
             elif k == "concurrent_event":
                 eff["extra_events"].append(p["_event"])
             elif k == "event_delay":
-                ev_id = p.get("event_id", "evt_demo")
+                ev_id = p.get("event_id") or self._primary_event_id()
                 minutes = float(p.get("delay_min", float(p.get("delay_sec", 1800)) / 60.0))
                 eff["event_shift_min"][ev_id] = eff["event_shift_min"].get(ev_id, 0.0) + minutes
             # --- interventions -----------------------------------------------------
@@ -592,10 +612,33 @@ class SyntheticGenerator:
         occupied = p["base_occupancy"] * p["rooms_total"] + self._event_rooms[p["property_id"]]
         return max(0.0, self._property_rooms(p) - occupied)
 
-    def _main_venue(self) -> str:
+    def _main_venue(self) -> str | None:
         evs = self._events()
-        best = max(evs, key=lambda e: e["attendance"], default=None)
-        return best["venue"] if best else "stadium_main"
+        best = max(evs, key=lambda e: (e["attendance"], e["event_id"]), default=None)
+        if best:
+            return best["venue"]
+        venues = sorted(e for e, t in self.types.items() if t == "venue")
+        return venues[0] if venues else None
+
+    def _primary_event(self) -> dict[str, Any] | None:
+        pid = self.defaults.get("primary_event_id")
+        ev = next((e for e in self._events_base if e.get("event_id") == pid), None)
+        if ev is None and self._events_base:
+            ev = max(self._events_base, key=lambda e: (float(e.get("expected_attendance", 0)), e["event_id"]))
+        return ev
+
+    def _primary_event_id(self) -> str | None:
+        ev = self._primary_event()
+        return ev["event_id"] if ev else None
+
+    def _popup_venue(self) -> str | None:
+        """Where an unplaced pop-up event goes: the world's configured default, else the
+        largest reachable zone, else the main venue."""
+        v = self.defaults.get("popup_venue")
+        if v in self.nodes:
+            return v
+        zones = sorted((-self.cap[z], z) for z in self.venues if self.types[z] == "zone" and self.options.get(z))
+        return zones[0][1] if zones else self._main_venue()
 
     def _allocate(self, rooms: float, exclude: set[str] | None = None, prefer: set[str] | None = None) -> float:
         """Place `rooms` bookings across properties by logit preference, capped by
@@ -604,8 +647,8 @@ class SyntheticGenerator:
             return max(0.0, rooms)
         exclude = exclude or set()
         venue = self._main_venue()
-        prices = [p["price_per_night_paise"] for p in self.properties]
-        pmin, pmax = min(prices), max(prices)
+        prices = [p["price_per_night_paise"] for p in self.properties if p.get("price_per_night_paise") is not None]
+        pmin, pmax = (min(prices), max(prices)) if prices else (0, 1)
         times = [self._travel_to_venue[p["property_id"]].get(venue, 3600) for p in self.properties]
         tmin, tmax = min(times), max(times)
         avoid = self._eff["hotel_avoid"]
@@ -619,7 +662,9 @@ class SyntheticGenerator:
                 avail = self.property_available(p)
                 if avail < 0.5:
                     continue
-                price_n = (p["price_per_night_paise"] - pmin) / max(pmax - pmin, 1)
+                # Unknown price (generated hotels): neutral, never a fabricated number.
+                price_n = 0.5 if p.get("price_per_night_paise") is None else \
+                    (p["price_per_night_paise"] - pmin) / max(pmax - pmin, 1)
                 t = self._travel_to_venue[pid].get(venue, 3600)
                 time_n = (t - tmin) / max(tmax - tmin, 1)
                 u = -1.1 * price_n - 1.3 * time_n + 0.5 * TIER_SCORE.get(p["tier"], 0.3)
@@ -756,8 +801,29 @@ class SyntheticGenerator:
         split = self.demand["local_mode_split"]
         # Metro: lines by capacity, stations within a line by feed coefficient.
         line_w = {l: self.capacity(l) * wm.get(l, 1.0) for l in self.lines if l not in closed}
-        metro = local * float(split.get("metro", 0.5))
+        # A mode with no access node at all in this world hands its share to the
+        # modes that exist (never silently dropped). The demo world has every mode.
+        present = {"metro": bool(self.lines or self.rail_hubs), "bus": bool(self.bus_hubs),
+                   "shuttle": bool(self.shuttle_hubs), "car": bool(self.lots)}
+        shares = {m: float(split.get(m, 0.0)) for m in ("metro", "bus", "shuttle", "car")}
+        if not all(present.values()) and any(present.values()):
+            lost = sum(v for m, v in shares.items() if not present[m])
+            kept = sum(v for m, v in shares.items() if present[m])
+            for m in shares:
+                shares[m] = (shares[m] + lost * (shares[m] / kept if kept > 0 else 1.0 / sum(present.values()))) \
+                    if present[m] else 0.0
+        metro = local * shares["metro"]
         leftover = 0.0
+        if not line_w and self.rail_hubs:
+            rail_w = {h: self.capacity(h) * wm.get(h, 1.0) for h in self.rail_hubs if h not in closed}
+            for h in [h for h in self.rail_hubs if h in closed]:
+                for sub, sv in self.substitutes.get(h, []):
+                    if sub not in closed:
+                        rail_w[sub] = rail_w.get(sub, 0.0) + self.capacity(h) * sv
+            rs = self._split(rail_w)
+            for h, w in rs.items():
+                add(h, metro * w)
+            metro = 0.0 if rs else metro
         for l, s in self._split(line_w).items():
             stn = {st: co * wm.get(st, 1.0) for st, co in self.lines[l]}
             for st in list(stn):
@@ -773,13 +839,20 @@ class SyntheticGenerator:
                 add(st, metro * s * w)
         if not line_w:
             leftover += metro
-        bus = local * float(split.get("bus", 0.15)) + leftover
+        if not present["bus"]:
+            # nowhere to take a bus: stranded metro riders drive or take the shuttle instead
+            alt = {m: shares[m] for m in ("shuttle", "car") if present[m]}
+            tot = sum(alt.values())
+            for m in alt:
+                shares[m] += leftover * (alt[m] / tot if tot > 0 else 1.0 / len(alt))
+            leftover = 0.0
+        bus = local * shares["bus"] + leftover
         for h, w in self._split({h: self.capacity(h) * wm.get(h, 1.0) for h in self.bus_hubs if h not in closed}).items():
             add(h, bus * w)
-        shuttle = local * float(split.get("shuttle", 0.10))
+        shuttle = local * shares["shuttle"]
         for h, w in self._split({h: self.capacity(h) * wm.get(h, 1.0) for h in self.shuttle_hubs if h not in closed}).items():
             add(h, shuttle * w)
-        car = local * float(split.get("car", 0.25))
+        car = local * shares["car"]
         lot_w = {}
         for p in self.lots:
             if p in closed:
@@ -829,7 +902,7 @@ class SyntheticGenerator:
         room_total, room_per_event = self._room_demand()
 
         flows = {"acc_in": {}, "acc_out": {}, "gate_in": {}, "gate_out": {}, "direct": {}, "line": {},
-                 "car_in": {}, "car_out": {}, "boarding": {}}
+                 "car_in": {}, "car_out": {}, "boarding": {}, "pair": {}}
         path_acc: list[tuple[str, str | None, float, int]] = []
         egress_by_venue: dict[str, float] = {}
         flow_view: dict[str, dict[str, float | None]] = {}
@@ -948,6 +1021,8 @@ class SyntheticGenerator:
                 for (a, g), n in st["split"].items():
                     lam = eg_rate * n / tot
                     flows["acc_out"][a] = flows["acc_out"].get(a, 0.0) + lam
+                    if g and (a, g) in self.route_paths:
+                        flows["pair"][(a, g)] = flows["pair"].get((a, g), 0.0) + lam
                     if g:
                         flows["gate_out"][g] = flows["gate_out"].get(g, 0.0) + lam
                     if a in self.station_line:
@@ -977,7 +1052,7 @@ class SyntheticGenerator:
         mu_boost = eff["mu_boost"]
 
         # Stations and hubs (fluid queue on the station's service rate).
-        for a in self.station_line.keys() | set(self.bus_hubs) | set(self.shuttle_hubs):
+        for a in self.queue_nodes:
             bg = self._background(a, t) * self.capacity(a)
             if a in closed:
                 counts[a] = 0.0
@@ -1135,9 +1210,28 @@ class SyntheticGenerator:
                 for n, c in nbrs:
                     first[n] = first.get(n, 0.0) + first[r] * c / tot
                 first[r] = 0.0
+        # Visitors walking an access node -> gate route over the road graph (generated worlds).
+        on_path: dict[str, float] = {}
+        if self.route_paths:
+            pair = dict(flows["pair"])
+            for a, g, lam, _ in path_acc:
+                if g and (a, g) in self.route_paths:
+                    pair[(a, g)] = pair.get((a, g), 0.0) + lam
+            for key in sorted(pair):
+                lam = pair[key]
+                for r, dw in self.route_paths[key]:
+                    on_path[r] = on_path.get(r, 0.0) + lam * dw * dm
         for r in roads:
             second = sum(first.get(n, 0.0) * c * 0.5 for n, c in self.road_neighbours.get(r, []))
             counts[r] = 0.0 if r in closed else self._background(r, t) * self.capacity(r) + first.get(r, 0.0) + second
+        for r in sorted(on_path):
+            if r in closed:
+                nbrs = [(n, c) for n, c in self.road_neighbours.get(r, []) if n not in closed]
+                tot = sum(c for _, c in nbrs) or 1.0
+                for n, c in nbrs:
+                    counts[n] = counts.get(n, 0.0) + on_path[r] * c / tot
+            else:
+                counts[r] = counts.get(r, 0.0) + on_path[r]
         overflow = {r: max(0.0, counts[r] - ROAD_MAX * self.capacity(r)) for r in roads}
         for r, over in overflow.items():
             if over <= 0:
