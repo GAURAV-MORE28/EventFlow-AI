@@ -438,7 +438,7 @@ async def overview() -> S.OverviewResponse:
     engine = get_engine()
     store = engine.store
     with engine.world_lock:
-        closed = set(engine.generator._eff["closed"]) if hasattr(engine.generator, "_eff") else set()
+        closed = engine.generator.closed_entities() if hasattr(engine.generator, "closed_entities") else set()
         delays = {e: engine.generator.queue_delay_sec(e) for e in store.nodes} if hasattr(engine.generator, "queue_delay_sec") else {}
     domains: dict[str, list] = {k: [] for k in DOMAINS}
     for eid, node in store.nodes.items():

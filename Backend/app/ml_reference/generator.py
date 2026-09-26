@@ -1135,6 +1135,13 @@ class SyntheticGenerator:
     def is_closed(self, eid: str) -> bool:
         return eid in self._eff["closed"]
 
+    def closed_entities(self) -> set[str]:
+        """Entities currently out of service (closures, outages)."""
+        return set(self._eff["closed"])
+
+    def gates_of_venue(self, venue_id: str) -> list[str]:
+        return list(self.venue_gates.get(venue_id, []))
+
     # --- reporting --------------------------------------------------------------------------
     def properties_state(self) -> list[dict[str, Any]]:
         sat = float(self.hosp["saturation_threshold"])

@@ -310,7 +310,7 @@ class Commander:
         # arrival: pressure on the primary venue's access nodes and gates, by departure window
         ev = self.engine.events.get(self.engine.events.primary_event_id)
         venue = ev["venue_entity_id"]
-        gates = self.engine.generator.venue_gates.get(venue, []) if hasattr(self.engine.generator, "venue_gates") else []
+        gates = self.engine.generator.gates_of_venue(venue) if hasattr(self.engine.generator, "gates_of_venue") else []
         access = sorted({e["src_entity_id"] for e in store.edges if e["dst_entity_id"] in gates
                          and store.nodes[e["src_entity_id"]]["entity_type"] == "transport_node"})
         watch = gates + access

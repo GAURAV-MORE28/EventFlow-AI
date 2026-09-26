@@ -431,3 +431,14 @@ def test_journey_survives_a_station_outage_by_walking_to_the_substitute(client):
         assert rec["current"]["transport_closed"] is True
     finally:
         client.delete(f"{API}/disruptions/{did}")
+
+
+def test_flow_model_satisfies_the_city_model_interface():
+    from app.ml_reference.city_model import CityModel
+
+    g = _generator()
+    assert isinstance(g, CityModel)
+    assert isinstance(g.clone(), CityModel)
+    assert "gate_5" in g.gates_of_venue("stadium_main")
+    g.inject("gate_closure", {"entity_id": "gate_5"})
+    assert g.closed_entities() == {"gate_5"}

@@ -89,7 +89,7 @@ class Planner:
         self.store = engine.store
         self.projection = projection
         with engine.world_lock:
-            closed = set(engine.generator._eff["closed"]) if hasattr(engine.generator, "_eff") else set()
+            closed = engine.generator.closed_entities() if hasattr(engine.generator, "closed_entities") else set()
         self.closed = closed
         self.graph = _graph(self.store, closed)
         self.avoid = set(avoid or set())

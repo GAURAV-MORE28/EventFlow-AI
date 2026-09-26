@@ -1,6 +1,9 @@
 # 01_BACKEND_CONTRACT.md §7 — authoritative runtime configuration.
 cycle_sec: 30
 demo_seed: 42
+# City simulator implementation (see app/ml_reference/city_model.py).
+city_model: flow
+
 # 10x: one 30-sim-second cycle every 3 wall seconds. Operators need time to
 # read, review and act on a recommendation (see `interventions` below).
 speed_multiplier: 10

@@ -128,6 +128,14 @@ class MLRegistry:
         )
 
     def build_generator(self, topology: dict, seed: int) -> Any:
+        """Build the city model (`city_model` in config.yaml).
+
+        `flow` is the production SyntheticGenerator; an `ML/generator.py`
+        drop-in overrides it through the normal resolution order above.
+        """
+        choice = str(get_config().raw.get("city_model", "flow"))
+        if choice != "flow":
+            raise ValueError(f"unknown city_model '{choice}' (supported: flow)")
         return self._generator_cls(self._generator_config, topology, seed)
 
     def as_dict(self) -> dict[str, Any]:

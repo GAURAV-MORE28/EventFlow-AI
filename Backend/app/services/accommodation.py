@@ -49,7 +49,7 @@ def property_views(engine: Any, venue: str | None = None) -> list[dict[str, Any]
     store = engine.store
     with engine.world_lock:
         props = engine.generator.properties_state()
-        closed = set(engine.generator._eff["closed"]) if hasattr(engine.generator, "_eff") else set()
+        closed = engine.generator.closed_entities() if hasattr(engine.generator, "closed_entities") else set()
     out = []
     for p in props:
         station = p.get("transport_entity_id")

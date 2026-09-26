@@ -548,8 +548,11 @@ class Engine:
         from .accommodation import cluster_availability
 
         with self.world_lock:
-            closed = sorted(self.generator._eff["closed"]) if hasattr(self.generator, "_eff") else []
-            venue_gates = dict(getattr(self.generator, "venue_gates", {}))
+            has = hasattr(self.generator, "closed_entities")
+            closed = sorted(self.generator.closed_entities()) if has else []
+            venue_gates = ({v: self.generator.gates_of_venue(v) for v, n in self.store.nodes.items()
+                            if n["entity_type"] in ("venue", "zone")} if has else {})
+            venue_gates = {v: g for v, g in venue_gates.items() if g}
         return {
             "closed": closed,
             "venue_gates": venue_gates,
