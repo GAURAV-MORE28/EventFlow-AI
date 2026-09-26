@@ -56,7 +56,26 @@ const LABELS = {
   cycle_latency_ms: 'Cycle Latency',
   commander_ungrounded_rate: 'Commander Ungrounded Rate',
   tool_call_correctness: 'Tool Call Correctness',
+  capacity_utilisation: 'Mean Capacity Utilisation',
+  peak_congestion: 'Peak Congestion',
+  critical_locations: 'Critical Locations',
+  queued_people: 'People Queued Now',
+  avg_travel_time_sec: 'Mean Trip Time',
+  late_entries: 'Entered After Start',
+  unmet_room_requests: 'Unplaced Room Requests',
+  rooms_available: 'Hotel Rooms Free',
+  saturated_hotels: 'Saturated Hotels',
+  visitors_redirected: 'Visitors Redirected',
+  interventions_settled: 'Interventions Settled',
+  mean_realised_relief_pct: 'Mean Realised Relief',
+  attendee_compliance: 'Attendee Compliance',
 };
+
+const COUNTS = new Set([
+  'critical_locations', 'queued_people', 'late_entries', 'unmet_room_requests', 'rooms_available',
+  'saturated_hotels', 'visitors_redirected', 'interventions_settled', 'unstable_interventions_caught',
+]);
+const RATIOS = new Set(['capacity_utilisation', 'peak_congestion', 'attendee_compliance', 'ensemble_coverage']);
 
 /** Formatting is per-metric because the units genuinely differ. */
 function formatValue(key, metric) {
@@ -65,7 +84,8 @@ function formatValue(key, metric) {
   if (key.endsWith('_sec')) return minutes(v);
   if (key.endsWith('_ms')) return `${Math.round(v)} ms`;
   if (key.endsWith('_pct')) return `${v.toFixed(1)}%`;
-  if (key === 'unstable_interventions_caught') return String(Math.round(v));
+  if (COUNTS.has(key)) return Math.round(v).toLocaleString('en-IN');
+  if (RATIOS.has(key)) return `${Math.round(v * 100)}%`;
   if (key === 'rmse') return decimals(v, 1);
   return decimals(v, 3);
 }
@@ -99,7 +119,7 @@ function MetricCard({ metricKey, metric, emphasised }) {
         </div>
 
         <div
-          className={`mt-2 font-mono font-bold tabular-nums tracking-tight text-white ${
+          className={`mt-2 font-mono font-bold tabular-nums tracking-tight text-slate-100 ${
             emphasised ? 'text-3xl' : 'text-2xl'
           }`}
         >
@@ -279,12 +299,12 @@ export default function Metrics() {
                 BENCHMARKS & DRIFT ASSESSMENT
               </span>
             </div>
-            <h1 className="mt-1 text-xl font-bold tracking-tight text-white">
+            <h1 className="mt-1 text-xl font-bold tracking-tight text-slate-100">
               EventFlow AI — Measured Operational Outcomes
             </h1>
             <p className="mt-0.5 text-xs text-slate-400 max-w-2xl">
-              Live simulation metrics evaluated against seeded ground-truth baseline. Multi-horizon
-              GNN cascades and EnKF assimilation guarantees.
+              Every value is computed from the running simulation: forecasts against what happened,
+              the twin against ground truth, and approved actions against a do-nothing counterfactual.
             </p>
           </div>
 
@@ -300,7 +320,7 @@ export default function Metrics() {
         {!metrics && error === 'warming' && (
           <div className="p-8 text-center panel">
             <Activity className="h-6 w-6 text-sky-400 mx-auto animate-spin mb-2" />
-            <p className="text-sm font-semibold text-white">Warming Telemetry Pipeline…</p>
+            <p className="text-sm font-semibold text-slate-100">Warming Telemetry Pipeline…</p>
             <p className="text-xs text-slate-400 mt-1">
               Accumulating cycle frames to compute empirical variance and RMSE deltas.
             </p>
@@ -317,6 +337,9 @@ export default function Metrics() {
 
         {metrics && (
           <div className="space-y-6">
+            {metrics.operations && Object.keys(metrics.operations).length > 0 && (
+              <Section title="City Operations (live)" metrics={metrics.operations} group="operations" />
+            )}
             <Section title="Prediction Horizon & Cascades" metrics={metrics.prediction} group="prediction" />
             <Section title="EnKF Digital Twin Assimilation" metrics={metrics.twin} group="twin" />
             <Section title="Decision Quality & Interventions" metrics={metrics.decision} group="decision" />

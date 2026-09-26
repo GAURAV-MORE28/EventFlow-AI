@@ -13,6 +13,18 @@
       }
     },
     {
+      "entity_id": "convention_centre",
+      "entity_type": "venue",
+      "display_name": "City Convention Centre",
+      "lat": 19.0945,
+      "lon": 72.8672,
+      "nominal_capacity": 15000.0,
+      "parent_id": null,
+      "meta": {
+        "halls": 4
+      }
+    },
+    {
       "entity_id": "gate_1",
       "entity_type": "gate",
       "display_name": "Gate 1",
@@ -1197,6 +1209,69 @@
       "edge_type": "adjacent_to",
       "transfer_coefficient": 0.22,
       "travel_time_sec": 240,
+      "substitutability": 0.0
+    },
+    {
+      "edge_id": "metro_a__convention_centre__feeds",
+      "src_entity_id": "metro_a",
+      "dst_entity_id": "convention_centre",
+      "edge_type": "feeds",
+      "transfer_coefficient": 0.45,
+      "travel_time_sec": 360,
+      "substitutability": 0.0
+    },
+    {
+      "edge_id": "metro_e__convention_centre__feeds",
+      "src_entity_id": "metro_e",
+      "dst_entity_id": "convention_centre",
+      "edge_type": "feeds",
+      "transfer_coefficient": 0.35,
+      "travel_time_sec": 420,
+      "substitutability": 0.0
+    },
+    {
+      "edge_id": "bus_hub_north__convention_centre__feeds",
+      "src_entity_id": "bus_hub_north",
+      "dst_entity_id": "convention_centre",
+      "edge_type": "feeds",
+      "transfer_coefficient": 0.4,
+      "travel_time_sec": 300,
+      "substitutability": 0.0
+    },
+    {
+      "edge_id": "convention_centre__road_7__adjacent_to",
+      "src_entity_id": "convention_centre",
+      "dst_entity_id": "road_7",
+      "edge_type": "adjacent_to",
+      "transfer_coefficient": 0.3,
+      "travel_time_sec": 240,
+      "substitutability": 0.0
+    },
+    {
+      "edge_id": "convention_centre__road_13__adjacent_to",
+      "src_entity_id": "convention_centre",
+      "dst_entity_id": "road_13",
+      "edge_type": "adjacent_to",
+      "transfer_coefficient": 0.25,
+      "travel_time_sec": 240,
+      "substitutability": 0.0
+    },
+    {
+      "edge_id": "convention_centre__emergency_north__evacuates_to",
+      "src_entity_id": "convention_centre",
+      "dst_entity_id": "emergency_north",
+      "edge_type": "evacuates_to",
+      "transfer_coefficient": 0.1,
+      "travel_time_sec": 420,
+      "substitutability": 0.0
+    },
+    {
+      "edge_id": "metro_a__zone_fanpark__last_mile_to",
+      "src_entity_id": "metro_a",
+      "dst_entity_id": "zone_fanpark",
+      "edge_type": "last_mile_to",
+      "transfer_coefficient": 0.35,
+      "travel_time_sec": 540,
       "substitutability": 0.0
     },
     {

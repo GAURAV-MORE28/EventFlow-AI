@@ -14,13 +14,34 @@ log = logging.getLogger("eventflow.ml.risk")
 
 
 class RiskScorer:
+    """Severity = a floor set by current utilisation, escalated by what is coming.
+
+    The floor maps utilisation onto the band scale so a capacity breach can never
+    read as harmless: at/above `critical_utilisation` the score is at least 81
+    (critical); at/above `warning_utilisation` it is at least 61 (high). A
+    weighted blend used to cap current utilisation's contribution at 50 points,
+    which reported a zone at 104% of capacity as "moderate".
+
+    Escalations are additive and bounded, each explainable in one sentence:
+      growth      — the 30-minute forecast is above today's level
+      cascading   — the entity sits on a predicted failure path
+      persistence — it has been over the critical line for consecutive cycles
+    """
+
     def __init__(self, config: dict) -> None:
         self.config = config or {}
-        w = self.config.get("weights", {})
-        self.w_base = float(w.get("base", 0.5))
-        self.w_growth = float(w.get("growth", 0.3))
-        self.w_cascade = float(w.get("cascade", 0.2))
         self.bands = self.config.get("risk_bands", {"low": 30, "moderate": 60, "high": 80})
+        self.critical = float(self.config.get("critical_utilisation", 0.90))
+        self.warning = float(self.config.get("warning_utilisation", 0.75))
+        self.max_growth = float(self.config.get("max_growth_points", 15))
+        self.max_cascade = float(self.config.get("max_cascade_points", 10))
+        self.max_persist = float(self.config.get("max_persistence_points", 5))
+        self.persist_cycles = max(1, int(self.config.get("persistence_cycles_for_max", 20)))
+        self.by_type: dict[str, dict] = dict(self.config.get("thresholds_by_type") or {})
+
+    def _lines(self, entity_type: str | None) -> tuple[float, float]:
+        t = self.by_type.get(entity_type or "", {})
+        return float(t.get("warning", self.warning)), float(t.get("critical", self.critical))
 
     def ready(self) -> bool:
         return True
@@ -50,13 +71,30 @@ class RiskScorer:
     ) -> dict[str, dict]:
         out = {}
         for eid, st in node_state.items():
-            score = int(round(clamp(100.0 * float(st.get("utilisation", 0.0)), 0, 100)))
+            score = int(round(self.utilisation_floor(float(st.get("utilisation", 0.0)), st.get("entity_type"))))
             out[eid] = {
                 "risk_score": score,
                 "risk_band": band_from_score(score, self.bands),
                 "breakdown": [{"risk_type": "overall", "score": score}],
             }
         return out
+
+    def utilisation_floor(self, util: float, entity_type: str | None = None) -> float:
+        """Piecewise-linear map of utilisation onto the 0-100 band scale.
+
+        < warning/1.5 ... low, up to warning ... moderate, up to critical ...
+        high, at/above critical ... critical (81+, reaching 100 at +30pp).
+        """
+        b = self.bands
+        warning, critical = self._lines(entity_type)
+        low_top = warning / 1.5
+        if util < low_top:
+            return clamp(util / low_top * b["low"], 0.0, b["low"])
+        if util < warning:
+            return b["low"] + (util - low_top) / (warning - low_top) * (b["moderate"] - b["low"])
+        if util < critical:
+            return b["moderate"] + 1 + (util - warning) / (critical - warning) * (b["high"] - b["moderate"] - 1)
+        return clamp(b["high"] + 1 + (util - critical) / 0.30 * (99 - b["high"]), b["high"] + 1, 100.0)
 
     def _score_one(self, entity_id: str, state: dict, forecast: dict | None, exposure: float) -> dict:
         util = float(state.get("utilisation", 0.0))
@@ -65,19 +103,29 @@ class RiskScorer:
             for p in forecast.get("points", []):
                 if p["horizon_sec"] == 1800:
                     forecast_1800 = float(p["predicted_utilisation"])
+        elif state.get("forecast_1800") is not None:
+            forecast_1800 = float(state["forecast_1800"])
 
-        base = 100.0 * util
-        growth = 100.0 * max(0.0, forecast_1800 - util) * 1.5
-        cascade_x = 100.0 * clamp(exposure, 0.0, 1.0)
-        score = int(round(clamp(self.w_base * base + self.w_growth * growth + self.w_cascade * cascade_x, 0, 100)))
+        etype = state.get("entity_type")
+        warning, critical = self._lines(etype)
+        base = self.utilisation_floor(util, etype)
+        # Growth counts only when the forecast climbs toward/over the line.
+        growth = clamp((forecast_1800 - util) / 0.20, 0.0, 1.0) * self.max_growth if forecast_1800 > warning * 0.9 else 0.0
+        # Escalations can raise severity, but never manufacture a critical
+        # band for an entity still below its own warning line.
+        cap = 100.0 if util >= warning else float(self.bands["high"])
+        cascade_pts = clamp(exposure, 0.0, 1.0) * self.max_cascade if util >= warning * 0.8 else 0.0
+        cycles_over = int(state.get("cycles_over_critical", 0) or 0)
+        persist = min(1.0, cycles_over / self.persist_cycles) * self.max_persist if util >= critical else 0.0
+        score = int(round(clamp(min(base + growth + cascade_pts + persist, max(cap, base)), 0, 100)))
 
         return {
             "risk_score": score,
             "risk_band": band_from_score(score, self.bands),
-            "breakdown": self._breakdown(state, base, growth, cascade_x, score),
+            "breakdown": self._breakdown(state, base, growth, cascade_pts, persist, score),
         }
 
-    def _breakdown(self, state: dict, base: float, growth: float, cascade_x: float, score: int) -> list[dict]:
+    def _breakdown(self, state: dict, base: float, growth: float, cascade_pts: float, persist: float, score: int) -> list[dict]:
         """Per-risk-type split. The types shown depend on what the entity actually is."""
         entity_type = state.get("entity_type", "zone")
         primary = {
@@ -89,11 +137,10 @@ class RiskScorer:
 
         rows = [
             {"risk_type": primary, "score": int(round(clamp(base, 0, 100)))},
-            {"risk_type": "capacity", "score": int(round(clamp(base + growth * 0.5, 0, 100)))},
-            {"risk_type": "cascading", "score": int(round(clamp(cascade_x, 0, 100)))},
+            {"risk_type": "capacity", "score": int(round(clamp(base + growth, 0, 100)))},
+            {"risk_type": "cascading", "score": int(round(clamp(cascade_pts / max(self.max_cascade, 1) * 100, 0, 100)))},
             {"risk_type": "overall", "score": score},
         ]
-        # Dedupe when `primary` is already "capacity".
         seen, out = set(), []
         for r in rows:
             if r["risk_type"] in seen:

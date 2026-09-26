@@ -12,6 +12,7 @@ from collections import deque
 from typing import Any, Iterable
 
 from ..simtime import parse, shift
+from ..catalog import build_properties, verify_catalogue
 from ..topology import build_topology, verify
 
 HISTORY_LIMIT = 240          # ~2 hours of sim at 30s steps
@@ -29,6 +30,8 @@ class StateStore:
         self.edges: list[dict] = topology["edges"]
         self.segments: list[dict] = topology["segments"]
         self.bounds: dict[str, float] = topology["bounds"]
+        self.properties: list[dict] = build_properties(topology["nodes"], topology["edges"])
+        verify_catalogue(self.properties, topology["nodes"])
 
         self.edges_by_src: dict[str, list[dict]] = {}
         self.edges_by_dst: dict[str, list[dict]] = {}
@@ -119,6 +122,21 @@ class StateStore:
         self.cascade_lead_times: list[float] = []
         self.observed_compliance: list[bool] = []
 
+        # Consecutive cycles each entity has spent at/above the critical line
+        # (feeds the risk scorer's persistence escalation).
+        self.cycles_over_critical: dict[str, int] = {}
+        # Registered attendee plans (journey requests) — nudges target the
+        # attendees whose routes actually pass through an intervention's source.
+        self.attendees: dict[str, dict] = {}
+        # Root -> cycle a proposal for it last lapsed; avoids re-proposing the
+        # same thing every cycle when nobody acted on it.
+        self.root_cooldown: dict[str, int] = {}
+        # Settled interventions: realised effect vs the do-nothing world.
+        self.settlements: list[dict] = []
+        # Live disruptions: disruption_id -> record.
+        self.disruptions: dict[str, dict] = {}
+        self.operations: dict = {}
+
     # --- helpers ------------------------------------------------------------
     def lock(self) -> threading.RLock:
         return self._lock
@@ -154,6 +172,7 @@ class StateStore:
                 "forecast_1800": points.get(1800),
                 "forecast_3600": points.get(3600),
                 "time_to_critical_sec": fc.get("time_to_critical_sec"),
+                "cycles_over_critical": int(self.cycles_over_critical.get(eid, 0)),
                 "degree": len(self.edges_by_src.get(eid, [])) + len(self.edges_by_dst.get(eid, [])),
             }
         return out
@@ -255,3 +274,9 @@ class StateStore:
         self.commander_ungrounded = 0
         self.commander_tool_calls_ok = 0
         self.commander_tool_calls_total = 0
+        self.cycles_over_critical.clear()
+        self.attendees.clear()
+        self.root_cooldown.clear()
+        self.settlements.clear()
+        self.disruptions.clear()
+        self.operations = {}

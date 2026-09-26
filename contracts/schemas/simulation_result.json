@@ -321,6 +321,17 @@
         "expires_at": {
           "title": "Expires At",
           "type": "string"
+        },
+        "evaluation": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/InterventionEvaluation"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
         }
       },
       "required": [
@@ -341,6 +352,166 @@
       "title": "Intervention",
       "type": "object"
     },
+    "InterventionEvaluation": {
+      "additionalProperties": false,
+      "description": "What simulating the candidate on a clone of the live city showed.",
+      "properties": {
+        "horizon_sec": {
+          "title": "Horizon Sec",
+          "type": "integer"
+        },
+        "compliance": {
+          "title": "Compliance",
+          "type": "number"
+        },
+        "root_entity_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Root Entity Id"
+        },
+        "root_peak_before": {
+          "title": "Root Peak Before",
+          "type": "number"
+        },
+        "root_peak_after": {
+          "title": "Root Peak After",
+          "type": "number"
+        },
+        "network_peak_before": {
+          "title": "Network Peak Before",
+          "type": "number"
+        },
+        "network_peak_after": {
+          "title": "Network Peak After",
+          "type": "number"
+        },
+        "critical_before": {
+          "title": "Critical Before",
+          "type": "integer"
+        },
+        "critical_after": {
+          "title": "Critical After",
+          "type": "integer"
+        },
+        "new_critical_entities": {
+          "items": {
+            "type": "string"
+          },
+          "title": "New Critical Entities",
+          "type": "array"
+        },
+        "people_redirected": {
+          "default": 0,
+          "title": "People Redirected",
+          "type": "integer"
+        },
+        "travel_time_delta_sec": {
+          "default": 0.0,
+          "title": "Travel Time Delta Sec",
+          "type": "number"
+        },
+        "rooms_unmet_delta": {
+          "default": 0.0,
+          "title": "Rooms Unmet Delta",
+          "type": "number"
+        }
+      },
+      "required": [
+        "horizon_sec",
+        "compliance",
+        "root_peak_before",
+        "root_peak_after",
+        "network_peak_before",
+        "network_peak_after",
+        "critical_before",
+        "critical_after"
+      ],
+      "title": "InterventionEvaluation",
+      "type": "object"
+    },
+    "ScenarioSpec": {
+      "additionalProperties": false,
+      "properties": {
+        "scenario_type": {
+          "enum": [
+            "attendance_delta",
+            "metro_capacity_delta",
+            "road_capacity_delta",
+            "weather_rain",
+            "gate_closure",
+            "transport_outage",
+            "parking_loss",
+            "hotel_shortage",
+            "concurrent_event",
+            "combined",
+            "event_delay"
+          ],
+          "title": "Scenario Type",
+          "type": "string"
+        },
+        "params": {
+          "title": "Params",
+          "type": "object"
+        }
+      },
+      "required": [
+        "scenario_type"
+      ],
+      "title": "ScenarioSpec",
+      "type": "object"
+    },
+    "SimulationChange": {
+      "additionalProperties": false,
+      "properties": {
+        "entity_id": {
+          "title": "Entity Id",
+          "type": "string"
+        },
+        "display_name": {
+          "title": "Display Name",
+          "type": "string"
+        },
+        "entity_type": {
+          "enum": [
+            "venue",
+            "zone",
+            "transport_node",
+            "transport_route",
+            "road",
+            "hotel",
+            "parking",
+            "gate",
+            "emergency_facility"
+          ],
+          "title": "Entity Type",
+          "type": "string"
+        },
+        "baseline_peak": {
+          "title": "Baseline Peak",
+          "type": "number"
+        },
+        "scenario_peak": {
+          "title": "Scenario Peak",
+          "type": "number"
+        }
+      },
+      "required": [
+        "entity_id",
+        "display_name",
+        "entity_type",
+        "baseline_peak",
+        "scenario_peak"
+      ],
+      "title": "SimulationChange",
+      "type": "object"
+    },
     "SimulationDelta": {
       "additionalProperties": false,
       "properties": {
@@ -358,6 +529,20 @@
           },
           "title": "New Critical Entities",
           "type": "array"
+        },
+        "resolved_critical_entities": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Resolved Critical Entities",
+          "type": "array"
+        },
+        "metrics": {
+          "additionalProperties": {
+            "type": "number"
+          },
+          "title": "Metrics",
+          "type": "object"
         }
       },
       "required": [
@@ -394,6 +579,126 @@
         "critical_count": {
           "title": "Critical Count",
           "type": "integer"
+        },
+        "avg_utilisation": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Avg Utilisation"
+        },
+        "transport_pressure": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Transport Pressure"
+        },
+        "road_pressure": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Road Pressure"
+        },
+        "venue_pressure": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Venue Pressure"
+        },
+        "hotel_pressure": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Hotel Pressure"
+        },
+        "queued_people": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Queued People"
+        },
+        "late_entries": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Late Entries"
+        },
+        "rooms_unmet": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Rooms Unmet"
+        },
+        "unmet_demand": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Unmet Demand"
+        },
+        "avg_travel_time_sec": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Avg Travel Time Sec"
         }
       },
       "required": [
@@ -402,6 +707,30 @@
         "critical_count"
       ],
       "title": "SimulationSide",
+      "type": "object"
+    },
+    "SimulationTimelinePoint": {
+      "additionalProperties": false,
+      "properties": {
+        "offset_sec": {
+          "title": "Offset Sec",
+          "type": "integer"
+        },
+        "baseline_peak": {
+          "title": "Baseline Peak",
+          "type": "number"
+        },
+        "scenario_peak": {
+          "title": "Scenario Peak",
+          "type": "number"
+        }
+      },
+      "required": [
+        "offset_sec",
+        "baseline_peak",
+        "scenario_peak"
+      ],
+      "title": "SimulationTimelinePoint",
       "type": "object"
     }
   },
@@ -481,6 +810,39 @@
         "$ref": "#/$defs/Intervention"
       },
       "title": "Candidate Interventions",
+      "type": "array"
+    },
+    "top_changes": {
+      "items": {
+        "$ref": "#/$defs/SimulationChange"
+      },
+      "title": "Top Changes",
+      "type": "array"
+    },
+    "timeline": {
+      "items": {
+        "$ref": "#/$defs/SimulationTimelinePoint"
+      },
+      "title": "Timeline",
+      "type": "array"
+    },
+    "horizon_sec": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Horizon Sec"
+    },
+    "scenarios": {
+      "items": {
+        "$ref": "#/$defs/ScenarioSpec"
+      },
+      "title": "Scenarios",
       "type": "array"
     }
   },

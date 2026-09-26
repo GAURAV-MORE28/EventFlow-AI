@@ -1,25 +1,36 @@
 """The orchestration cycle (01_BACKEND_CONTRACT.md §2).
 
-    1. generator.tick()                     -> observations
-    2. persist observations                 -> Postgres + cache
-    3. twin.assimilate(observations)        -> corrected ensemble
+    1. generator.tick()                     -> observations (live city, flow model)
+       nominal.tick()                       -> the twin's process model (announced plan only)
+       counterfactual.tick()                -> do-nothing worlds for approved interventions
+    2. persist observations                 -> DB + cache
+    3. twin.step(model) + assimilate(obs)   -> corrected ensemble
     4. forecaster.predict(entities)         -> Forecast[]
     5. risk_scorer.score(state, forecast)   -> risk_score per entity
     6. anomaly.detect(residuals)            -> anomaly flags
     7. cascade.predict(graph_state)         -> CascadeResult[]
-    8. IF any predicted band critical within 3600s: optimise + certify + queue
+    8. IF any entity predicted critical within 3600s:
+         optimise -> simulate each candidate (evaluation) -> certify -> rank -> queue
     9. broadcast WS events
    10. write cycle metrics
 
 Backpressure rule (§2): skip the forecast refresh before you skip assimilation.
-Drift compounds; a stale forecast does not. That ordering is enforced in
-`_maybe_shed_load`, not left to whoever is on call.
+
+Three worlds run side by side, all SyntheticGenerator instances:
+  * `generator`       — the city as it really is (disruptions, interventions, schedule)
+  * `nominal`         — the city as planned: announced schedule and approved
+                        interventions, but not unannounced disruptions. It is the
+                        twin's process model; assimilation corrects the gap.
+  * `counterfactuals` — per approved intervention, the live city forked just
+                        before approval without it. Realised relief is measured
+                        against it, not guessed.
 """
 from __future__ import annotations
 
 import asyncio
 import contextlib
 import logging
+import threading
 import time
 from collections import deque
 from typing import Any
@@ -30,6 +41,7 @@ from ..ml_reference.common import band_from_score, clamp, variance
 from ..ml_registry import MLRegistry, call_ml
 from ..simtime import iso, parse, shift
 from ..ws.manager import MANAGER
+from .events import EventSchedule
 from .state_store import StateStore
 
 log = logging.getLogger("eventflow.cycle")
@@ -37,42 +49,91 @@ log = logging.getLogger("eventflow.cycle")
 # 01 §3.4 — the pressure timeline is always these six offsets.
 TRAJECTORY_OFFSETS = [0, 300, 600, 900, 1200, 1800]
 MIN_WALL_SLEEP = 0.2
-# Operator queue ceiling — the frontend shows 10; beyond that it is noise.
-MAX_LIVE_PROPOSALS = 8
+ROOT_COOLDOWN_CYCLES = 10
+PRIOR_COMPLIANCE_WEIGHT = 10.0
 
 
 class Engine:
-    """Owns the clock, the ML registry, and the only writer to StateStore."""
+    """Owns the clock, the ML registry, the simulated worlds, and the only writer to StateStore."""
 
     def __init__(self) -> None:
         self.config = get_config()
-        event_cfg = self.config.raw["event"]
+        raw = self.config.raw
+        event_cfg = raw["event"]
 
         self.seed = self.config.demo_seed
-        self.speed_multiplier = float(self.config.raw.get("speed_multiplier", 60))
+        self.speed_multiplier = float(raw.get("speed_multiplier", 10))
         self.sim_dt = self.config.cycle_sec
         self.paused = False
+        self.icfg = raw.get("interventions", {})
 
         self.store = StateStore(sim_start=event_cfg["sim_start_time"])
-        self.registry = MLRegistry()
-        self.generator = self.registry.build_generator(
-            {"nodes": list(self.store.nodes.values()), "edges": self.store.edges}, self.seed
-        )
-        self._init_twin()
+        self.events = EventSchedule(raw.get("events") or [self._primary_from_event_cfg(event_cfg)], event_cfg["event_id"])
+        # Guards every generator mutation and every clone, so a what-if or a
+        # projection never copies a half-applied cycle.
+        self.world_lock = threading.RLock()
+        self.world_version = 0
+        self.counterfactuals: dict[str, Any] = {}
+        self._build_worlds()
 
         self._task: asyncio.Task | None = None
         self._stopping = asyncio.Event()
         self._last_cycle_ms = 0.0
         self._shed_forecast_until = 0
+        self.commander = None
+        self.critical_lines = {e: self.config.thresholds_for(n["entity_type"])[1] for e, n in self.store.nodes.items()}
 
-    # --- lifecycle ------------------------------------------------------------
+    @staticmethod
+    def _primary_from_event_cfg(cfg: dict) -> dict:
+        return {
+            "event_id": cfg["event_id"], "name": cfg["name"], "venue_entity_id": cfg["venue_entity_id"],
+            "start_time": cfg["start_time"], "end_time": cfg["end_time"],
+            "expected_attendance": cfg["expected_attendance"],
+        }
+
+    # --- worlds ----------------------------------------------------------------
+    def _build_worlds(self) -> None:
+        self.registry = MLRegistry()
+        topology = {
+            "nodes": list(self.store.nodes.values()),
+            "edges": self.store.edges,
+            "properties": self.store.properties,
+            "events": self.events.to_generator(),
+        }
+        self.generator = self.registry.build_generator(topology, self.seed)
+        if hasattr(self.generator, "clone"):
+            self.nominal = self.generator.clone(sources={"intervention", "schedule"})
+        else:  # an ML drop-in generator without clone(): the twin runs model-free
+            self.nominal = None
+        self.counterfactuals = {}
+        self._init_twin()
+        self.world_version += 1
+
+    def _capacity(self, eid: str) -> float:
+        if hasattr(self.generator, "capacity"):
+            return float(self.generator.capacity(eid))
+        return float(self.store.nodes[eid]["nominal_capacity"])
+
     def _init_twin(self) -> None:
-        caps = self.store.capacities()
+        caps = {e: self._capacity(e) for e in self.store.nodes}
         truth = self.generator.ground_truth()
         counts = {e: v["current_count"] for e, v in truth.items()}
         if hasattr(self.registry.twin, "initialise"):
             self.registry.twin.initialise(list(self.store.nodes.keys()), caps, counts)
 
+    def _all_worlds(self, include_nominal: bool = True) -> list[Any]:
+        worlds = [self.generator] + list(self.counterfactuals.values())
+        if include_nominal and self.nominal is not None:
+            worlds.append(self.nominal)
+        return worlds
+
+    def world_changed(self) -> None:
+        self.world_version += 1
+        from .projection import PROJECTIONS
+
+        PROJECTIONS.invalidate()
+
+    # --- lifecycle ------------------------------------------------------------
     async def start(self) -> None:
         self._stopping.clear()
         self._task = asyncio.create_task(self._loop(), name="eventflow-cycle")
@@ -107,6 +168,20 @@ class Engine:
             await asyncio.sleep(max(0.0, wall_sleep - elapsed))
 
     # --- the cycle -------------------------------------------------------------
+    def _tick_worlds(self) -> tuple[dict, dict, dict | None]:
+        with self.world_lock:
+            model = None
+            if self.nominal is not None:
+                before = {e: v["current_count"] for e, v in self.nominal.ground_truth().items()}
+                self.nominal.tick(self.sim_dt)
+                after = {e: v["current_count"] for e, v in self.nominal.ground_truth().items()}
+                model = {"counts": after, "delta": {e: after[e] - before.get(e, after[e]) for e in after}}
+            observations = self.generator.tick(self.sim_dt)
+            truth = self.generator.ground_truth()
+            for cf in self.counterfactuals.values():
+                cf.tick(self.sim_dt)
+        return observations, truth, model
+
     async def run_cycle(self) -> None:
         cycle_started = time.perf_counter()
         store = self.store
@@ -115,23 +190,13 @@ class Engine:
         sim_time = store.sim_time
 
         # 1. observations ------------------------------------------------------
-        observations = await asyncio.to_thread(self.generator.tick, self.sim_dt)
-        truth = self.generator.ground_truth()
+        observations, truth, model = await asyncio.to_thread(self._tick_worlds)
 
         # 3. assimilate — never skipped (§2 latency table) ----------------------
-        # The forecast half of the EnKF cycle (03 §3.1/§3.2): every member is
-        # advanced with process noise and mandatory covariance inflation BEFORE
-        # the analysis step below corrects it. Skipping this — as this line's
-        # absence used to do — means `assimilate()` only ever runs the Kalman
-        # update against a never-advanced ensemble: the gain shrinks spread every
-        # cycle with nothing re-injecting it, so the filter collapses (measured
-        # ensemble_spread -> ~0.0001 within ~15 cycles) and quietly stops
-        # correcting. `step()` has no `.fallback()` in the 03 §3.1 interface
-        # because it mutates internal state only — a failure here can't corrupt
-        # the wire, so it is caught and logged rather than routed through
-        # call_ml's timeout/fallback machinery.
         if hasattr(self.registry.twin, "step"):
             try:
+                await asyncio.to_thread(self.registry.twin.step, self.sim_dt, model)
+            except TypeError:
                 await asyncio.to_thread(self.registry.twin.step, self.sim_dt)
             except Exception:
                 log.exception("twin.step failed; assimilation will run against a stale ensemble")
@@ -140,8 +205,6 @@ class Engine:
             "twin.assimilate",
             self.registry.twin.assimilate,
             self.registry.twin.fallback,
-            # The budget is a warning line for assimilation, not a kill switch:
-            # the contract says extend and log rather than drop the correction.
             self.config.budget_sec("assimilate") * 4,
             observations,
             sim_time,
@@ -167,29 +230,20 @@ class Engine:
             )
             self._apply_forecasts(forecasts or {}, sim_time)
         else:
-            forecast_ms = 0.0
             log.info("shedding forecast refresh this cycle (backpressure)")
 
         # 5. risk ------------------------------------------------------------------
         node_state = store.node_state_for_ml()
         exposure = self._cascade_exposure()
         scores, _, _ = await call_ml(
-            "risk.score",
-            self.registry.risk.score,
-            self.registry.risk.fallback,
-            0.2,
-            node_state,
-            store.forecasts,
-            exposure,
+            "risk.score", self.registry.risk.score, self.registry.risk.fallback, 0.2,
+            node_state, store.forecasts, exposure,
         )
         self._apply_risk(scores or {})
 
         # 6. anomalies --------------------------------------------------------------
         anomalies, _, _ = await call_ml(
-            "anomaly.detect",
-            self.registry.anomaly.detect,
-            self.registry.anomaly.fallback,
-            0.15,
+            "anomaly.detect", self.registry.anomaly.detect, self.registry.anomaly.fallback, 0.15,
             {e: list(r) for e, r in store.residuals.items()},
         )
 
@@ -223,9 +277,15 @@ class Engine:
         self._track_cascade_recall(previous_states)
 
         # 8. interventions -------------------------------------------------------------
+        node_state = store.node_state_for_ml()
         new_interventions = await self._maybe_generate_interventions(node_state, sim_time)
         expired = store.expire_interventions()
+        for i in expired:
+            store.root_cooldown[i.get("triggered_by_entity_id") or ""] = store.cycle_number
         settled = await self._settle_executing_interventions(sim_time)
+
+        with self.world_lock:
+            store.operations = self.generator.stats() if hasattr(self.generator, "stats") else {}
 
         # 2. persist ------------------------------------------------------------------
         await asyncio.to_thread(self._persist, sim_time)
@@ -249,9 +309,13 @@ class Engine:
         truth: dict[str, dict],
         sim_time: str,
     ) -> None:
+        """Observed entities report their reading; the rest (and sensors that
+        missed this cycle) take the twin's estimate — the last valid state
+        carried forward by the process model, never an unconstrained guess."""
         store = self.store
-        for eid, node in store.nodes.items():
-            cap = float(node["nominal_capacity"]) or 1.0
+        for eid in store.nodes:
+            critical = self.config.thresholds_for(store.nodes[eid]["entity_type"])[1]
+            cap = self._capacity(eid) or 1.0
             observed = eid in observations
 
             if observed:
@@ -264,13 +328,13 @@ class Engine:
             previous = store.entity_states.get(eid)
             prev_count = float(previous["current_count"]) if previous else count
             utilisation = round(clamp(count / cap, 0.0, 2.0), 4)
+            store.cycles_over_critical[eid] = store.cycles_over_critical.get(eid, 0) + 1 if utilisation >= critical else 0
 
             store.entity_states[eid] = {
                 "entity_id": eid,
                 "sim_time": sim_time,
                 "current_count": round(count, 1),
                 "utilisation": utilisation,
-                # 30 sim-seconds per cycle -> per-minute rate is twice the delta.
                 "flow_rate_per_min": round((count - prev_count) * (60.0 / self.sim_dt), 1),
                 "risk_score": int(previous["risk_score"]) if previous else 0,
                 "risk_band": previous["risk_band"] if previous else "low",
@@ -279,9 +343,6 @@ class Engine:
             store.history[eid].append(utilisation)
 
     # --- step 4 -------------------------------------------------------------------------
-    # Validate at the shortest contracted horizon (900s = §2.1). A lag this
-    # short still leaves enough history within a demo run to populate the MAE,
-    # and it is a real forecast lead time rather than a mismatched one.
     VALIDATION_HORIZON_SEC = 900
 
     def _apply_forecasts(self, forecasts: dict[str, dict], sim_time: str) -> None:
@@ -292,16 +353,11 @@ class Engine:
         for eid, raw in forecasts.items():
             if eid not in store.nodes:
                 continue
-
             actual = store.entity_states[eid]["utilisation"]
-
-            # Validate whichever past snapshot's horizon lands on *now* — never
-            # the previous cycle's forecast, which predicted 900s ahead of a
-            # point only 30s ago and is not yet due to be checked.
             snapshots = store.forecast_snapshots[eid]
             due_cycle = store.cycle_number - lag_cycles
             while snapshots and snapshots[0][0] < due_cycle:
-                snapshots.popleft()  # too old to ever match again; drop it
+                snapshots.popleft()
             if snapshots and snapshots[0][0] == due_cycle:
                 _, predicted_900, baseline_then = snapshots.popleft()
                 residual = actual - predicted_900
@@ -319,14 +375,11 @@ class Engine:
                 (p["predicted_utilisation"] for p in forecast["points"] if p["horizon_sec"] == 900),
                 forecast["baseline_value"],
             )
-            store.forecast_snapshots[eid].append(
-                (store.cycle_number, predicted_900, forecast["baseline_value"])
-            )
+            store.forecast_snapshots[eid].append((store.cycle_number, predicted_900, forecast["baseline_value"]))
 
         if sources:
             store.active_forecast_source = max(sources, key=lambda s: sources[s])
         store.pressure_timeline = self._build_pressure_timeline()
-
         for series in store.forecast_errors.values():
             del series[:-400]
 
@@ -341,24 +394,19 @@ class Engine:
             state = store.entity_states.get(eid)
             if not state:
                 continue
-            items.append(
-                {
-                    "entity_id": eid,
-                    "display_name": store.nodes[eid]["display_name"],
-                    "current_utilisation": state["utilisation"],
-                    "current_band": state["risk_band"],
-                    "time_to_critical_sec": int(ttc),
-                    "trajectory": self._trajectory(state["utilisation"], forecast),
-                }
-            )
-        items.sort(key=lambda i: (i["time_to_critical_sec"], i["entity_id"]))
+            items.append({
+                "entity_id": eid,
+                "display_name": store.nodes[eid]["display_name"],
+                "current_utilisation": state["utilisation"],
+                "current_band": state["risk_band"],
+                "time_to_critical_sec": int(ttc),
+                "trajectory": self._trajectory(state["utilisation"], forecast),
+            })
+        items.sort(key=lambda i: (i["time_to_critical_sec"], -i["current_utilisation"], i["entity_id"]))
         return items
 
     def _trajectory(self, current: float, forecast: dict) -> list[dict]:
-        """Six fixed offsets, linearly interpolated between the forecast horizons."""
-        anchors = [(0, current)] + [
-            (p["horizon_sec"], p["predicted_utilisation"]) for p in forecast["points"]
-        ]
+        anchors = [(0, current)] + [(p["horizon_sec"], p["predicted_utilisation"]) for p in forecast["points"]]
         out = []
         for offset in TRAJECTORY_OFFSETS:
             value = anchors[-1][1]
@@ -386,14 +434,10 @@ class Engine:
         states = store.entity_states
         zone_utils = [states[z]["utilisation"] for z in store.zone_ids() if z in states]
         load_variance = round(variance(zone_utils), 4)
-
         scores = [s["risk_score"] for s in states.values()]
         overall = int(round(sum(scores) / len(scores))) if scores else 0
-        # The headline score leans on the worst entity, not the average — an average
-        # over 66 entities hides exactly the one the operator needs to see.
         worst = max(scores) if scores else 0
         overall = int(round(0.4 * overall + 0.6 * worst))
-
         store.summary = {
             "overall_risk_score": overall,
             "overall_risk_band": band_from_score(overall, self.config.raw["thresholds"]["risk_bands"]),
@@ -404,7 +448,10 @@ class Engine:
 
     # --- step 7 -------------------------------------------------------------------------------
     def _critical_roots(self, node_state: dict[str, dict]) -> list[str]:
-        return [e for e, s in node_state.items() if s.get("risk_band") in ("high", "critical")]
+        roots = [e for e, s in node_state.items()
+                 if s.get("risk_band") == "critical" and s.get("entity_type") != "hotel"]
+        roots.sort(key=lambda e: -node_state[e].get("risk_score", 0))
+        return roots[: int(self.config.raw.get("cascade", {}).get("max_roots", 5))]
 
     def _apply_cascades(self, cascades: list[dict]) -> list[dict]:
         store = self.store
@@ -415,42 +462,30 @@ class Engine:
             store.cascades[c["root_entity_id"]] = c
             if c["total_downstream_failures"] >= 1:
                 active_roots.add(c["root_entity_id"])
-                # H4: cascade_alert is "when a new cascade appears" (01 §4.1), not
-                # every cycle a still-active one refreshes its prediction — a live
-                # cascade recomputes ~every cycle and would otherwise emit and
-                # restart the frontend's arc-reveal animation twice a second.
                 if c["root_entity_id"] not in store.previously_active_cascade_roots:
                     newly_active.append(c)
-                # Lead time: how early we saw it, relative to the root's own ETA.
                 etas = [s["eta_sec"] for s in c["steps"] if s["depth"] > 0]
                 if etas:
                     store.cascade_lead_times.append(float(max(etas)))
-
                 self._schedule_cascade_checks(c)
         store.previously_active_cascade_roots = active_roots
         if cascades:
             store.active_cascade_source = cascades[0]["source"]
         return newly_active
 
-    # --- online cascade precision/recall (03 §4.4) ------------------------------------------
     def _schedule_cascade_checks(self, cascade: dict) -> None:
-        """Record every downstream (non-root) prediction so its outcome can be
-        checked once its own predicted eta arrives — this is what makes
-        `cascade_precision` a measurement instead of a formula."""
         store = self.store
         pending_entities = {eid for _, eid in store.cascade_pending_checks}
         for step in cascade["steps"][1:]:
             eid = step["entity_id"]
             store.cascade_predicted_at[eid] = store.cycle_number
             if eid in pending_entities:
-                continue  # already have an earlier check pending for this entity
+                continue
             due = store.cycle_number + max(1, round(step["eta_sec"] / self.sim_dt))
             store.cascade_pending_checks.append((due, eid))
             pending_entities.add(eid)
 
     def _resolve_cascade_predictions(self) -> None:
-        """Precision half: of the predictions whose eta has now arrived, how many
-        actually landed in high/critical band?"""
         store = self.store
         remaining: deque[tuple[int, str]] = deque()
         for due, eid in store.cascade_pending_checks:
@@ -465,23 +500,22 @@ class Engine:
                 store.cascade_eval["alerts_false"] += 1
         store.cascade_pending_checks = remaining
 
-    # 03 §4.4's lead-time target is >=900s; a prediction older than the deepest
-    # forecast horizon (3600s) is no longer a meaningful "advance warning" for
-    # whatever just happened, so it does not count as a caught event.
     CASCADE_RECALL_LOOKBACK_SEC = 3600
 
     def _track_cascade_recall(self, previous_states: dict[str, dict]) -> None:
-        """Recall half: of the entities that just transitioned into high/critical,
-        how many had been predicted in advance by any cascade?"""
+        """Recall: of the non-root entities that just turned high/critical, how
+        many had been predicted in advance by a cascade?"""
         store = self.store
         lookback_cycles = max(1, self.CASCADE_RECALL_LOOKBACK_SEC // self.sim_dt)
+        roots = set(store.cascades)
         for eid, state in store.entity_states.items():
-            if state["risk_band"] not in ("high", "critical"):
+            if state["risk_band"] not in ("high", "critical") or eid in roots:
+                continue
+            if store.nodes[eid]["entity_type"] in ("hotel",):
                 continue
             prev = previous_states.get(eid)
-            was_high = bool(prev) and prev["risk_band"] in ("high", "critical")
-            if was_high:
-                continue  # not a fresh transition — already counted when it first happened
+            if bool(prev) and prev["risk_band"] in ("high", "critical"):
+                continue
             predicted_cycle = store.cascade_predicted_at.get(eid)
             if predicted_cycle is not None and 1 <= store.cycle_number - predicted_cycle <= lookback_cycles:
                 store.cascade_eval["events_caught"] += 1
@@ -489,7 +523,6 @@ class Engine:
                 store.cascade_eval["events_missed"] += 1
 
     def _cascade_exposure(self) -> dict[str, float]:
-        """Normalised downstream-failure count, per entity. Feeds RiskScorer."""
         store = self.store
         counts: dict[str, float] = {}
         for cascade in store.cascades.values():
@@ -503,26 +536,52 @@ class Engine:
         return {e: v / peak for e, v in counts.items()}
 
     # --- step 8 -----------------------------------------------------------------------------------
+    def current_compliance(self) -> float:
+        """Share of visitors expected to follow an instruction: the configured
+        prior, updated by every attendee nudge answer (Bayesian-style average)."""
+        prior = float(self.icfg.get("default_compliance", 0.6))
+        answers = self.store.observed_compliance
+        return round((prior * PRIOR_COMPLIANCE_WEIGHT + sum(1 for a in answers if a))
+                     / (PRIOR_COMPLIANCE_WEIGHT + len(answers)), 4)
+
+    def optimiser_context(self) -> dict[str, Any]:
+        from .accommodation import cluster_availability
+
+        with self.world_lock:
+            closed = sorted(self.generator._eff["closed"]) if hasattr(self.generator, "_eff") else []
+            venue_gates = dict(getattr(self.generator, "venue_gates", {}))
+        return {
+            "closed": closed,
+            "venue_gates": venue_gates,
+            "hotel_availability": cluster_availability(self) if hasattr(self.generator, "properties_state") else {},
+        }
+
+    def intervention_ttl_sec(self) -> int:
+        """Long enough to read and act on at the current speed, never stale in sim time."""
+        ttl = float(self.icfg.get("ttl_sec", 1200))
+        wall = float(self.icfg.get("min_wall_visible_sec", 120)) * max(self.speed_multiplier, 1.0)
+        cap = float(self.icfg.get("max_ttl_sec", 3600))
+        return int(min(max(ttl, wall), max(cap, ttl)))
+
     async def _maybe_generate_interventions(self, node_state: dict[str, dict], sim_time: str) -> list[dict]:
         store = self.store
-        # Trigger: any entity predicted critical within the hour.
+        proposed = [i for i in store.interventions.values() if i["status"] == "proposed"]
+        if len(proposed) >= int(self.icfg.get("max_live_proposals", 8)):
+            return []
+        busy = {i["triggered_by_entity_id"] for i in store.interventions.values()
+                if i["status"] in ("proposed", "executing")}
+
+        # Trigger: an entity predicted critical within the hour, most urgent first.
         triggers = [
             (eid, f) for eid, f in store.forecasts.items()
             if f.get("time_to_critical_sec") is not None and f["time_to_critical_sec"] <= 3600
+            and eid not in busy
+            and store.cycle_number - store.root_cooldown.get(eid, -10**6) >= ROOT_COOLDOWN_CYCLES
         ]
         if not triggers:
             return []
-        triggers.sort(key=lambda t: t[1]["time_to_critical_sec"])
+        triggers.sort(key=lambda t: (t[1]["time_to_critical_sec"], -node_state[t[0]]["risk_score"], t[0]))
         root = triggers[0][0]
-
-        # Do not re-propose for a root that already has a live proposal, and keep
-        # the operator queue to a size a human can actually read during an
-        # incident. An unbounded queue is not more information, it is less.
-        proposed = [i for i in store.interventions.values() if i["status"] == "proposed"]
-        if any(i["triggered_by_entity_id"] == root for i in proposed):
-            return []
-        if len(proposed) >= MAX_LIVE_PROPOSALS:
-            return []
 
         risk_context = {
             "root_entity_id": root,
@@ -530,6 +589,7 @@ class Engine:
             "node_state": node_state,
             "edges": store.edges,
             "sim_time": sim_time,
+            **self.optimiser_context(),
         }
         candidates, _, _ = await call_ml(
             "optimiser.generate",
@@ -540,9 +600,35 @@ class Engine:
             self.config.raw["optimiser"]["max_candidates"],
         )
         candidates = candidates or []
+        if not candidates:
+            return []
 
+        # Simulate each candidate on a clone of the live city.
+        if hasattr(self.generator, "clone"):
+            from .evaluation import evaluate_candidates
+
+            try:
+                await asyncio.wait_for(
+                    asyncio.to_thread(evaluate_candidates, self, candidates, root, self.current_compliance()),
+                    timeout=self.config.budget_sec("evaluate"),
+                )
+            except asyncio.TimeoutError:
+                log.warning("candidate evaluation exceeded its budget; keeping template estimates")
+            except Exception:
+                log.exception("candidate evaluation failed; keeping template estimates")
+            # Simulation showed these would not help: do not put them in front of
+            # an operator. If nothing helps, escalate (notify_only) instead.
+            min_relief = float(self.icfg.get("min_relief_pct", 1.0))
+            useful = [c for c in candidates if c.get("evaluation") is None or c["estimated_relief_pct"] >= min_relief]
+            if not useful:
+                useful = self.registry.optimiser.fallback(risk_context, 1)
+                for c in useful:
+                    c["estimated_relief_pct"] = 0.0
+            candidates = useful
+
+        ttl = self.intervention_ttl_sec()
         for candidate in candidates:
-            certificate, degraded, certify_ms = await call_ml(
+            certificate, degraded, _ = await call_ml(
                 "equilibrium.certify",
                 self.registry.equilibrium.certify,
                 self.registry.equilibrium.fallback,
@@ -554,29 +640,21 @@ class Engine:
             )
             candidate["certificate"] = certificate
             candidate["created_at"] = sim_time
-            candidate["expires_at"] = shift(sim_time, candidate.pop("_ttl_sec", 900))
-            await self._score_certificate_accuracy(candidate, certificate, node_state)
+            candidate.pop("_ttl_sec", None)
+            candidate["expires_at"] = shift(sim_time, ttl)
+            self._score_certificate_accuracy(candidate, certificate)
 
-        # rank() attaches rank_score using the certificate verdict — this is the
-        # step where an UNSTABLE high-relief option loses to a STABLE lower one.
         ranked = self.registry.optimiser.rank(candidates)
-
         for i in ranked:
             store.interventions[i["intervention_id"]] = i
             cert = i.get("certificate")
             if cert:
                 store.certificates[i["intervention_id"]] = cert
-
         self._count_unstable_caught(ranked)
         return ranked
 
     def _count_unstable_caught(self, ranked: list[dict]) -> None:
-        """01 §3.10 — how many UNSTABLE options a relief-only ranking would have picked.
-
-        This is the number that justifies the whole equilibrium layer, so it is
-        counted precisely: only when relief-first would have chosen it and the
-        certificate demoted it.
-        """
+        """01 §3.10 — how many UNSTABLE options a relief-only ranking would have picked."""
         if not ranked:
             return
         by_relief = max(ranked, key=lambda i: float(i.get("estimated_relief_pct", 0.0)))
@@ -584,105 +662,116 @@ class Engine:
         if verdict == "UNSTABLE" and ranked[0]["intervention_id"] != by_relief["intervention_id"]:
             self.store.unstable_caught += 1
 
-    async def _score_certificate_accuracy(
-        self, candidate: dict, certificate: dict, node_state: dict[str, dict]
-    ) -> None:
-        """03 §5.6 — compare the certificate's predicted equilibrium against an
-        independent `twin.branch()` rollout of the same relief. Agreement within
-        15% is recorded; this is the only place `certificates_scored` is written,
-        and `metrics.certificate_accuracy_pct` is the only place it is read.
+    def _score_certificate_accuracy(self, candidate: dict, certificate: dict | None) -> None:
+        """03 §5.6 — does the certificate agree with an independent simulation?
 
-        Deliberately a *different* mechanism from `certify()`'s own best-response
-        solver (a flat demand cut on the named targets vs. a compliance-weighted
-        segment model) — the point of this check is cross-validation, not
-        re-deriving the same number twice.
-        """
-        if not certificate.get("converged"):
-            return  # no equilibrium prediction to compare against
-        targets = candidate.get("target_entity_ids") or []
-        relief = float(candidate.get("estimated_relief_pct", 0.0)) / 100.0
-        scenario = {"demand_multipliers": {t: clamp(1.0 - relief, 0.05, 1.0) for t in targets if t in node_state}}
-        if not scenario["demand_multipliers"]:
+        The certificate says an action holds (STABLE/CONDITIONAL) or not
+        (UNSTABLE); the simulated evaluation says whether it relieved its root
+        without creating a new critical entity. Agreement is recorded; this is
+        the only writer of `certificates_scored`."""
+        ev = candidate.get("evaluation")
+        if not ev or not certificate or candidate["intervention_type"] == "notify_only":
             return
-        branch, degraded, _ = await call_ml(
-            "twin.branch_check", self.registry.twin.branch, None, 0.2, scenario, 1800,
-        )
-        if degraded or not branch:
-            return
-        predicted = float(certificate.get("max_zone_utilisation", 0.0))
-        observed = float((branch.get("scenario") or {}).get("peak_utilisation", 0.0))
-        within_15pct = abs(predicted - observed) <= max(0.15 * observed, 0.05)
-        self.store.certificates_scored.append(within_15pct)
+        sim_ok = candidate["estimated_relief_pct"] > 0 and not ev.get("new_critical_entities")
+        cert_ok = certificate.get("verdict") != "UNSTABLE"
+        self.store.certificates_scored.append(sim_ok == cert_ok)
 
-    # `_counterfactual_trajectory` is a 6-point rollout at 300s increments
-    # (see AssimilatedTwin._branch, horizon_sec=1800 // 6 steps); settling at
-    # exactly 900s after approval lands on index 2.
-    SETTLE_DELAY_SEC = 900
-    _COUNTERFACTUAL_STEP_SEC = 300
+    # --- approval (01 §3.6) -----------------------------------------------------------------------
+    def approve_intervention(self, item: dict) -> dict:
+        """Apply an approved intervention to the city for real.
 
-    async def _settle_executing_interventions(self, sim_time: str) -> list[dict]:
-        """Close the loop: an executing intervention becomes a regret-ledger entry.
-
-        Both `realised_relief_pct` and `counterfactual_relief_pct` are measured
-        against the same baseline (`_util_at_approval`) and the same settlement
-        point — one from what the live simulation, with the relief actually
-        applied, shows now; the other from the do-nothing branch forked at
-        approval time. Neither is derived from `hash()` (which also broke
-        seed-42 reproducibility per 01 §8 — a per-process-salted hash of the
-        intervention id is not a function of the seed at all).
-        """
+        The live world is forked first (the do-nothing counterfactual); then the
+        action is applied to the live world and to the twin's nominal model
+        (an approved action is part of the announced plan)."""
         store = self.store
+        compliance = self.current_compliance()
+        duration = float(self.icfg.get("effect_duration_sec", 2700))
+        root = item.get("triggered_by_entity_id") or (item["target_entity_ids"] or [None])[0]
+        with self.world_lock:
+            if hasattr(self.generator, "clone"):
+                self.counterfactuals[item["intervention_id"]] = self.generator.clone()
+            if hasattr(self.generator, "apply_intervention"):
+                mod_id = self.generator.apply_intervention(item, compliance, duration)
+                if self.nominal is not None:
+                    self.nominal.apply_intervention(item, compliance, duration)
+            else:
+                mod_id = None
+                self.generator.apply_relief(item["target_entity_ids"], float(item.get("estimated_relief_pct", 0.0)) / 100.0)
+        watch = [e for e in dict.fromkeys([root] + list(item["target_entity_ids"])) if e in store.entity_states]
+        item["status"] = "executing"
+        item["_applied_at"] = store.sim_time
+        item["_compliance"] = compliance
+        item["_modifier_id"] = mod_id
+        item["_root"] = root
+        item["_util_at_approval"] = {e: store.entity_states[e]["utilisation"] for e in watch}
+        self.world_changed()
+        return {"branch_id": f"cf_{item['intervention_id']}", "compliance": compliance}
+
+    def record_compliance(self, accepted: bool) -> float:
+        self.store.observed_compliance.append(bool(accepted))
+        c = self.current_compliance()
+        with self.world_lock:
+            for w in self._all_worlds():
+                if hasattr(w, "set_compliance"):
+                    w.set_compliance(c)
+        self.world_changed()
+        return c
+
+    # --- settlement --------------------------------------------------------------------------
+    async def _settle_executing_interventions(self, sim_time: str) -> list[dict]:
+        """An executing intervention becomes a regret-ledger entry once its
+        effect has had `settle_delay_sec` to act. Realised relief compares the
+        live city with its do-nothing counterfactual at the same moment."""
+        store = self.store
+        settle_delay = float(self.icfg.get("settle_delay_sec", 900))
         settled = []
         for i in list(store.interventions.values()):
             if i["status"] != "executing":
                 continue
             applied = i.get("_applied_at")
-            if not applied or (parse(sim_time) - parse(applied)).total_seconds() < self.SETTLE_DELAY_SEC:
+            if not applied or (parse(sim_time) - parse(applied)).total_seconds() < settle_delay:
                 continue
+            iid = i["intervention_id"]
+            root = i.get("_root")
+            with self.world_lock:
+                cf = self.counterfactuals.pop(iid, None)
+                live_util = self.generator.utilisation() if hasattr(self.generator, "utilisation") else {}
+                cf_util = cf.utilisation() if cf is not None else {}
+            at_approval = i.get("_util_at_approval", {})
+            baseline = float(at_approval.get(root, 0.0))
+            actual = float(live_util.get(root, store.entity_states.get(root, {}).get("utilisation", baseline)))
+            do_nothing = float(cf_util.get(root, actual))
 
-            predicted = float(i["estimated_relief_pct"])
-            baseline = float(i.get("_util_at_approval", 0.0))
-            targets = [t for t in i["target_entity_ids"] if t in store.entity_states]
-            traj = i.get("_counterfactual_trajectory") or {}
-            idx = self.SETTLE_DELAY_SEC // self._COUNTERFACTUAL_STEP_SEC - 1
+            realised = (do_nothing - actual) / do_nothing * 100.0 if do_nothing > 0.05 else 0.0
+            natural = (baseline - do_nothing) / baseline * 100.0 if baseline > 0.05 else 0.0
+            realised = round(clamp(realised, -100.0, 100.0), 1)
+            natural = round(clamp(natural, -100.0, 100.0), 1)
 
-            actual_now = (
-                sum(store.entity_states[t]["utilisation"] for t in targets) / len(targets)
-                if targets else baseline
-            )
-            do_nothing_now = (
-                sum(traj[t][idx] for t in targets if t in traj and len(traj[t]) > idx)
-                / max(sum(1 for t in targets if t in traj and len(traj[t]) > idx), 1)
-                if any(t in traj and len(traj[t]) > idx for t in targets) else baseline
-            )
-
-            # A near-zero baseline turns a small absolute swing into a huge
-            # percentage (the twin's branch model is a crude ABM surrogate —
-            # see twin.py — not the generator's true curve, so it can diverge
-            # from what actually happens by more than a percentage swing
-            # should reasonably report). Clamped to the same +/-100 scale
-            # `estimated_relief_pct` itself uses, so an outlier reads as "very
-            # wrong" rather than as a plausible-looking three-digit number.
-            if baseline > 0.05:
-                realised = round(clamp((baseline - actual_now) / baseline * 100.0, -100.0, 100.0), 1)
-                counterfactual = round(clamp((baseline - do_nothing_now) / baseline * 100.0, -100.0, 100.0), 1)
-            else:
-                realised = 0.0
-                counterfactual = 0.0
-
-            for t in targets:
-                if t in traj and len(traj[t]) > idx:
-                    store.counterfactual_utilisation[t] = float(traj[t][idx])
+            zones = [e for e, n in store.nodes.items() if n["entity_type"] == "zone"]
+            non_hotel = [e for e, n in store.nodes.items() if n["entity_type"] != "hotel"]
+            store.settlements.append({
+                "intervention_id": iid,
+                "root": root,
+                "root_actual": round(actual, 4),
+                "root_counterfactual": round(do_nothing, 4),
+                "peak_actual": round(max((live_util.get(e, 0.0) for e in non_hotel), default=0.0), 4),
+                "peak_counterfactual": round(max((cf_util.get(e, 0.0) for e in non_hotel), default=0.0), 4),
+                "zone_variance_actual": round(variance([live_util.get(z, 0.0) for z in zones]), 5),
+                "zone_variance_counterfactual": round(variance([cf_util.get(z, 0.0) for z in zones]), 5),
+            })
+            for t in i["target_entity_ids"]:
+                if t in cf_util:
+                    store.counterfactual_utilisation[t] = float(cf_util[t])
 
             i["status"] = "completed"
             entry = {
                 "regret_id": f"reg_{len(store.regret_entries) + 1:04d}",
-                "intervention_id": i["intervention_id"],
+                "intervention_id": iid,
                 "intervention_type": i["intervention_type"],
-                "predicted_relief_pct": predicted,
+                "predicted_relief_pct": float(i["estimated_relief_pct"]),
                 "realised_relief_pct": realised,
-                "counterfactual_relief_pct": counterfactual,
-                "regret": round(predicted - realised, 2),
+                "counterfactual_relief_pct": natural,
+                "regret": round(float(i["estimated_relief_pct"]) - realised, 2),
                 "sim_time": sim_time,
             }
             store.regret_entries.append(entry)
@@ -691,103 +780,81 @@ class Engine:
 
     # --- step 2 -------------------------------------------------------------------------------------
     def _persist(self, sim_time: str) -> None:
-        from ..db.base import SessionLocal
         from ..db import models
+        from ..db.base import SessionLocal
 
         ts = parse(sim_time)
         store = self.store
         try:
             with SessionLocal() as session:
-                session.bulk_save_objects(
-                    [
-                        models.EntityState(
-                            entity_id=s["entity_id"], sim_time=ts,
-                            current_count=s["current_count"], utilisation=s["utilisation"],
-                            flow_rate_per_min=s["flow_rate_per_min"], risk_score=s["risk_score"],
-                            risk_band=s["risk_band"], is_observed=s["is_observed"],
-                        )
-                        for s in store.entity_states.values()
-                    ]
-                )
-                session.bulk_save_objects(
-                    [
+                session.bulk_save_objects([
+                    models.EntityState(
+                        entity_id=s["entity_id"], sim_time=ts,
+                        current_count=s["current_count"], utilisation=s["utilisation"],
+                        flow_rate_per_min=s["flow_rate_per_min"], risk_score=s["risk_score"],
+                        risk_band=s["risk_band"], is_observed=s["is_observed"],
+                    )
+                    for s in store.entity_states.values()
+                ])
+                # Forecasts are persisted every 10th cycle: the full set every
+                # 30s grew the database by hundreds of MB per day of sim time.
+                if store.cycle_number % 10 == 0:
+                    session.bulk_save_objects([
                         models.Forecast(
                             entity_id=eid, generated_at=ts, source=f["source"],
-                            horizon_sec=p["horizon_sec"],
-                            predicted_utilisation=p["predicted_utilisation"],
+                            horizon_sec=p["horizon_sec"], predicted_utilisation=p["predicted_utilisation"],
                             lower_90=p.get("lower_90"), upper_90=p.get("upper_90"),
                             time_to_critical_sec=f.get("time_to_critical_sec"),
                         )
-                        for eid, f in store.forecasts.items()
-                        for p in f["points"]
-                    ]
-                )
-
-                # Interventions/certificates/nudges/regret entries are mutable
-                # (status flips, a certificate arrives after the intervention
-                # row does) so they're upserted by primary key every cycle
-                # rather than bulk-inserted — these tables were entirely
-                # write-never before this: every decision the demo makes was
-                # visible only in the in-memory StateStore and vanished on
-                # restart, despite 01 §1 naming "audit logging and the regret
-                # ledger" as something the backend owns.
+                        for eid, f in store.forecasts.items() for p in f["points"]
+                    ])
                 for i in store.interventions.values():
-                    session.merge(
-                        models.Intervention(
-                            intervention_id=i["intervention_id"], intervention_type=i["intervention_type"],
-                            status=i["status"], target_entity_ids=i["target_entity_ids"],
-                            triggered_by_entity_id=i.get("triggered_by_entity_id"),
-                            title=i["title"], description=i["description"],
-                            estimated_relief_pct=i["estimated_relief_pct"],
-                            estimated_cost_paise=i["estimated_cost_paise"],
-                            estimated_delay_sec=i["estimated_delay_sec"], feasibility=i["feasibility"],
-                            rank_score=i["rank_score"], created_at=parse(i["created_at"]),
-                            expires_at=parse(i["expires_at"]),
-                        )
-                    )
+                    if i.get("_persisted_status") == i["status"]:
+                        continue
+                    session.merge(models.Intervention(
+                        intervention_id=i["intervention_id"], intervention_type=i["intervention_type"],
+                        status=i["status"], target_entity_ids=i["target_entity_ids"],
+                        triggered_by_entity_id=i.get("triggered_by_entity_id"),
+                        title=i["title"], description=i["description"],
+                        estimated_relief_pct=i["estimated_relief_pct"],
+                        estimated_cost_paise=i["estimated_cost_paise"],
+                        estimated_delay_sec=i["estimated_delay_sec"], feasibility=i["feasibility"],
+                        rank_score=i["rank_score"], created_at=parse(i["created_at"]),
+                        expires_at=parse(i["expires_at"]),
+                    ))
                     cert = store.certificates.get(i["intervention_id"])
                     if cert:
-                        session.merge(
-                            models.Certificate(
-                                certificate_id=cert["certificate_id"], intervention_id=i["intervention_id"],
-                                verdict=cert["verdict"], converged=cert["converged"],
-                                iterations=cert["iterations"], post_nudge_variance=cert["post_nudge_variance"],
-                                baseline_variance=cert["baseline_variance"],
-                                max_zone_utilisation=cert["max_zone_utilisation"],
-                                max_zone_entity_id=cert.get("max_zone_entity_id"),
-                                oscillation_risk=cert["oscillation_risk"],
-                                compliance_sensitivity=cert["compliance_sensitivity"],
-                                compliance_sweep=cert["compliance_sweep"], reason=cert["reason"],
-                            )
-                        )
-
+                        session.merge(models.Certificate(
+                            certificate_id=cert["certificate_id"], intervention_id=i["intervention_id"],
+                            verdict=cert["verdict"], converged=cert["converged"],
+                            iterations=cert["iterations"], post_nudge_variance=cert["post_nudge_variance"],
+                            baseline_variance=cert["baseline_variance"],
+                            max_zone_utilisation=cert["max_zone_utilisation"],
+                            max_zone_entity_id=cert.get("max_zone_entity_id"),
+                            oscillation_risk=cert["oscillation_risk"],
+                            compliance_sensitivity=cert["compliance_sensitivity"],
+                            compliance_sweep=cert["compliance_sweep"], reason=cert["reason"],
+                        ))
+                    i["_persisted_status"] = i["status"]
                 for entry in store.regret_entries:
-                    session.merge(
-                        models.RegretEntry(
-                            regret_id=entry["regret_id"], intervention_id=entry["intervention_id"],
-                            intervention_type=entry["intervention_type"],
-                            predicted_relief_pct=entry["predicted_relief_pct"],
-                            realised_relief_pct=entry["realised_relief_pct"],
-                            counterfactual_relief_pct=entry["counterfactual_relief_pct"],
-                            regret=entry["regret"], sim_time=parse(entry["sim_time"]),
-                        )
-                    )
-
+                    session.merge(models.RegretEntry(
+                        regret_id=entry["regret_id"], intervention_id=entry["intervention_id"],
+                        intervention_type=entry["intervention_type"],
+                        predicted_relief_pct=entry["predicted_relief_pct"],
+                        realised_relief_pct=entry["realised_relief_pct"],
+                        counterfactual_relief_pct=entry["counterfactual_relief_pct"],
+                        regret=entry["regret"], sim_time=parse(entry["sim_time"]),
+                    ))
                 for n in store.nudges.values():
-                    session.merge(
-                        models.Nudge(
-                            nudge_id=n["nudge_id"], attendee_id=n["attendee_id"],
-                            intervention_id=n.get("intervention_id"), segment_id=n.get("segment_id"),
-                            headline=n["headline"], body=n["body"], tradeoff=n["tradeoff"],
-                            target_entity_id=n.get("target_entity_id"), status=n["status"],
-                            issued_at=parse(n["issued_at"]), expires_at=parse(n["expires_at"]),
-                        )
-                    )
-
+                    session.merge(models.Nudge(
+                        nudge_id=n["nudge_id"], attendee_id=n["attendee_id"],
+                        intervention_id=n.get("intervention_id"), segment_id=n.get("segment_id"),
+                        headline=n["headline"], body=n["body"], tradeoff=n["tradeoff"],
+                        target_entity_id=n.get("target_entity_id"), status=n["status"],
+                        issued_at=parse(n["issued_at"]), expires_at=parse(n["expires_at"]),
+                    ))
                 session.commit()
         except Exception:
-            # Persistence is the durable record, not the live path. Losing a write
-            # must not take the demo down with it.
             log.exception("persistence failed for cycle %s", store.cycle_number)
 
     def _write_cache(self) -> None:
@@ -800,6 +867,13 @@ class Engine:
             CACHE.set("twin:fidelity", fidelity, TTL["twin:fidelity"])
 
     # --- step 9 -----------------------------------------------------------------------------------------
+    def operations_summary(self) -> dict[str, Any]:
+        ops = self.store.operations or {}
+        return {k: ops.get(k) for k in (
+            "rooms_available", "rooms_unmet", "saturated_properties", "queued_people", "late_entries",
+            "diverted_people", "current_travel_time_sec", "arrivals_per_min", "egress_per_min",
+        )} | {"compliance": self.current_compliance(), "disruptions": len(self.store.disruptions)}
+
     async def _broadcast(
         self,
         previous_states: dict[str, dict],
@@ -814,61 +888,38 @@ class Engine:
         store = self.store
         await MANAGER.broadcast(
             "tick",
-            {"cycle_number": store.cycle_number, "sim_time": sim_time, "summary": store.summary},
+            {"cycle_number": store.cycle_number, "sim_time": sim_time, "summary": store.summary,
+             "operations": self.operations_summary()},
             sim_time,
         )
-
         changed = store.changed_entities(previous_states)
         if changed:
             await MANAGER.broadcast("state_update", {"entities": changed}, sim_time)
-
         await MANAGER.broadcast(
             "forecast_update",
             {"active_source": store.active_forecast_source, "pressure_timeline": store.pressure_timeline},
             sim_time,
         )
-
         for cascade in new_cascades:
             await MANAGER.broadcast("cascade_alert", {"cascade": cascade}, sim_time)
-
         for i in new_interventions:
-            await MANAGER.broadcast("intervention_queued", {"intervention": i}, sim_time)
-
+            await MANAGER.broadcast("intervention_queued", {"intervention": _public(i)}, sim_time)
         for i in expired:
-            await MANAGER.broadcast(
-                "intervention_resolved",
-                {"intervention_id": i["intervention_id"], "status": "expired"},
-                sim_time,
-            )
-
-        # An executing intervention that has now settled (>=900s after approval)
-        # produces a regret-ledger entry. 01 §4.1 lists `regret_update` as a live
-        # event but `_broadcast` never emitted it and the return value of
-        # `_settle_executing_interventions` was discarded — so the realised-vs-
-        # counterfactual result of an operator's decision only ever surfaced on
-        # a reconnect. `intervention_resolved{status:completed}` is emitted
-        # alongside so the operator queue can reconcile the card off `executing`.
+            await MANAGER.broadcast("intervention_resolved", {"intervention_id": i["intervention_id"], "status": "expired"}, sim_time)
         if settled:
             from .metrics import build_regret
 
             summary = build_regret(self)["summary"]
             for entry in settled:
-                await MANAGER.broadcast(
-                    "intervention_resolved",
-                    {"intervention_id": entry["intervention_id"], "status": "completed"},
-                    sim_time,
-                )
-                await MANAGER.broadcast(
-                    "regret_update", {"entry": entry, "summary": summary}, sim_time
-                )
-
+                await MANAGER.broadcast("intervention_resolved",
+                                        {"intervention_id": entry["intervention_id"], "status": "completed"}, sim_time)
+                await MANAGER.broadcast("regret_update", {"entry": entry, "summary": summary}, sim_time)
         if fidelity:
             fidelity["sim_time"] = sim_time
             fidelity["drift_mode_enabled"] = store.drift_mode_enabled
             store.twin_fidelity = fidelity
             store.append_twin_history(fidelity)
             await MANAGER.broadcast("twin_fidelity", store.twin_fidelity_payload() or {}, sim_time)
-
         for a in anomalies[:3]:
             store.anomalies.append({**a, "sim_time": sim_time})
             await MANAGER.broadcast("anomaly", a, sim_time)
@@ -877,7 +928,6 @@ class Engine:
     def _maybe_shed_load(self, total_ms: float) -> None:
         cap = self.config.budget_ms("total_cap")
         if total_ms > cap:
-            # §2: shed the forecast, never the assimilation.
             self._shed_forecast_until = self.store.cycle_number + 2
             log.warning("cycle took %.0fms (cap %dms); shedding forecast for 2 cycles", total_ms, cap)
 
@@ -893,26 +943,78 @@ class Engine:
 
     def forecast_payload(self, entity_ids: list[str] | None = None) -> dict[str, Any]:
         store = self.store
-        forecasts = [
-            f for eid, f in store.forecasts.items()
-            if entity_ids is None or eid in entity_ids
-        ]
         return {
             "generated_at": store.sim_time,
             "active_source": store.active_forecast_source,
-            "forecasts": forecasts,
+            "forecasts": [f for eid, f in store.forecasts.items() if entity_ids is None or eid in entity_ids],
         }
 
     def cascade_payload(self) -> dict[str, Any]:
         store = self.store
-        return {
-            "sim_time": store.sim_time,
-            "source": store.active_cascade_source,
-            "cascades": list(store.cascades.values()),
-        }
+        return {"sim_time": store.sim_time, "source": store.active_cascade_source,
+                "cascades": list(store.cascades.values())}
 
     def last_cycle_ms(self) -> float:
         return self._last_cycle_ms
+
+    # --- events (schedule changes) ---------------------------------------------------------------------------
+    def event_views(self) -> list[dict[str, Any]]:
+        with self.world_lock:
+            live = self.generator.event_states() if hasattr(self.generator, "event_states") else {}
+        return [
+            self.events.view(ev, self.store.sim_time, live.get(ev["event_id"]),
+                             self.store.nodes.get(ev["venue_entity_id"], {}).get("display_name"))
+            for ev in sorted(self.events.events.values(), key=lambda e: e["start_time"])
+        ]
+
+    def event_view(self, event_id: str) -> dict[str, Any]:
+        ev = self.events.get(event_id)
+        return next(v for v in self.event_views() if v["event_id"] == ev["event_id"])
+
+    def update_event(self, event_id: str, **changes: Any) -> dict[str, Any]:
+        """Apply a schedule change to every world (it is announced, so the twin's
+        nominal model and the counterfactuals all see it)."""
+        self.events.update(event_id, self.store.sim_time, **changes)
+        schedule = self.events.to_generator()
+        with self.world_lock:
+            for w in self._all_worlds():
+                if hasattr(w, "set_events"):
+                    w.set_events(schedule)
+        self.world_changed()
+        return self.event_view(event_id)
+
+    # --- live disruptions ---------------------------------------------------------------------------------------
+    def inject_disruption(self, scenario_type: str, params: dict, label: str | None = None) -> dict[str, Any]:
+        """A real-world incident. Unannounced: the twin's nominal model does not
+        know about it — assimilation has to find it from the sensors."""
+        store = self.store
+        did = f"dis_{len(store.disruptions) + 1:04d}"
+        while did in store.disruptions:
+            did = did + "x"
+        with self.world_lock:
+            for w in [self.generator] + list(self.counterfactuals.values()):
+                w.inject(scenario_type, params, source="disruption", modifier_id=did)
+        record = {
+            "disruption_id": did, "scenario_type": scenario_type, "params": dict(params or {}),
+            "label": label, "started_at": store.sim_time,
+        }
+        store.disruptions[did] = record
+        self.world_changed()
+        return record
+
+    def clear_disruption(self, disruption_id: str) -> dict[str, Any]:
+        from ..errors import ApiError
+
+        record = self.store.disruptions.get(disruption_id)
+        if not record:
+            raise ApiError("DISRUPTION_NOT_FOUND", f"No disruption with id '{disruption_id}'.",
+                           {"disruption_id": disruption_id})
+        with self.world_lock:
+            for w in [self.generator] + list(self.counterfactuals.values()):
+                w.remove_modifier(disruption_id)
+        self.store.disruptions.pop(disruption_id)
+        self.world_changed()
+        return record
 
     # --- demo control (01 §3.13) --------------------------------------------------------------------------------
     async def demo_control(
@@ -926,23 +1028,27 @@ class Engine:
         if seed is not None:
             self.seed = seed
         if speed_multiplier is not None:
-            self.speed_multiplier = float(speed_multiplier)
+            self.speed_multiplier = float(clamp(float(speed_multiplier), 0.5, 600.0))
 
         if action == "pause":
             self.paused = True
         elif action == "play":
             self.paused = False
-        elif action == "set_speed":
-            pass
         elif action == "reset":
             await self._reset()
         elif action == "seek" and seek_to_sim_time:
             elapsed = (parse(seek_to_sim_time) - parse(self.store.sim_start)).total_seconds()
-            self.generator.seek(max(0.0, elapsed))
+            with self.world_lock:
+                self.generator.seek(max(0.0, elapsed))
+                if self.nominal is not None:
+                    self.nominal.seek(max(0.0, elapsed))
+                self.counterfactuals.clear()
             self.store.reset_clock(seek_to_sim_time)
+            self.store.cycle_number = int(max(0.0, elapsed) // self.sim_dt)
+            self.world_changed()
 
         if inject:
-            self.generator.inject(inject["scenario_type"], inject.get("params", {}))
+            self.inject_disruption(inject["scenario_type"], inject.get("params", {}))
 
         return {
             "status": "paused" if self.paused else "playing",
@@ -952,27 +1058,22 @@ class Engine:
         }
 
     async def _reset(self) -> None:
-        """Full reproducible reset — the H33 rehearsal depends on this being exact."""
+        """Full reproducible reset — the rehearsal depends on this being exact."""
         self.store.clear_live()
         self.store.reset_clock(self.store.sim_start)
-        self.generator.reset(self.seed)
-        self.registry = MLRegistry()
-        self.generator = self.registry.build_generator(
-            {"nodes": list(self.store.nodes.values()), "edges": self.store.edges}, self.seed
-        )
-        self._init_twin()
+        self.events.reset()
+        with self.world_lock:
+            self._build_worlds()
         self.store.drift_mode_enabled = False
         CACHE.clear()
+        self.world_changed()
+        if self.commander is not None and hasattr(self.commander, "_cache"):
+            self.commander._cache.clear()
 
-        # The clock rewinds to sim_start, so persistence would otherwise
-        # re-insert entity_state rows keyed on sim_times this same process just
-        # wrote before the reset — a guaranteed UNIQUE-constraint failure on
-        # (entity_id, sim_time) from cycle 1 onward. Clear the DB-backed time
-        # series so "reproduces the identical run twice" (01 §8) holds at the
-        # persistence layer too, not just in memory.
-        from ..db.seed import clear_run_tables
+        from ..db.seed import clear_run_tables, persist_events
 
         await asyncio.to_thread(clear_run_tables)
+        await asyncio.to_thread(persist_events, self.events.to_generator())
         log.info("demo reset to seed %s", self.seed)
 
     def set_drift_mode(self, enabled: bool) -> dict[str, Any]:
@@ -981,9 +1082,12 @@ class Engine:
         if hasattr(self.registry.twin, "set_drift_mode"):
             self.registry.twin.set_drift_mode(enabled, started)
         if enabled:
-            # Both series restart from the same point, so the divergence reads clean.
             self.store.twin_history.clear()
         return {"drift_mode_enabled": enabled, "uncorrected_ensemble_started_at": started}
+
+
+def _public(intervention: dict) -> dict:
+    return {k: v for k, v in intervention.items() if not k.startswith("_")}
 
 
 ENGINE: Engine | None = None

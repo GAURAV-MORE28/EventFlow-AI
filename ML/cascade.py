@@ -65,6 +65,23 @@ def _band_from_utilisation(util: float, bands: dict[str, float]) -> str:
     return _band_from_score(_clamp(util * 100.0, 0.0, 100.0), bands)
 
 
+FLOW_EDGE_TYPES = {"feeds", "adjacent_to", "serves", "last_mile_to", "evacuates_to"}
+
+
+def _select_roots(node_state: dict[str, dict], critical: float, limit: int, forecast_util) -> list[str]:
+    """The most severe roots only: critical now, or high and forecast to cross
+    critical. Ranked by risk score then projected load; capped at `limit`."""
+    def projected(st: dict) -> float:
+        return max(forecast_util(st), float(st.get("utilisation", 0.0)))
+
+    roots = [
+        eid for eid, st in node_state.items()
+        if st.get("risk_band") == "critical" or (st.get("risk_band") == "high" and projected(st) >= critical)
+    ]
+    roots.sort(key=lambda e: (-int(node_state[e].get("risk_score", 0)), -projected(node_state[e]), e))
+    return roots[:limit]
+
+
 class HXCascade(nn.Module):
     """Must match the trained checkpoint's shapes exactly — never modify this
     to "fit" a feature mismatch; fix the feature-building code instead."""
@@ -98,6 +115,13 @@ class CascadePredictor:
         self.propagation_threshold = float(self.config.get("propagation_threshold", 0.15))
         self.critical = float(self.config.get("critical_utilisation", 0.90))
         self.bands = self.config.get("risk_bands", {"low": 30, "moderate": 60, "high": 80})
+        # Output hygiene (Backend/config.yaml `cascade`): a cascade an operator
+        # cannot read is not a prediction, it is noise.
+        self.max_roots = int(self.config.get("max_roots", 5))
+        self.max_steps = int(self.config.get("max_steps", 8))
+        self.exclude_root_types = set(self.config.get("exclude_root_types", ["hotel"]))
+        self.min_probability = float(self.config.get("gnn_min_probability", 0.6))
+        self.support_util = float(self.config.get("warning_utilisation", 0.75)) * 0.8
 
         self._model: HXCascade | None = None
         self._norm: dict[str, Any] | None = None
@@ -189,12 +213,10 @@ class CascadePredictor:
         pass per root would blow the cascade latency budget on its own before
         this was fixed to share it.
         """
-        roots = [
-            eid for eid, st in node_state.items()
-            if st.get("risk_band") in ("high", "critical")
-            or _band_from_utilisation(self._forecast_util(st), self.bands) in ("high", "critical")
-        ]
-        roots.sort(key=lambda e: -float(node_state[e].get("utilisation", 0.0)))
+        roots = _select_roots(
+            {e: st for e, st in node_state.items() if st.get("entity_type") not in self.exclude_root_types},
+            self.critical, self.max_roots, self._forecast_util,
+        )
 
         if self.use_gnn and self._gnn_ready and roots:
             try:
@@ -373,6 +395,8 @@ class CascadePredictor:
             if depth >= depth_cap:
                 continue
             for edge in out_edges.get(node, []):
+                if edge["edge_type"] not in FLOW_EDGE_TYPES:
+                    continue  # substitutes_for is an alternative, not a path load travels
                 dst = edge["dst_entity_id"]
                 dst_state = node_state.get(dst)
                 if dst_state is None or dst in visited or dst not in idx:
@@ -398,7 +422,11 @@ class CascadePredictor:
 
                 prob = _clamp(float(probs[idx[dst]]), 0.0, 0.99)
                 band = _band_from_utilisation(prob, self.bands)
-                if band not in ("high", "critical"):
+                if band not in ("high", "critical") or prob < self.min_probability:
+                    continue
+                # Physical support: the model's probability alone is not enough to
+                # report a failure at an entity that is nowhere near loaded.
+                if max(self._forecast_util(dst_state), float(dst_state.get("utilisation", 0.0))) < self.support_util:
                     continue
 
                 steps.append(
@@ -413,6 +441,8 @@ class CascadePredictor:
                 )
                 deepest = max(deepest, depth + 1)
 
+        steps = [steps[0]] + sorted(steps[1:], key=lambda s: -s["failure_probability"])[: self.max_steps]
+        deepest = max((s["depth"] for s in steps), default=0)
         # Pure value sort — the monotonicity guaranteed above (child eta_sec >=
         # parent eta_sec, transitively >= root) is what keeps the root first,
         # not a forced key, so this matches 00 §2.5 exactly.
@@ -494,6 +524,8 @@ class CascadePredictor:
             if depth >= depth_cap:
                 continue
             for edge in out_edges.get(node, []):
+                if edge["edge_type"] not in FLOW_EDGE_TYPES:
+                    continue
                 dst = edge["dst_entity_id"]
                 dst_state = node_state.get(dst)
                 if dst_state is None or dst in visited:
@@ -526,6 +558,8 @@ class CascadePredictor:
                 deepest = max(deepest, depth + 1)
                 frontier.append((dst, depth + 1, transferred, eta))
 
+        steps = [steps[0]] + sorted(steps[1:], key=lambda s: -s["failure_probability"])[: self.max_steps]
+        deepest = max((s["depth"] for s in steps), default=0)
         steps.sort(key=lambda s: (s["depth"] > 0, s["eta_sec"], s["depth"]))
         for i, s in enumerate(steps):
             s["step_index"] = i

@@ -176,7 +176,7 @@ export default function EntityDetailPanel() {
               className="h-2 w-2 rounded-full shrink-0"
               style={{ backgroundColor: band.hex }}
             />
-            <h3 className="text-sm font-bold text-white tracking-tight truncate">
+            <h3 className="text-sm font-bold text-slate-100 tracking-tight truncate">
               {node?.display_name || selectedEntityId}
             </h3>
           </div>
@@ -189,7 +189,7 @@ export default function EntityDetailPanel() {
         <button
           type="button"
           onClick={clearSelection}
-          className="rounded p-1 text-slate-400 hover:bg-surface-750 hover:text-white transition-colors"
+          className="rounded p-1 text-slate-400 hover:bg-surface-750 hover:text-slate-100 transition-colors"
           aria-label="Close detail panel"
         >
           <X className="h-4 w-4" />

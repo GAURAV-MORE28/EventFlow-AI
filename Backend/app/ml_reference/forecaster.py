@@ -32,6 +32,8 @@ class Forecaster:
         self.config = config or {}
         self.horizons: list[int] = list(self.config.get("horizons_sec", [900, 1800, 3600]))
         self.critical = float(self.config.get("critical_utilisation", 0.90))
+        # Per-entity critical line (venues/hotels run near full by design).
+        self.critical_by_entity: dict[str, float] = dict(self.config.get("critical_by_entity") or {})
         self.warm_start_after = int(self.config.get("warm_start_after_points", 40))
         self.step_sec = int(self.config.get("step_sec", 30))
         self._tsfm = self._try_load_tsfm() if self.config.get("tsfm_enabled", True) else None
@@ -102,7 +104,7 @@ class Forecaster:
                 "generated_at": sim_time,
                 "baseline_value": round(last, 4),
                 "points": points,
-                "time_to_critical_sec": self._time_to_critical(last, points),
+                "time_to_critical_sec": self._time_to_critical(last, points, eid),
                 "baseline_comparison": None,
             }
         return out
@@ -155,7 +157,7 @@ class Forecaster:
             "generated_at": sim_time,
             "baseline_value": round(last, 4),
             "points": points,
-            "time_to_critical_sec": self._time_to_critical(last, points),
+            "time_to_critical_sec": self._time_to_critical(last, points, entity_id),
             "baseline_comparison": self._baseline_comparison(history),
         }
 
@@ -220,20 +222,21 @@ class Forecaster:
         spread = 1.645 * (sum(r * r for r in resid) / n) ** 0.5
         return slope, accel, max(spread, 0.015)
 
-    def _time_to_critical(self, current: float, points: list[dict]) -> int | None:
+    def _time_to_critical(self, current: float, points: list[dict], entity_id: str | None = None) -> int | None:
         """03 §2.4 — linear interpolation to the first crossing of the critical threshold.
 
         This field matters more than MAE: it is the number on the screen.
         """
-        if current >= self.critical:
+        critical = self.critical_by_entity.get(entity_id or "", self.critical)
+        if current >= critical:
             return 0
         prev_h, prev_v = 0, current
         for p in points:
             h, v = p["horizon_sec"], p["predicted_utilisation"]
-            if v >= self.critical:
+            if v >= critical:
                 if v == prev_v:
                     return int(h)
-                frac = (self.critical - prev_v) / (v - prev_v)
+                frac = (critical - prev_v) / (v - prev_v)
                 return int(round(prev_h + frac * (h - prev_h)))
             prev_h, prev_v = h, v
         return None

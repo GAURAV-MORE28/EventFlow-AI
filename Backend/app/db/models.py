@@ -224,3 +224,40 @@ class CommanderLog(Base):
     ungrounded_count: Mapped[int] = mapped_column(Integer, nullable=False)
     passed: Mapped[bool] = mapped_column(Boolean, nullable=False)
     server_time: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class EventSchedule(Base):
+    """The event schedule, including operator changes (delays, cancellations)."""
+
+    __tablename__ = "event_schedule"
+
+    event_id: Mapped[str] = mapped_column(Text, primary_key=True)
+    name: Mapped[str] = mapped_column(Text, nullable=False)
+    category: Mapped[str] = mapped_column(Text, nullable=False)
+    venue_entity_id: Mapped[str] = mapped_column(Text, ForeignKey("entity.entity_id"), nullable=False)
+    start_time: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    end_time: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    original_start_time: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    expected_attendance: Mapped[int] = mapped_column(Integer, nullable=False)
+    status: Mapped[str] = mapped_column(Text, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class HotelProperty(Base):
+    """Static accommodation catalogue (app/catalog.py); occupancy is live state."""
+
+    __tablename__ = "hotel_property"
+
+    property_id: Mapped[str] = mapped_column(Text, primary_key=True)
+    name: Mapped[str] = mapped_column(Text, nullable=False)
+    cluster_entity_id: Mapped[str] = mapped_column(Text, ForeignKey("entity.entity_id"), nullable=False)
+    zone: Mapped[str] = mapped_column(Text, nullable=False)
+    lat: Mapped[float] = mapped_column(Float, nullable=False)
+    lon: Mapped[float] = mapped_column(Float, nullable=False)
+    rooms_total: Mapped[int] = mapped_column(Integer, nullable=False)
+    price_per_night_paise: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    tier: Mapped[str] = mapped_column(Text, nullable=False)
+    accessible: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    transport_entity_id: Mapped[str | None] = mapped_column(Text, nullable=True)
+    walk_to_transport_sec: Mapped[int] = mapped_column(Integer, nullable=False)
+    base_occupancy: Mapped[float] = mapped_column(Float, nullable=False)

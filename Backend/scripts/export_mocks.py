@@ -23,7 +23,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from app.db.base import create_all  # noqa: E402
 from app.db.seed import seed_topology  # noqa: E402
-from app.services.attendee import build_journey, issue_nudges  # noqa: E402
+from app.api import routes as R  # noqa: E402
+from app.services import accommodation as ACC  # noqa: E402
+from app.services.attendee import build_journey, issue_nudges, public_nudge  # noqa: E402
 from app.services.commander import Commander  # noqa: E402
 from app.services.engine import Engine, set_engine  # noqa: E402
 from app.services.metrics import build_metrics, build_regret  # noqa: E402
@@ -32,11 +34,12 @@ from app.simtime import shift  # noqa: E402
 
 logging.basicConfig(level=logging.WARNING)
 
+# Must match `SCRIPTED` in Frontend/src/components/CommanderBar.jsx.
 SCRIPTED_QUESTIONS = [
     "What is the biggest problem right now?",
-    "Why is Metro B becoming critical?",
-    "What happens if we do nothing?",
-    "Which action gives the largest safety improvement?",
+    "Which hotels are nearing capacity?",
+    "What happens if Gate 5 closes?",
+    "When should visitors arrive?",
 ]
 
 
@@ -93,16 +96,17 @@ async def build(out: Path, cycles: int) -> None:
     out.mkdir(parents=True, exist_ok=True)
     print(f"writing mocks to {out}")
 
-    write(out, "event.json", {
-        "event_id": engine.config.raw["event"]["event_id"],
-        "name": engine.config.raw["event"]["name"],
-        "venue_entity_id": engine.config.raw["event"]["venue_entity_id"],
-        "expected_attendance": engine.config.raw["event"]["expected_attendance"],
-        "start_time": engine.config.raw["event"]["start_time"],
-        "end_time": engine.config.raw["event"]["end_time"],
-        "sim_time": store.sim_time,
-        "concurrent_events": [],
-    })
+    write(out, "event.json", (await R.event()).model_dump())
+    write(out, "events.json", (await R.events()).model_dump())
+    write(out, "overview.json", (await R.overview()).model_dump())
+    write(out, "hotels.json", (await R.hotels(None, None, None, None, 0, False, None, "occupancy")).model_dump())
+    write(out, "saturation.json", ACC.saturation(engine))
+    write(out, "disruptions.json", (await R.disruptions()).model_dump())
+    busiest = ACC.hotel_list(engine)["hotels"][0]["property_id"]
+    write(out, "stay_recommendation.json", ACC.recommend(
+        engine, destination_entity_id="stadium_main", segment_id="price_sensitive",
+        current_property_id=busiest, limit=4,
+    ))
 
     write(out, "graph.json", {
         "nodes": list(store.nodes.values()),
@@ -116,7 +120,8 @@ async def build(out: Path, cycles: int) -> None:
     write(out, "pressure_timeline.json", pressure_progression)
 
     # The demo chain, explicitly — not whichever cascade happened to be first.
-    demo_cascade = store.cascades.get("metro_b") or engine.registry.cascade.predict(
+    deepest = max(store.cascades.values(), key=lambda c: (c["max_depth"], c["total_downstream_failures"]), default=None)
+    demo_cascade = deepest or engine.registry.cascade.predict(
         "metro_b", store.node_state_for_ml(), store.edges, generated_at=store.sim_time
     )
     write(out, "cascade_metro_b.json", demo_cascade)
@@ -147,7 +152,7 @@ async def build(out: Path, cycles: int) -> None:
     for item in selected:
         item["status"] = "proposed"
         item["created_at"] = store.sim_time
-        item["expires_at"] = shift(store.sim_time, 900)
+        item["expires_at"] = shift(store.sim_time, engine.intervention_ttl_sec())
 
     write(out, "interventions.json", {
         "sim_time": store.sim_time,
@@ -164,27 +169,36 @@ async def build(out: Path, cycles: int) -> None:
         responses[question] = await engine.commander.answer(question, "sess_mock")
     write(out, "commander_responses.json", responses)
 
-    write(out, "attendee_journey.json", build_journey(engine, {
+    journey = build_journey(engine, {
         "attendee_id": "att_demo_1",
         "segment_id": "price_sensitive",
-        "origin_entity_id": "hotel_core_cluster",
+        "origin_entity_id": "htl_central_budget",
         "destination_entity_id": "stadium_main",
-    }))
+        "priority": "balanced",
+        "include_return": True,
+    })
+    write(out, "attendee_journey.json", journey)
 
-    target = pair[0] if pair else (all_interventions[0] if all_interventions else None)
-    nudges = issue_nudges(engine, target) if target else []
+    # A nudge only exists when an action touches this attendee's route, so pick
+    # an intervention whose source is on it.
+    on_route = set(store.attendees["att_demo_1"]["route_entities"])
+    target = next(
+        (i for i in store.interventions.values()
+         if i["intervention_type"] != "notify_only" and set(i["target_entity_ids"][:1]) & on_route),
+        None,
+    )
+    nudges = [public_nudge(n) for n in issue_nudges(engine, target)] if target else []
     write(out, "attendee_nudges.json", {"nudges": nudges})
 
     simulation = SIMULATIONS._execute(
         engine,
-        [{"scenario_type": "metro_capacity_delta", "params": {"entity_id": "line_blue", "delta_pct": -15}},
-         {"scenario_type": "weather_rain", "params": {"intensity": "heavy"}}],
+        [{"scenario_type": "gate_closure", "params": {"entity_id": "gate_5"}}],
         3600,
     )
     simulation.update({
         "simulation_id": "sim_mock1",
         "status": "complete",
-        "label": "Blue line degraded + rain",
+        "label": "Gate 5 closure",
     })
     simulation["candidate_interventions"] = [clean(i) for i in simulation["candidate_interventions"]]
     write(out, "simulation.json", simulation)

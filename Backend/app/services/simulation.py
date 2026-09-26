@@ -1,8 +1,14 @@
 """What-if simulation (01_BACKEND_CONTRACT.md §3.8).
 
-`POST /simulate` returns 202 immediately and the job runs in the background over
-a *branch* of the twin — never the live ensemble, so a what-if can never
-contaminate the running demo.
+`POST /simulate` returns 202 immediately and the job runs in the background:
+
+    live city ──clone──► baseline copy ──run N steps──┐
+              └─clone──► scenario copy + change ──run──┴─► compare
+
+Both copies are clones of the live SyntheticGenerator, so the what-if uses the
+same demand, routing, queueing and hotel physics as the running city, and it can
+never contaminate it. Results are peaks over the horizon (not end states), so a
+short spike is not hidden by a calm finish.
 """
 from __future__ import annotations
 
@@ -12,51 +18,22 @@ from typing import Any
 
 from ..ml_reference.common import stable_unit
 from ..simtime import shift
+from .evaluation import evaluate_candidates
+from .projection import critical_map, run_forward, summarise_side
 
 log = logging.getLogger("eventflow.simulate")
 
-# Scenario -> the capacity/demand multipliers the twin branch understands.
-def scenario_to_multipliers(scenario: dict, node_state: dict[str, dict]) -> tuple[dict, dict]:
-    stype = scenario["scenario_type"]
-    params = scenario.get("params", {})
-    cap: dict[str, float] = {}
-    demand: dict[str, float] = {}
-    eid = params.get("entity_id")
-    delta = float(params.get("delta_pct", 0.0)) / 100.0
+COMPARED = (
+    "peak_utilisation", "load_variance", "avg_utilisation", "transport_pressure", "road_pressure",
+    "venue_pressure", "hotel_pressure", "queued_people", "late_entries", "rooms_unmet",
+    "unmet_demand", "avg_travel_time_sec",
+)
 
-    if stype == "attendance_delta":
-        for e in node_state:
-            demand[e] = 1.0 + delta
-    elif stype in ("metro_capacity_delta", "road_capacity_delta", "parking_loss"):
-        if eid:
-            cap[eid] = 1.0 + delta
-    elif stype == "weather_rain":
-        factor = {"light": 1.05, "moderate": 1.12, "heavy": 1.22}.get(str(params.get("intensity", "moderate")), 1.12)
-        for e, s in node_state.items():
-            if s.get("entity_type") in ("road", "parking", "gate"):
-                demand[e] = factor
-    elif stype in ("gate_closure", "transport_outage"):
-        if eid:
-            cap[eid] = 0.01
-            same_type = [
-                e for e, s in node_state.items()
-                if s.get("entity_type") == node_state.get(eid, {}).get("entity_type") and e != eid
-            ]
-            for e in same_type:
-                demand[e] = 1.0 + 1.0 / max(len(same_type), 1)
-    elif stype == "hotel_shortage":
-        for e, s in node_state.items():
-            if s.get("entity_type") == "hotel":
-                demand[e] = 1.15
-    elif stype == "concurrent_event":
-        for e in node_state:
-            demand[e] = 1.0 + float(params.get("overlap_pct", 15.0)) / 100.0
-    elif stype == "combined":
-        for sub in params.get("scenarios", []):
-            c, d = scenario_to_multipliers(sub, node_state)
-            cap.update(c)
-            demand.update(d)
-    return cap, demand
+
+def _pct(new: float, old: float) -> float:
+    if not old:
+        return 0.0 if not new else 100.0
+    return round((new - old) / old * 100.0, 1)
 
 
 class SimulationRegistry:
@@ -83,6 +60,9 @@ class SimulationRegistry:
             "candidate_interventions": [],
         }
         self._jobs[simulation_id] = job
+        # Bounded memory: keep the most recent 50 jobs.
+        while len(self._jobs) > 50:
+            self._jobs.pop(next(iter(self._jobs)))
         return job
 
     async def run(self, engine: Any, simulation_id: str, scenarios: list[dict], horizon_sec: int) -> None:
@@ -93,78 +73,104 @@ class SimulationRegistry:
             job["status"] = "complete"
         except Exception:
             log.exception("simulation %s failed", simulation_id)
-            self._jobs[simulation_id]["status"] = "failed"
+            if simulation_id in self._jobs:
+                self._jobs[simulation_id]["status"] = "failed"
 
     def run_sync(self, engine: Any, scenarios: list[dict], horizon_sec: int, label: str | None) -> dict:
         """Used by the Commander's `run_whatif` tool, which needs a value now."""
-        return self._execute(engine, scenarios, horizon_sec)
+        return self._execute(engine, scenarios, horizon_sec, with_candidates=False)
 
-    def _execute(self, engine: Any, scenarios: list[dict], horizon_sec: int) -> dict:
+    def _execute(self, engine: Any, scenarios: list[dict], horizon_sec: int, with_candidates: bool = True) -> dict:
         store = engine.store
-        node_state = store.node_state_for_ml()
-
-        cap: dict[str, float] = {}
-        demand: dict[str, float] = {}
+        critical = critical_map(engine)
+        step = 60
+        with engine.world_lock:
+            base_gen = engine.generator.clone()
+            scen_gen = engine.generator.clone()
         for s in scenarios:
-            c, d = scenario_to_multipliers(s, node_state)
-            cap.update(c)
-            demand.update(d)
+            scen_gen.inject(s["scenario_type"], s.get("params", {}), source="whatif")
+        scen_start = scen_gen.clone()  # the scenario at t0, for candidate evaluation
 
-        branch = engine.registry.twin.branch(
-            {"capacity_multipliers": cap, "demand_multipliers": demand}, horizon_sec
-        )
-        baseline = branch["baseline"]
-        scenario_side = branch["scenario"]
+        base = run_forward(base_gen, horizon_sec, step, 300, critical)
+        scen = run_forward(scen_gen, horizon_sec, step, 300, critical)
+        types = base_gen.types
+        b_side = summarise_side(base, types)
+        s_side = summarise_side(scen, types)
 
-        def pct(new: float, old: float) -> float:
-            if old in (0, None):
-                return 0.0
-            return round((new - old) / old * 100.0, 1)
-
+        new_critical = sorted(scen["critical"] - base["critical"])
         delta = {
-            "peak_utilisation_pct": pct(scenario_side["peak_utilisation"], baseline["peak_utilisation"]),
-            "load_variance_pct": pct(scenario_side["load_variance"], baseline["load_variance"]),
-            "new_critical_entities": branch["new_critical_entities"],
+            "peak_utilisation_pct": _pct(s_side["peak_utilisation"], b_side["peak_utilisation"]),
+            "load_variance_pct": _pct(s_side["load_variance"], b_side["load_variance"]),
+            "new_critical_entities": new_critical,
+            "resolved_critical_entities": sorted(base["critical"] - scen["critical"]),
+            "metrics": {k: round(s_side[k] - b_side[k], 4) for k in COMPARED},
         }
 
-        # Cascade and candidate actions for the worst entity under the scenario.
-        worst = scenario_side.get("peak_entity_id") or branch["new_critical_entities"][:1]
-        worst_id = worst if isinstance(worst, str) else (worst[0] if worst else None)
+        # Biggest movers, so the operator sees *where* the scenario bites.
+        changes = []
+        for e in types:
+            if types[e] in ("hotel",):
+                continue
+            b, a = base["peaks"].get(e, 0.0), scen["peaks"].get(e, 0.0)
+            if abs(a - b) >= 0.02:
+                changes.append({"entity_id": e, "display_name": store.nodes[e]["display_name"],
+                                "entity_type": types[e], "baseline_peak": round(b, 4), "scenario_peak": round(a, 4)})
+        changes.sort(key=lambda c: -abs(c["scenario_peak"] - c["baseline_peak"]))
+
+        timeline = []
+        for bs, ss in zip(base["samples"], scen["samples"]):
+            def peak(sample: dict) -> float:
+                vals = [u for e, u in sample["util"].items() if types[e] != "hotel"]
+                return round(max(vals), 4) if vals else 0.0
+            timeline.append({"offset_sec": bs["offset_sec"], "baseline_peak": peak(bs), "scenario_peak": peak(ss)})
 
         cascade = None
         candidates: list[dict] = []
-        if worst_id:
-            scenario_state = dict(node_state)
-            for eid, traj in branch["trajectory"].items():
-                if eid in scenario_state and traj:
-                    scenario_state[eid] = {**scenario_state[eid], "forecast_1800": traj[-1]}
-            cascade = engine.registry.cascade.predict(
-                worst_id, scenario_state, store.edges, generated_at=store.sim_time
-            )
+        worst = new_critical[0] if new_critical else s_side["peak_entity_id"]
+        if worst and with_candidates:
+            # The cascade and candidate actions are computed on the scenario's
+            # own worst moment, with the engine's registry (same models as live).
+            end_state = {}
+            peak_util = scen["peaks"]
+            base_state = store.node_state_for_ml()
+            for eid, st in base_state.items():
+                u = float(scen["final"].get(eid, st["utilisation"]))
+                end_state[eid] = {**st, "utilisation": u, "forecast_1800": float(peak_util.get(eid, u))}
+            risk = engine.registry.risk.score(end_state, {}, {})
+            for eid, r in risk.items():
+                end_state[eid]["risk_score"] = r["risk_score"]
+                end_state[eid]["risk_band"] = r["risk_band"]
+            cascade = engine.registry.cascade.predict(worst, end_state, store.edges, generated_at=store.sim_time)
             raw = engine.registry.optimiser.generate(
-                {
-                    "root_entity_id": worst_id,
-                    "cascade": cascade,
-                    "node_state": scenario_state,
-                    "edges": store.edges,
-                    "sim_time": store.sim_time,
-                },
+                {"root_entity_id": worst, "cascade": cascade, "node_state": end_state, "edges": store.edges,
+                 "sim_time": store.sim_time, **engine.optimiser_context()},
                 3,
             )
+            # Evaluate each candidate inside the scenario world, not the live one.
+            holder = type("ScenarioEngine", (), {})()
+            holder.config = engine.config
+            holder.world_lock = engine.world_lock
+            holder.generator = scen_start
+            holder.critical_lines = critical
+            evaluate_candidates(holder, raw, worst, engine.current_compliance())
+            min_relief = float(engine.icfg.get("min_relief_pct", 1.0))
+            raw = [c for c in raw if c.get("evaluation") is None or c["estimated_relief_pct"] >= min_relief]
             for c in raw:
-                c["certificate"] = engine.registry.equilibrium.certify(
-                    c, scenario_state, store.edges, store.segments
-                )
+                c["certificate"] = engine.registry.equilibrium.certify(c, end_state, store.edges, store.segments)
                 c["created_at"] = store.sim_time
                 c["expires_at"] = shift(store.sim_time, c.pop("_ttl_sec", 900))
             candidates = engine.registry.optimiser.rank(raw)
 
         return {
-            "baseline": baseline,
-            "scenario": scenario_side,
+            "baseline": b_side,
+            "scenario": s_side,
             "delta": delta,
             "cascade": cascade,
             "candidate_interventions": candidates,
+            "top_changes": changes[:10],
+            "timeline": timeline,
+            "horizon_sec": int(horizon_sec),
+            "scenarios": scenarios,
         }
 
 

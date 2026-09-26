@@ -5,6 +5,41 @@
   "expected_attendance": 70000,
   "start_time": "2026-09-04T16:00:00Z",
   "end_time": "2026-09-04T18:30:00Z",
-  "sim_time": "2026-09-04T14:45:00Z",
-  "concurrent_events": []
+  "sim_time": "2026-09-04T15:20:00Z",
+  "concurrent_events": [
+    {
+      "event_id": "evt_expo",
+      "name": "Tech Expo Day 2",
+      "category": "conference",
+      "venue_entity_id": "convention_centre",
+      "start_time": "2026-09-04T12:00:00Z",
+      "end_time": "2026-09-04T17:00:00Z",
+      "original_start_time": "2026-09-04T12:00:00Z",
+      "original_end_time": "2026-09-04T17:00:00Z",
+      "expected_attendance": 14000,
+      "out_of_town_share": 0.4,
+      "venue_name": "City Convention Centre",
+      "status": "live",
+      "delay_sec": 0,
+      "arrived": 14000,
+      "inside": 14000
+    },
+    {
+      "event_id": "evt_fanfest",
+      "name": "Fan Festival",
+      "category": "festival",
+      "venue_entity_id": "zone_fanpark",
+      "start_time": "2026-09-04T15:00:00Z",
+      "end_time": "2026-09-04T19:30:00Z",
+      "original_start_time": "2026-09-04T15:00:00Z",
+      "original_end_time": "2026-09-04T19:30:00Z",
+      "expected_attendance": 5500,
+      "out_of_town_share": 0.1,
+      "venue_name": "Fan Park",
+      "status": "live",
+      "delay_sec": 0,
+      "arrived": 5412,
+      "inside": 5412
+    }
+  ]
 }

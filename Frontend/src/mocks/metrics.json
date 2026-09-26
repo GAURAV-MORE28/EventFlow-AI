@@ -1,37 +1,81 @@
 {
-  "sim_time": "2026-09-04T14:45:00Z",
+  "sim_time": "2026-09-04T15:20:00Z",
+  "operations": {
+    "capacity_utilisation": {
+      "value": 0.4212
+    },
+    "peak_congestion": {
+      "value": 1.1427,
+      "target": 0.9
+    },
+    "critical_locations": {
+      "value": 4.0,
+      "target": 0.0
+    },
+    "queued_people": {
+      "value": 4050.2
+    },
+    "avg_travel_time_sec": {
+      "value": 795.8
+    },
+    "late_entries": {
+      "value": 332.8,
+      "target": 0.0
+    },
+    "unmet_room_requests": {
+      "value": 0.0,
+      "target": 0.0
+    },
+    "rooms_available": {
+      "value": 1775.0
+    },
+    "saturated_hotels": {
+      "value": 6.0
+    },
+    "visitors_redirected": {
+      "value": 0.0
+    },
+    "interventions_settled": {
+      "value": 0.0
+    },
+    "mean_realised_relief_pct": {
+      "value": 0.0,
+      "baseline_name": "do_nothing_counterfactual"
+    },
+    "attendee_compliance": {
+      "value": 0.6,
+      "baseline": 0.6,
+      "baseline_name": "configured_prior"
+    }
+  },
   "prediction": {
     "forecast_mae": {
-      "value": 0.0756,
-      "baseline": 0.122,
+      "value": 0.0343,
+      "baseline": 0.051,
       "baseline_name": "persistence",
-      "improvement_pct": 38.0
+      "improvement_pct": 32.7
     },
     "cascade_lead_time_sec": {
-      "value": 1903.0,
+      "value": 1904.0,
       "baseline": 0.0,
       "baseline_name": "threshold_rule"
     },
     "cascade_precision": {
-      "value": 0.429,
-      "baseline": 0.31,
-      "baseline_name": "random_propagation"
+      "value": 0.0
     },
     "cascade_recall": {
-      "value": 0.032,
-      "baseline": 0.3,
-      "baseline_name": "random_propagation"
+      "value": 0.0
     }
   },
   "twin": {
     "rmse": {
-      "value": 1014.57,
-      "baseline": 2140.4,
+      "value": 29.48,
+      "baseline": 2479.32,
       "baseline_name": "uncorrected_abm",
-      "improvement_pct": 52.6
+      "improvement_pct": 98.8
     },
     "ensemble_coverage": {
-      "value": 0.85,
+      "value": 1.0,
       "target_range": [
         0.85,
         0.95
@@ -44,26 +88,26 @@
       "baseline_name": "do_nothing_counterfactual"
     },
     "load_variance_reduction_pct": {
-      "value": -0.0,
+      "value": 0.0,
       "baseline_name": "do_nothing_counterfactual"
     },
     "unstable_interventions_caught": {
-      "value": 2.0,
+      "value": 1.0,
       "baseline_name": "naive_optimiser_would_approve"
     },
     "certificate_accuracy_pct": {
-      "value": 0.0,
+      "value": 50.0,
       "target": 85.0,
       "baseline_name": "twin_branch_ground_truth"
     },
     "convergence_rate_pct": {
-      "value": 38.5,
+      "value": 83.9,
       "target": 85.0
     }
   },
   "system": {
     "cycle_latency_ms": {
-      "value": 95.0,
+      "value": 85.0,
       "target": 2000.0
     },
     "commander_ungrounded_rate": {

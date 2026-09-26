@@ -35,6 +35,12 @@ const MAPPING = {
   'simulation.json': 'simulation_result',
   'health.json': 'health_response',
   'attendee_nudges.json': 'nudge_list_response',
+  'events.json': 'event_list_response',
+  'overview.json': 'overview_response',
+  'hotels.json': 'hotel_list_response',
+  'stay_recommendation.json': 'stay_recommendation_response',
+  'saturation.json': 'saturation_response',
+  'disruptions.json': 'disruption_list_response',
 };
 
 // These are arrays of per-cycle frames; each frame validates against a schema

@@ -1,228 +1,295 @@
 {
   "baseline": {
-    "peak_utilisation": 72.5054,
-    "peak_entity_id": "hotel_east_cluster",
-    "load_variance": 379.5897,
-    "critical_count": 45
+    "peak_utilisation": 1.6156,
+    "peak_entity_id": "road_5",
+    "load_variance": 0.0325,
+    "critical_count": 6,
+    "avg_utilisation": 0.5511,
+    "transport_pressure": 0.6269,
+    "road_pressure": 0.5332,
+    "venue_pressure": 0.6546,
+    "hotel_pressure": 0.8744,
+    "queued_people": 2719.7,
+    "late_entries": 8670.5,
+    "rooms_unmet": 0.3,
+    "unmet_demand": 8671.2,
+    "avg_travel_time_sec": 1034.3
   },
   "scenario": {
-    "peak_utilisation": 89.969,
-    "peak_entity_id": "parking_p5",
-    "load_variance": 617.574,
-    "critical_count": 53
+    "peak_utilisation": 1.6153,
+    "peak_entity_id": "road_6",
+    "load_variance": 0.0324,
+    "critical_count": 8,
+    "avg_utilisation": 0.5566,
+    "transport_pressure": 0.6269,
+    "road_pressure": 0.5856,
+    "venue_pressure": 0.5856,
+    "hotel_pressure": 0.8744,
+    "queued_people": 3393.1,
+    "late_entries": 7801.9,
+    "rooms_unmet": 0.3,
+    "unmet_demand": 7802.6,
+    "avg_travel_time_sec": 1050.1
   },
   "delta": {
-    "peak_utilisation_pct": 24.1,
-    "load_variance_pct": 62.7,
+    "peak_utilisation_pct": -0.0,
+    "load_variance_pct": -0.3,
     "new_critical_entities": [
-      "gate_4",
-      "road_3",
-      "road_6",
-      "road_7",
-      "road_12",
-      "road_18",
-      "parking_p2",
-      "parking_p3"
-    ]
+      "gate_1",
+      "road_10",
+      "road_12"
+    ],
+    "resolved_critical_entities": [
+      "gate_5"
+    ],
+    "metrics": {
+      "peak_utilisation": -0.0003,
+      "load_variance": -0.0001,
+      "avg_utilisation": 0.0055,
+      "transport_pressure": 0.0,
+      "road_pressure": 0.0524,
+      "venue_pressure": -0.069,
+      "hotel_pressure": 0.0,
+      "queued_people": 673.4,
+      "late_entries": -868.6,
+      "rooms_unmet": 0.0,
+      "unmet_demand": -868.6,
+      "avg_travel_time_sec": 15.8
+    }
   },
   "cascade": {
-    "root_entity_id": "parking_p5",
+    "root_entity_id": "gate_1",
     "source": "gnn",
-    "generated_at": "2026-09-04T14:45:00Z",
-    "total_downstream_failures": 3,
-    "max_depth": 3,
+    "generated_at": "2026-09-04T15:20:00Z",
+    "total_downstream_failures": 0,
+    "max_depth": 0,
     "steps": [
       {
-        "entity_id": "parking_p5",
+        "entity_id": "gate_1",
         "predicted_band": "critical",
-        "eta_sec": 883,
+        "eta_sec": 1311,
         "failure_probability": 0.99,
         "via_edge_id": null,
         "depth": 0,
         "step_index": 0
-      },
-      {
-        "entity_id": "gate_1",
-        "predicted_band": "high",
-        "eta_sec": 1303,
-        "failure_probability": 0.743,
-        "via_edge_id": "parking_p5__gate_1__serves",
-        "depth": 1,
-        "step_index": 1
-      },
-      {
-        "entity_id": "road_1",
-        "predicted_band": "critical",
-        "eta_sec": 1603,
-        "failure_probability": 0.967,
-        "via_edge_id": "gate_1__road_1__adjacent_to",
-        "depth": 2,
-        "step_index": 2
-      },
-      {
-        "entity_id": "road_17",
-        "predicted_band": "critical",
-        "eta_sec": 1843,
-        "failure_probability": 0.976,
-        "via_edge_id": "road_1__road_17__adjacent_to",
-        "depth": 3,
-        "step_index": 3
       }
     ]
   },
   "candidate_interventions": [
     {
-      "intervention_id": "int_9c147",
-      "intervention_type": "zone_incentive",
-      "status": "proposed",
-      "target_entity_ids": [
-        "zone_south",
-        "zone_core"
-      ],
-      "triggered_by_entity_id": "parking_p5",
-      "title": "Rs 500 credit to move demand to Core Zone",
-      "description": "Offer a Rs 500 F&B credit and priority shuttle access for attendees who relocate from South Zone to Core Zone.",
-      "estimated_relief_pct": 14.0,
-      "estimated_cost_paise": 250000,
-      "estimated_delay_sec": 900,
-      "feasibility": 0.7,
-      "rank_score": 0.1493,
-      "certificate": {
-        "certificate_id": "cert_981a",
-        "intervention_id": "int_9c147",
-        "verdict": "CONDITIONAL",
-        "converged": true,
-        "iterations": 28,
-        "post_nudge_variance": 0.0486,
-        "baseline_variance": 0.0493,
-        "max_zone_utilisation": 0.8824,
-        "max_zone_entity_id": "zone_north",
-        "oscillation_risk": false,
-        "compliance_sensitivity": 0.0118,
-        "reason": "Holds below 90% compliance; North Zone reaches 88% above that.",
-        "compliance_sweep": [
-          {
-            "compliance_rate": 0.4,
-            "max_utilisation": 0.8706,
-            "verdict": "STABLE"
-          },
-          {
-            "compliance_rate": 0.6,
-            "max_utilisation": 0.8706,
-            "verdict": "STABLE"
-          },
-          {
-            "compliance_rate": 0.9,
-            "max_utilisation": 0.8824,
-            "verdict": "UNSTABLE"
-          }
-        ]
-      },
-      "created_at": "2026-09-04T14:45:00Z",
-      "expires_at": "2026-09-04T15:00:00Z"
-    },
-    {
-      "intervention_id": "int_1a156",
-      "intervention_type": "gate_redistribution",
-      "status": "proposed",
-      "target_entity_ids": [
-        "gate_3",
-        "gate_5",
-        "gate_1"
-      ],
-      "triggered_by_entity_id": "parking_p5",
-      "title": "Reassign entry share to Gate 1",
-      "description": "Move 20% of ticket-scan share from Gate 3, Gate 5 to Gate 1.",
-      "estimated_relief_pct": 16.5,
-      "estimated_cost_paise": 25000,
-      "estimated_delay_sec": 240,
-      "feasibility": 0.9,
-      "rank_score": 0.0832,
-      "certificate": {
-        "certificate_id": "cert_7825",
-        "intervention_id": "int_1a156",
-        "verdict": "UNSTABLE",
-        "converged": false,
-        "iterations": 40,
-        "post_nudge_variance": 0.0438,
-        "baseline_variance": 0.0412,
-        "max_zone_utilisation": 0.936,
-        "max_zone_entity_id": "zone_south",
-        "oscillation_risk": false,
-        "compliance_sensitivity": 0.007,
-        "reason": "Did not converge within iteration cap.",
-        "compliance_sweep": [
-          {
-            "compliance_rate": 0.4,
-            "max_utilisation": 0.929,
-            "verdict": "CONDITIONAL"
-          },
-          {
-            "compliance_rate": 0.6,
-            "max_utilisation": 0.9333,
-            "verdict": "UNSTABLE"
-          },
-          {
-            "compliance_rate": 0.9,
-            "max_utilisation": 0.936,
-            "verdict": "UNSTABLE"
-          }
-        ]
-      },
-      "created_at": "2026-09-04T14:45:00Z",
-      "expires_at": "2026-09-04T15:00:00Z"
-    },
-    {
-      "intervention_id": "int_22fd3",
+      "intervention_id": "int_4b73a",
       "intervention_type": "stagger_entry",
       "status": "proposed",
       "target_entity_ids": [
         "gate_1"
       ],
-      "triggered_by_entity_id": "parking_p5",
-      "title": "Stagger entry by segment + activate zone incentive",
-      "description": "Delay group and price-sensitive segments by 12 minutes at Gate 1; activate a Rs 500 North-zone credit to pull demand forward.",
-      "estimated_relief_pct": 26.0,
+      "triggered_by_entity_id": "gate_1",
+      "title": "Stagger entry at Gate 1",
+      "description": "Ask 35% of arrivals for these gates (group and price-sensitive ticket holders first) to arrive 12 minutes later, with a food-and-drink credit for doing so.",
+      "estimated_relief_pct": 9.1,
       "estimated_cost_paise": 180000,
       "estimated_delay_sec": 720,
       "feasibility": 0.85,
-      "rank_score": 0.0819,
+      "rank_score": 0.0287,
       "certificate": {
-        "certificate_id": "cert_1400",
-        "intervention_id": "int_22fd3",
+        "certificate_id": "cert_a828",
+        "intervention_id": "int_4b73a",
         "verdict": "UNSTABLE",
         "converged": true,
-        "iterations": 30,
-        "post_nudge_variance": 0.0481,
-        "baseline_variance": 0.0434,
-        "max_zone_utilisation": 0.9242,
-        "max_zone_entity_id": "zone_south",
+        "iterations": 1,
+        "post_nudge_variance": 0.0718,
+        "baseline_variance": 0.0718,
+        "max_zone_utilisation": 0.9355,
+        "max_zone_entity_id": "stadium_main",
         "oscillation_risk": false,
         "compliance_sensitivity": 0.0,
-        "reason": "Redistribution increases load variance from 0.043 to 0.048.",
+        "reason": "Redistribution increases load variance from 0.072 to 0.072.",
         "compliance_sweep": [
           {
             "compliance_rate": 0.4,
-            "max_utilisation": 0.9242,
+            "max_utilisation": 0.9355,
             "verdict": "UNSTABLE"
           },
           {
             "compliance_rate": 0.6,
-            "max_utilisation": 0.9242,
+            "max_utilisation": 0.9355,
             "verdict": "UNSTABLE"
           },
           {
             "compliance_rate": 0.9,
-            "max_utilisation": 0.9242,
+            "max_utilisation": 0.9355,
             "verdict": "UNSTABLE"
           }
         ]
       },
-      "created_at": "2026-09-04T14:45:00Z",
-      "expires_at": "2026-09-04T15:00:00Z"
+      "created_at": "2026-09-04T15:20:00Z",
+      "expires_at": "2026-09-04T15:35:00Z",
+      "evaluation": {
+        "horizon_sec": 1800,
+        "compliance": 0.6,
+        "root_entity_id": "gate_1",
+        "root_peak_before": 0.9024,
+        "root_peak_after": 0.82,
+        "network_peak_before": 1.6147,
+        "network_peak_after": 1.6147,
+        "critical_before": 8,
+        "critical_after": 7,
+        "new_critical_entities": [],
+        "people_redirected": 1250,
+        "travel_time_delta_sec": -7.5,
+        "rooms_unmet_delta": 0.0
+      }
+    }
+  ],
+  "top_changes": [
+    {
+      "entity_id": "gate_5",
+      "display_name": "Gate 5",
+      "entity_type": "gate",
+      "baseline_peak": 1.1615,
+      "scenario_peak": 0.0
+    },
+    {
+      "entity_id": "road_12",
+      "display_name": "Arterial 12",
+      "entity_type": "road",
+      "baseline_peak": 0.3252,
+      "scenario_peak": 1.2276
+    },
+    {
+      "entity_id": "road_10",
+      "display_name": "Arterial 10",
+      "entity_type": "road",
+      "baseline_peak": 0.4587,
+      "scenario_peak": 1.2647
+    },
+    {
+      "entity_id": "road_5",
+      "display_name": "Arterial 5",
+      "entity_type": "road",
+      "baseline_peak": 1.6156,
+      "scenario_peak": 1.0729
+    },
+    {
+      "entity_id": "road_6",
+      "display_name": "Arterial 6",
+      "entity_type": "road",
+      "baseline_peak": 1.1444,
+      "scenario_peak": 1.6153
+    },
+    {
+      "entity_id": "road_9",
+      "display_name": "Arterial 9",
+      "entity_type": "road",
+      "baseline_peak": 0.6769,
+      "scenario_peak": 0.2663
+    },
+    {
+      "entity_id": "road_4",
+      "display_name": "Arterial 4",
+      "entity_type": "road",
+      "baseline_peak": 0.7871,
+      "scenario_peak": 0.4704
+    },
+    {
+      "entity_id": "gate_3",
+      "display_name": "Gate 3",
+      "entity_type": "gate",
+      "baseline_peak": 0.0951,
+      "scenario_peak": 0.256
+    },
+    {
+      "entity_id": "gate_1",
+      "display_name": "Gate 1",
+      "entity_type": "gate",
+      "baseline_peak": 0.7422,
+      "scenario_peak": 0.9024
+    },
+    {
+      "entity_id": "gate_2",
+      "display_name": "Gate 2",
+      "entity_type": "gate",
+      "baseline_peak": 0.1028,
+      "scenario_peak": 0.2592
+    }
+  ],
+  "timeline": [
+    {
+      "offset_sec": 0,
+      "baseline_peak": 1.1357,
+      "scenario_peak": 1.1357
+    },
+    {
+      "offset_sec": 300,
+      "baseline_peak": 1.1455,
+      "scenario_peak": 1.1577
+    },
+    {
+      "offset_sec": 600,
+      "baseline_peak": 1.1419,
+      "scenario_peak": 1.2026
+    },
+    {
+      "offset_sec": 900,
+      "baseline_peak": 1.3739,
+      "scenario_peak": 1.5867
+    },
+    {
+      "offset_sec": 1200,
+      "baseline_peak": 1.6149,
+      "scenario_peak": 1.5877
+    },
+    {
+      "offset_sec": 1500,
+      "baseline_peak": 1.6132,
+      "scenario_peak": 1.5926
+    },
+    {
+      "offset_sec": 1800,
+      "baseline_peak": 1.5996,
+      "scenario_peak": 1.5951
+    },
+    {
+      "offset_sec": 2100,
+      "baseline_peak": 1.6052,
+      "scenario_peak": 1.5879
+    },
+    {
+      "offset_sec": 2400,
+      "baseline_peak": 1.5894,
+      "scenario_peak": 1.6092
+    },
+    {
+      "offset_sec": 2700,
+      "baseline_peak": 1.585,
+      "scenario_peak": 1.6143
+    },
+    {
+      "offset_sec": 3000,
+      "baseline_peak": 1.4838,
+      "scenario_peak": 1.5978
+    },
+    {
+      "offset_sec": 3300,
+      "baseline_peak": 1.1553,
+      "scenario_peak": 1.584
+    },
+    {
+      "offset_sec": 3600,
+      "baseline_peak": 1.1394,
+      "scenario_peak": 1.1442
+    }
+  ],
+  "horizon_sec": 3600,
+  "scenarios": [
+    {
+      "scenario_type": "gate_closure",
+      "params": {
+        "entity_id": "gate_5"
+      }
     }
   ],
   "simulation_id": "sim_mock1",
   "status": "complete",
-  "label": "Blue line degraded + rain"
+  "label": "Gate 5 closure"
 }

@@ -31,7 +31,6 @@
     },
     "concurrent_events": {
       "items": {
-        "additionalProperties": true,
         "type": "object"
       },
       "title": "Concurrent Events",

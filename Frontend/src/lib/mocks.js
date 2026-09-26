@@ -29,6 +29,12 @@ import journeyData from '../mocks/attendee_journey.json';
 import nudgeData from '../mocks/attendee_nudges.json';
 import simulationData from '../mocks/simulation.json';
 import healthData from '../mocks/health.json';
+import overviewData from '../mocks/overview.json';
+import eventsData from '../mocks/events.json';
+import hotelsData from '../mocks/hotels.json';
+import stayData from '../mocks/stay_recommendation.json';
+import saturationData from '../mocks/saturation.json';
+import disruptionsData from '../mocks/disruptions.json';
 
 import { advanceMockDriver } from './mockLifecycle.js';
 
@@ -172,6 +178,34 @@ export function respondToNudge(nudgeId, accepted) {
     status: accepted ? 'accepted' : 'declined',
     compliance_recorded: true,
   });
+}
+
+export const overview = () => delay(overviewData);
+export const events = () => delay(eventsData);
+export const saturation = () => delay(saturationData);
+export const disruptions = () => delay(disruptionsData);
+export const recommendStay = () => delay(stayData);
+
+/** The recorded fixture, narrowed by the same filters the API accepts. */
+export function hotels(params = {}) {
+  const items = hotelsData.hotels.filter(
+    (h) =>
+      (!params.zone || h.zone.toLowerCase() === String(params.zone).toLowerCase()) &&
+      (!params.tier || h.tier === params.tier) &&
+      (!params.max_price_paise || h.price_per_night_paise <= Number(params.max_price_paise)) &&
+      (!params.accessible_only || h.accessible) &&
+      (!params.status || h.status === params.status),
+  );
+  return delay({ ...hotelsData, hotels: items });
+}
+
+/** Actions that change the live city cannot be replayed from a recording. */
+export function liveOnly() {
+  return Promise.reject(
+    Object.assign(new Error('This action changes the live city. Start the backend and run `npm run dev:live`.'), {
+      code: 'LIVE_ONLY',
+    }),
+  );
 }
 
 export const demoControl = (body) =>

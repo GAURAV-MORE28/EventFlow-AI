@@ -1,0 +1,197 @@
+{
+  "$defs": {
+    "DomainEntity": {
+      "additionalProperties": false,
+      "properties": {
+        "entity_id": {
+          "title": "Entity Id",
+          "type": "string"
+        },
+        "display_name": {
+          "title": "Display Name",
+          "type": "string"
+        },
+        "entity_type": {
+          "enum": [
+            "venue",
+            "zone",
+            "transport_node",
+            "transport_route",
+            "road",
+            "hotel",
+            "parking",
+            "gate",
+            "emergency_facility"
+          ],
+          "title": "Entity Type",
+          "type": "string"
+        },
+        "nominal_capacity": {
+          "title": "Nominal Capacity",
+          "type": "number"
+        },
+        "current_count": {
+          "title": "Current Count",
+          "type": "number"
+        },
+        "utilisation": {
+          "title": "Utilisation",
+          "type": "number"
+        },
+        "risk_score": {
+          "title": "Risk Score",
+          "type": "integer"
+        },
+        "risk_band": {
+          "enum": [
+            "low",
+            "moderate",
+            "high",
+            "critical"
+          ],
+          "title": "Risk Band",
+          "type": "string"
+        },
+        "is_observed": {
+          "title": "Is Observed",
+          "type": "boolean"
+        },
+        "closed": {
+          "default": false,
+          "title": "Closed",
+          "type": "boolean"
+        },
+        "forecast_1800": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Forecast 1800"
+        },
+        "time_to_critical_sec": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Time To Critical Sec"
+        },
+        "queue_delay_sec": {
+          "default": 0,
+          "title": "Queue Delay Sec",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "entity_id",
+        "display_name",
+        "entity_type",
+        "nominal_capacity",
+        "current_count",
+        "utilisation",
+        "risk_score",
+        "risk_band",
+        "is_observed"
+      ],
+      "title": "DomainEntity",
+      "type": "object"
+    },
+    "StateSummary": {
+      "additionalProperties": false,
+      "properties": {
+        "overall_risk_score": {
+          "title": "Overall Risk Score",
+          "type": "integer"
+        },
+        "overall_risk_band": {
+          "enum": [
+            "low",
+            "moderate",
+            "high",
+            "critical"
+          ],
+          "title": "Overall Risk Band",
+          "type": "string"
+        },
+        "critical_count": {
+          "title": "Critical Count",
+          "type": "integer"
+        },
+        "high_count": {
+          "title": "High Count",
+          "type": "integer"
+        },
+        "load_variance": {
+          "title": "Load Variance",
+          "type": "number"
+        }
+      },
+      "required": [
+        "overall_risk_score",
+        "overall_risk_band",
+        "critical_count",
+        "high_count",
+        "load_variance"
+      ],
+      "title": "StateSummary",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "sim_time": {
+      "title": "Sim Time",
+      "type": "string"
+    },
+    "cycle_number": {
+      "title": "Cycle Number",
+      "type": "integer"
+    },
+    "speed_multiplier": {
+      "title": "Speed Multiplier",
+      "type": "number"
+    },
+    "paused": {
+      "title": "Paused",
+      "type": "boolean"
+    },
+    "summary": {
+      "$ref": "#/$defs/StateSummary"
+    },
+    "operations": {
+      "title": "Operations",
+      "type": "object"
+    },
+    "domains": {
+      "additionalProperties": {
+        "items": {
+          "$ref": "#/$defs/DomainEntity"
+        },
+        "type": "array"
+      },
+      "title": "Domains",
+      "type": "object"
+    }
+  },
+  "required": [
+    "sim_time",
+    "cycle_number",
+    "speed_multiplier",
+    "paused",
+    "summary",
+    "operations",
+    "domains"
+  ],
+  "title": "overview_response",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

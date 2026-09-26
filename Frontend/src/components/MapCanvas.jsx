@@ -647,7 +647,7 @@ export default function MapCanvas() {
             </span>
           </div>
 
-          <div className="mt-1 text-sm font-semibold text-white tracking-tight">
+          <div className="mt-1 text-sm font-semibold text-slate-100 tracking-tight">
             {hovered.display_name}
           </div>
           <div className="text-[10px] font-mono text-slate-400">

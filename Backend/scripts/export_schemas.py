@@ -50,6 +50,12 @@ EXPORTS: dict[str, type] = {
     "health_response": S.HealthResponse,
     "simulation_result": S.SimulationResult,
     "nudge_list_response": S.NudgeListResponse,
+    "event_list_response": S.EventListResponse,
+    "overview_response": S.OverviewResponse,
+    "hotel_list_response": S.HotelListResponse,
+    "stay_recommendation_response": S.StayRecommendationResponse,
+    "saturation_response": S.SaturationResponse,
+    "disruption_list_response": S.DisruptionListResponse,
 }
 
 

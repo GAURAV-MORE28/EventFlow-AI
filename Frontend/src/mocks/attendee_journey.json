@@ -1,5 +1,5 @@
 {
-  "journey_risk_score": 57,
+  "journey_risk_score": 38,
   "journey_risk_band": "moderate",
   "recommended_route": {
     "legs": [
@@ -7,23 +7,45 @@
         "from_entity_id": "hotel_core_cluster",
         "to_entity_id": "metro_c",
         "mode": "walk",
-        "duration_sec": 480
+        "duration_sec": 355
       },
       {
         "from_entity_id": "metro_c",
-        "to_entity_id": "gate_6",
-        "mode": "transit",
-        "duration_sec": 500
+        "to_entity_id": "zone_south",
+        "mode": "walk",
+        "duration_sec": 460
       },
       {
-        "from_entity_id": "gate_6",
+        "from_entity_id": "zone_south",
+        "to_entity_id": "zone_core",
+        "mode": "walk",
+        "duration_sec": 180
+      },
+      {
+        "from_entity_id": "zone_core",
+        "to_entity_id": "zone_east",
+        "mode": "walk",
+        "duration_sec": 180
+      },
+      {
+        "from_entity_id": "zone_east",
+        "to_entity_id": "gate_3",
+        "mode": "walk",
+        "duration_sec": 240
+      },
+      {
+        "from_entity_id": "gate_3",
         "to_entity_id": "stadium_main",
-        "mode": "transit",
+        "mode": "walk",
         "duration_sec": 180
       }
     ],
-    "total_duration_sec": 1160,
-    "predicted_crowding_band": "moderate"
+    "total_duration_sec": 1595,
+    "predicted_crowding_band": "moderate",
+    "label": "Recommended",
+    "peak_utilisation": 0.5665,
+    "congestion_delay_sec": 0,
+    "depart_at": "2026-09-04T15:20:00Z"
   },
   "shortest_route": {
     "legs": [
@@ -31,23 +53,196 @@
         "from_entity_id": "hotel_core_cluster",
         "to_entity_id": "metro_c",
         "mode": "walk",
-        "duration_sec": 480
+        "duration_sec": 355
       },
       {
         "from_entity_id": "metro_c",
+        "to_entity_id": "zone_south",
+        "mode": "walk",
+        "duration_sec": 460
+      },
+      {
+        "from_entity_id": "zone_south",
         "to_entity_id": "gate_5",
-        "mode": "transit",
-        "duration_sec": 400
+        "mode": "walk",
+        "duration_sec": 240
       },
       {
         "from_entity_id": "gate_5",
         "to_entity_id": "stadium_main",
-        "mode": "transit",
+        "mode": "walk",
         "duration_sec": 180
       }
     ],
-    "total_duration_sec": 1060,
-    "predicted_crowding_band": "high"
+    "total_duration_sec": 1235,
+    "predicted_crowding_band": "critical",
+    "label": "Fastest",
+    "peak_utilisation": 1.1465,
+    "congestion_delay_sec": 0,
+    "depart_at": "2026-09-04T15:20:00Z"
   },
-  "advice": "The faster route runs through high crowding. The recommended route adds 1 minutes and avoids it."
+  "advice": "The fastest route peaks at 115% crowding. The recommended route adds 6 minutes and peaks at 57%.",
+  "priority": "balanced",
+  "alternatives": [
+    {
+      "legs": [
+        {
+          "from_entity_id": "hotel_core_cluster",
+          "to_entity_id": "metro_c",
+          "mode": "walk",
+          "duration_sec": 355
+        },
+        {
+          "from_entity_id": "metro_c",
+          "to_entity_id": "zone_south",
+          "mode": "walk",
+          "duration_sec": 460
+        },
+        {
+          "from_entity_id": "zone_south",
+          "to_entity_id": "gate_5",
+          "mode": "walk",
+          "duration_sec": 240
+        },
+        {
+          "from_entity_id": "gate_5",
+          "to_entity_id": "stadium_main",
+          "mode": "walk",
+          "duration_sec": 180
+        }
+      ],
+      "total_duration_sec": 1235,
+      "predicted_crowding_band": "critical",
+      "label": "Fastest",
+      "peak_utilisation": 1.1465,
+      "congestion_delay_sec": 0,
+      "depart_at": "2026-09-04T15:20:00Z"
+    },
+    {
+      "legs": [
+        {
+          "from_entity_id": "hotel_core_cluster",
+          "to_entity_id": "metro_c",
+          "mode": "walk",
+          "duration_sec": 355
+        },
+        {
+          "from_entity_id": "metro_c",
+          "to_entity_id": "zone_south",
+          "mode": "walk",
+          "duration_sec": 460
+        },
+        {
+          "from_entity_id": "zone_south",
+          "to_entity_id": "zone_core",
+          "mode": "walk",
+          "duration_sec": 180
+        },
+        {
+          "from_entity_id": "zone_core",
+          "to_entity_id": "zone_north",
+          "mode": "walk",
+          "duration_sec": 180
+        },
+        {
+          "from_entity_id": "zone_north",
+          "to_entity_id": "gate_2",
+          "mode": "walk",
+          "duration_sec": 240
+        },
+        {
+          "from_entity_id": "gate_2",
+          "to_entity_id": "stadium_main",
+          "mode": "walk",
+          "duration_sec": 180
+        }
+      ],
+      "total_duration_sec": 1595,
+      "predicted_crowding_band": "moderate",
+      "label": "Alternative",
+      "peak_utilisation": 0.5665,
+      "congestion_delay_sec": 0,
+      "depart_at": "2026-09-04T15:20:00Z"
+    }
+  ],
+  "departure_options": [
+    {
+      "offset_sec": 0,
+      "depart_at": "2026-09-04T15:20:00Z",
+      "arrive_at": "2026-09-04T15:48:40Z",
+      "travel_time_sec": 1720,
+      "peak_utilisation": 0.5665,
+      "crowding_band": "moderate",
+      "meets_event_start": true,
+      "recommended": true
+    },
+    {
+      "offset_sec": 900,
+      "depart_at": "2026-09-04T15:35:00Z",
+      "arrive_at": "2026-09-04T16:03:40Z",
+      "travel_time_sec": 1720,
+      "peak_utilisation": 0.5004,
+      "crowding_band": "moderate",
+      "meets_event_start": false,
+      "recommended": false
+    },
+    {
+      "offset_sec": 1800,
+      "depart_at": "2026-09-04T15:50:00Z",
+      "arrive_at": "2026-09-04T16:18:40Z",
+      "travel_time_sec": 1720,
+      "peak_utilisation": 0.4365,
+      "crowding_band": "low",
+      "meets_event_start": false,
+      "recommended": false
+    },
+    {
+      "offset_sec": 2700,
+      "depart_at": "2026-09-04T16:05:00Z",
+      "arrive_at": "2026-09-04T16:30:02Z",
+      "travel_time_sec": 1502,
+      "peak_utilisation": 0.5204,
+      "crowding_band": "moderate",
+      "meets_event_start": false,
+      "recommended": false
+    }
+  ],
+  "recommended_departure_offset_sec": 0,
+  "departure_advice": "Leave now: later departures are not less crowded (peak 57% on your route).",
+  "return_route": {
+    "legs": [
+      {
+        "from_entity_id": "stadium_main",
+        "to_entity_id": "gate_5",
+        "mode": "walk",
+        "duration_sec": 180
+      },
+      {
+        "from_entity_id": "gate_5",
+        "to_entity_id": "metro_c",
+        "mode": "walk",
+        "duration_sec": 400
+      },
+      {
+        "from_entity_id": "metro_c",
+        "to_entity_id": "hotel_core_cluster",
+        "mode": "walk",
+        "duration_sec": 480
+      }
+    ],
+    "total_duration_sec": 1060,
+    "predicted_crowding_band": "critical",
+    "label": "Return after National Cup Final",
+    "peak_utilisation": 1.2759,
+    "congestion_delay_sec": 0,
+    "depart_at": "2026-09-04T18:40:00Z"
+  },
+  "event": {
+    "event_id": "evt_demo",
+    "name": "National Cup Final",
+    "start_time": "2026-09-04T16:00:00Z",
+    "end_time": "2026-09-04T18:30:00Z",
+    "venue_entity_id": "stadium_main"
+  },
+  "avoided_entity_ids": []
 }

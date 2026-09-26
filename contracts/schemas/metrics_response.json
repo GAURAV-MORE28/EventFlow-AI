@@ -111,6 +111,13 @@
       },
       "title": "System",
       "type": "object"
+    },
+    "operations": {
+      "additionalProperties": {
+        "$ref": "#/$defs/MetricValue"
+      },
+      "title": "Operations",
+      "type": "object"
     }
   },
   "required": [

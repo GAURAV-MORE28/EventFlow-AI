@@ -1,6 +1,6 @@
 {
   "What is the biggest problem right now?": {
-    "response": "Across the event, 1 entities are critical and 9 are at high risk. The most urgent is Blue Line, projected to cross critical in 0 minutes. It is currently draining, net flow -1274.9 per minute, against a nominal capacity of 24000, at 73 risk. The forecast source is local_model. Predicted propagation reaches metro_a in 2 minutes and bus_hub_south in 37 minutes, 22 downstream failures in total.",
+    "response": "Across the event, 4 entities are critical and 5 are at high risk. The most urgent is Gate 5, projected to cross critical in 0 minutes. It is currently filling, net flow 71.0 per minute, against a nominal capacity of 1500, at 100 risk. The forecast source is local_model. No downstream propagation is predicted from this entity.",
     "is_cached": false,
     "tool_calls": [
       {
@@ -8,65 +8,61 @@
         "args": {
           "entity_id": "all"
         },
-        "result_digest": "overall_risk=68 load_variance=0.0493"
+        "result_digest": "overall_risk=73 load_variance=0.0351"
       },
       {
         "tool": "get_state",
         "args": {
-          "entity_id": "line_blue"
+          "entity_id": "gate_5"
         },
-        "result_digest": "utilisation=1.0062 risk=73"
+        "result_digest": "utilisation=1.1427 risk=100"
       },
       {
         "tool": "get_forecast",
         "args": {
-          "entity_id": "line_blue"
+          "entity_id": "gate_5"
         },
         "result_digest": "time_to_critical_sec=0 source=local_model"
       },
       {
         "tool": "get_cascade",
         "args": {
-          "entity_id": "line_blue"
+          "entity_id": "gate_5"
         },
-        "result_digest": "22 downstream failures"
+        "result_digest": "0 downstream failures"
       },
       {
         "tool": "summarize_window",
         "args": {},
-        "result_digest": "critical=1 high=9"
+        "result_digest": "critical=4 high=5"
       }
     ],
     "grounding": {
       "numbers_emitted": [
-        "1",
-        "9",
+        "4",
+        "5",
+        "5",
         "0",
-        "-1274.9",
-        "24000",
-        "73",
-        "2",
-        "37",
-        "22"
+        "71.0",
+        "1500",
+        "100"
       ],
       "numbers_grounded": [
-        "1",
-        "9",
+        "4",
+        "5",
+        "5",
         "0",
-        "-1274.9",
-        "24000",
-        "73",
-        "2",
-        "37",
-        "22"
+        "71.0",
+        "1500",
+        "100"
       ],
       "ungrounded": [],
       "ungrounded_count": 0,
       "passed": true
     }
   },
-  "Why is Metro B becoming critical?": {
-    "response": "Metro B Station is projected to cross critical in 0 minutes. It is currently draining, net flow -70.0 per minute, against a nominal capacity of 4200, at 77 risk. The forecast source is local_model. Predicted propagation reaches gate_3 in 7 minutes and road_12 in 39 minutes, 21 downstream failures in total.",
+  "Which hotels are nearing capacity?": {
+    "response": "6 of 20 hotels are saturated and 5 have limited rooms; 1775 rooms are free city-wide and 0 booking requests could not be placed. Nearing or at capacity: Southgate Apartments (100 percent), Harbour Lodge (100 percent), Central Budget Stay (100 percent), Arena Business Hotel (100 percent). Best alternative right now: Metro B Residency in North, 166 rooms free at Rs 6200 per night, 34 minutes to the venue.",
     "is_cached": false,
     "tool_calls": [
       {
@@ -74,60 +70,53 @@
         "args": {
           "entity_id": "all"
         },
-        "result_digest": "overall_risk=68 load_variance=0.0493"
+        "result_digest": "overall_risk=73 load_variance=0.0351"
       },
       {
         "tool": "get_state",
         "args": {
-          "entity_id": "metro_b"
+          "entity_id": "all",
+          "entity_type": "hotel"
         },
-        "result_digest": "utilisation=1.1225 risk=77"
-      },
-      {
-        "tool": "get_forecast",
-        "args": {
-          "entity_id": "metro_b"
-        },
-        "result_digest": "time_to_critical_sec=0 source=local_model"
-      },
-      {
-        "tool": "get_cascade",
-        "args": {
-          "entity_id": "metro_b"
-        },
-        "result_digest": "21 downstream failures"
+        "result_digest": "overall_risk=None load_variance=None"
       }
     ],
     "grounding": {
       "numbers_emitted": [
+        "6",
+        "20",
+        "5",
+        "1775",
         "0",
-        "-70.0",
-        "4200",
-        "77",
-        "3",
-        "7",
-        "12",
-        "39",
-        "21"
+        "100",
+        "100",
+        "100",
+        "100",
+        "166",
+        "6200",
+        "34"
       ],
       "numbers_grounded": [
+        "6",
+        "20",
+        "5",
+        "1775",
         "0",
-        "-70.0",
-        "4200",
-        "77",
-        "3",
-        "7",
-        "12",
-        "39",
-        "21"
+        "100",
+        "100",
+        "100",
+        "100",
+        "166",
+        "6200",
+        "34"
       ],
       "ungrounded": [],
       "ungrounded_count": 0,
       "passed": true
     }
   },
-  "What happens if we do nothing?": {
-    "response": "Predicted propagation reaches metro_a in 2 minutes and bus_hub_south in 37 minutes, 22 downstream failures in total. Doing nothing leaves 1 entities critical and 9 at high risk, with load variance 0.0493.",
+  "What happens if Gate 5 closes?": {
+    "response": "Simulated gate closure for the next 60 minutes against an unchanged copy of the city. Peak utilisation goes from 162 percent at Arterial 5 to 162 percent at Arterial 6. Newly critical: Gate 1, Arterial 10, Arterial 12. Biggest changes: Gate 5 116 to 0 percent; Arterial 12 33 to 123 percent; Arterial 10 46 to 126 percent. Average transport pressure moves from 63 to 63 percent, and late entries change by -869.",
     "is_cached": false,
     "tool_calls": [
       {
@@ -135,86 +124,98 @@
         "args": {
           "entity_id": "all"
         },
-        "result_digest": "overall_risk=68 load_variance=0.0493"
+        "result_digest": "overall_risk=73 load_variance=0.0351"
+      },
+      {
+        "tool": "run_whatif",
+        "args": {
+          "scenario_spec": {
+            "scenario_type": "gate_closure",
+            "params": {
+              "entity_id": "gate_5"
+            }
+          }
+        },
+        "result_digest": "peak 162% -> 162%, 3 newly critical"
+      }
+    ],
+    "grounding": {
+      "numbers_emitted": [
+        "60",
+        "162",
+        "5",
+        "162",
+        "6",
+        "1",
+        "10",
+        "12",
+        "5",
+        "116",
+        "0",
+        "12",
+        "33",
+        "123",
+        "10",
+        "46",
+        "126",
+        "63",
+        "63",
+        "-869"
+      ],
+      "numbers_grounded": [
+        "60",
+        "162",
+        "5",
+        "162",
+        "6",
+        "1",
+        "10",
+        "12",
+        "5",
+        "116",
+        "0",
+        "12",
+        "33",
+        "123",
+        "10",
+        "46",
+        "126",
+        "63",
+        "63",
+        "-869"
+      ],
+      "ungrounded": [],
+      "ungrounded_count": 0,
+      "passed": true
+    }
+  },
+  "When should visitors arrive?": {
+    "response": "Visitors should set off now: National Cup Final starts in 40 minutes and later departures meet more pressure at the gates (now 115 percent).",
+    "is_cached": false,
+    "tool_calls": [
+      {
+        "tool": "get_state",
+        "args": {
+          "entity_id": "all"
+        },
+        "result_digest": "overall_risk=73 load_variance=0.0351"
       },
       {
         "tool": "summarize_window",
-        "args": {},
-        "result_digest": "critical=1 high=9"
-      },
-      {
-        "tool": "get_forecast",
         "args": {
-          "entity_id": "line_blue"
+          "kind": "arrival"
         },
-        "result_digest": "time_to_critical_sec=0 source=local_model"
-      },
-      {
-        "tool": "get_cascade",
-        "args": {
-          "entity_id": "line_blue"
-        },
-        "result_digest": "22 downstream failures"
+        "result_digest": "best departure in 0 min at 115% peak"
       }
     ],
     "grounding": {
       "numbers_emitted": [
-        "2",
-        "37",
-        "22",
-        "1",
-        "9",
-        "0.0493"
+        "40",
+        "115"
       ],
       "numbers_grounded": [
-        "2",
-        "37",
-        "22",
-        "1",
-        "9",
-        "0.0493"
-      ],
-      "ungrounded": [],
-      "ungrounded_count": 0,
-      "passed": true
-    }
-  },
-  "Which action gives the largest safety improvement?": {
-    "response": "The highest ranked action is \"Redirect 1,343 attendees to Metro C Station\" at rank score 0.1314, estimated relief 35.3 percent. Its certificate reads UNSTABLE. Did not converge within iteration cap.",
-    "is_cached": false,
-    "tool_calls": [
-      {
-        "tool": "get_state",
-        "args": {
-          "entity_id": "all"
-        },
-        "result_digest": "overall_risk=68 load_variance=0.0493"
-      },
-      {
-        "tool": "get_interventions",
-        "args": {
-          "status": "proposed"
-        },
-        "result_digest": "5 proposed, top rank_score=0.1314"
-      },
-      {
-        "tool": "get_certificate",
-        "args": {
-          "intervention_id": "int_c2e7d"
-        },
-        "result_digest": "verdict=UNSTABLE max_utilisation=1.0762"
-      }
-    ],
-    "grounding": {
-      "numbers_emitted": [
-        "1343",
-        "0.1314",
-        "35.3"
-      ],
-      "numbers_grounded": [
-        "1343",
-        "0.1314",
-        "35.3"
+        "40",
+        "115"
       ],
       "ungrounded": [],
       "ungrounded_count": 0,

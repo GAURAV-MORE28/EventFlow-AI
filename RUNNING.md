@@ -1,125 +1,137 @@
 # Running EventFlow AI
 
-Current status: **Backend and Frontend are complete and integrated. ML is a
-deterministic reference implementation until the trained models land in `ML/`**
-(see `ML/README.md` for the drop-in contract).
+EventFlow AI orchestrates a city hosting several concurrent events (a 70,000-seat
+cup final, a fan festival and a conference expo): hotels, transport, roads,
+gates, venues and visitors in one live model, with forecasting, cascade
+analysis, simulated interventions, what-if analysis and attendee guidance.
 
-## Frontend only, zero backend (fastest way to see it)
-
-```bash
-cd Frontend
-npm install
-npm run dev
-```
-
-Open the printed `localhost` URL. `VITE_MOCK=1` is already set in `.env`, so
-the whole app — map, cascade animation, intervention cards, twin drift toggle,
-commander, metrics panel, attendee PWA — runs off `src/mocks/*.json`, which
-were generated **by the backend itself** and validate against the same JSON
-Schemas the backend uses. Nothing here is hand-authored fake data.
-
-## Full stack (real backend, real 30-second cycle) — the intervention demo
+## Full product (real backend + live simulation)
 
 ```bash
 # Terminal 1
 cd Backend
 pip install -r requirements.txt
-python run.py                    # http://localhost:8000, docs at /docs
+python run.py                    # http://localhost:8000, API docs at /docs
 
 # Terminal 2
 cd Frontend
+npm install
 npm run dev:live                 # VITE_MOCK=0 via .env.live; proxies /api and /ws to :8000
 ```
 
-Open the printed `localhost` URL. `npm run dev` (no suffix) stays mock mode —
-`dev:live` is the only switch, so a fresh clone still needs no `.env` file.
+Open the printed URL (default http://localhost:5173). Pages:
 
-The first ~30–45 s is the deliberate calm opening (02 §5.4): the forecaster
-warms up and entities ramp toward critical before the first intervention
-recommendation appears. To move faster during a demo:
+| Route | What it is for |
+|---|---|
+| `/` | Command Centre: live map, pressure timeline, intervention queue, commander, quick what-if |
+| `/events` | Event schedule; delay / bring forward / resize / cancel events (re-plans demand) |
+| `/accommodation` | Live hotel availability, saturation with explained alternatives, stay finder |
+| `/transport` | Stations, lines, roads, parking; report outages and capacity cuts |
+| `/crowd` | Venues, gates, crowd zones, emergency posts; close gates |
+| `/interventions` | Live queue plus full decision history and realised relief |
+| `/whatif` | Scenario lab: compose, simulate, compare, apply to the live city |
+| `/attendee` | Visitor journey: routes, off-peak departure, return trip, hotel options, nudges |
+| `/commander` | Plain-language questions answered from live data (grounded) |
+| `/metrics` | Measured outcomes: operations, prediction, twin, decisions |
 
-```bash
-curl -s -X POST localhost:8000/api/v1/demo/control \
-  -H 'Content-Type: application/json' -d '{"speed_multiplier": 120}'
-```
-
-Approve a recommendation and the target entity's utilisation, risk band, and
-downstream cascade prediction visibly change over the next few cycles — the
-numbers on the ActionHUD are read straight from `GET /state`, not projected.
-`POST /demo/control {"action": "reset"}` starts a fresh run (queue clears, then
-regenerates after the warm-up); the live backend has no automatic reset.
-
-No database or Redis setup needed — SQLite and an in-process cache are the
-defaults (see `Backend/.env.example` to point at real Postgres/Redis instead).
-`entity_state`/`risk_state`/`forecast` are cleared on every startup (and on
-`POST /demo/control {action: reset}`) since `sim_time` is fully determined by
-the seed — a restart against a leftover `eventflow.db` would otherwise collide
-on `(entity_id, sim_time)`. `intervention`/`certificate`/`regret_entry`/`nudge`
-persist across restarts (see the table below — they used to be write-never).
-
-## Closing the loop: approving an intervention is real
-
-`POST /interventions/{id}/approve` doesn't just flip a status flag — it calls
-`generator.apply_relief(target_entity_ids, relief_pct)`, a real demand-side
-reduction on the simulation, and forks a `twin.branch()` "do nothing"
-counterfactual at that moment. 900s later, `realised_relief_pct` and
-`counterfactual_relief_pct` on the resulting regret-ledger entry are genuine
-measurements — the do-nothing branch vs. what the simulation, with the relief
-actually applied, produced — not a placeholder.
-
-## Regenerating the frontend mocks
-
-Whenever the backend's topology, forecaster, or cascade logic changes, refresh
-the fixtures so mock mode keeps matching reality:
+The simulation runs at 10x by default (one 30-second cycle every 3 wall
+seconds; 14:00 to ~20:00 sim time takes about 35 minutes). Pause, speed and
+reset are in the navigation bar, or:
 
 ```bash
-cd Backend
-python -m scripts.export_schemas --out ../contracts/schemas
-python -m scripts.export_mocks --out ../Frontend/src/mocks --cycles 90
-cd ../Frontend
-npm run validate:mocks           # fails the build if a mock drifted from contract
+curl -s -X POST localhost:8000/api/v1/demo/control -H 'Content-Type: application/json' -d '{"speed_multiplier": 30}'
+curl -s -X POST localhost:8000/api/v1/demo/control -H 'Content-Type: application/json' -d '{"action": "reset"}'
 ```
 
-90 cycles, not 40: metro_b's own critical crossing plus the certification
-pass that produces both an UNSTABLE and a STABLE verdict for it both land well
-past cycle 60 once the EnKF forecast step is correctly wired in (see below) —
-other twin-estimated entities now genuinely compete with it for the
-"most urgent" trigger slot each cycle, which is expected, not a regression.
+To run the frontend against a backend on another port:
+`BACKEND_URL=http://localhost:8765 npm run dev:live`.
+
+## Frontend only (recorded replay, no backend)
+
+```bash
+cd Frontend && npm install && npm run dev
+```
+
+`npm run dev` replays fixtures recorded from a real backend run
+(`src/mocks/*.json`, schema-validated). Read-only pages work; actions that
+change the city (schedule changes, disruptions, sim controls) say they need
+the live backend.
+
+## How the product works
+
+1. **Events drive demand.** Each event's arrivals and egress follow its
+   schedule; out-of-town visitors book hotel rooms (allocated by price, travel
+   time and tier; what cannot be placed is unmet demand).
+2. **Visitors move through the graph** (`app/ml_reference/generator.py`):
+   hotel/home → station, hub or car park → gate → venue, choosing routes by
+   graph coefficients discounted by congestion. Stations and gates have
+   service rates; queues build when inflow exceeds them and spill onto roads;
+   crowded roads load emergency posts. Closures send demand to substitutes.
+3. **The digital twin** (EnKF) assimilates sensor readings. Entities without a
+   reading keep their last valid state carried forward by the process model
+   (the announced plan), so estimates never drift to impossible values.
+4. **Forecast, risk, cascade.** Risk severity is floored by utilisation
+   (at/above the critical line is always "critical"; venues and hotels use
+   their own lines). Cascades follow only edges load really moves along,
+   capped to the most severe roots.
+5. **Interventions.** For the most urgent entity the optimiser proposes
+   concrete actions (redirect riders, redistribute gates, stagger entry, add
+   shuttles, divert parking, move crowds, rebalance hotel guests). Each is
+   simulated on a copy of the live city before it is shown; ones that would not
+   help are dropped. The equilibrium certificate is an independent check.
+6. **Approval changes the city.** The action is applied to the live model at
+   the current attendee compliance rate, a do-nothing copy is forked, and 15
+   sim-minutes later the realised relief is measured against it (regret ledger).
+7. **Attendees** plan journeys against the look-ahead projection; nudges reach
+   only attendees whose route or hotel an approved action touches; accepting
+   changes their plan and raises the compliance the simulator applies.
+8. **What-if** runs baseline and scenario copies of the live city forward and
+   compares them; any scenario can then be applied to the live city.
 
 ## Tests
 
 ```bash
 cd Backend
-python -m pytest tests/ -q       # 31 tests: test_contract.py (18 — ordering,
-                                  # error envelope, verdict ownership, demo
-                                  # cascade chain, seed reproducibility,
-                                  # commander grounding) + test_ml_contract.py
-                                  # (13 — every ML module's return validates
-                                  # against its schema, §0 universal rules)
+python -m pytest tests/ -q       # 71 tests; uses a temporary database (tests/conftest.py)
+cd ../Frontend
+npm run validate:mocks            # fixtures vs contracts/schemas
+npm run build
 ```
 
-CI (`.github/workflows/ci.yml`) runs the backend suite, exports schemas, then
-runs `npm run validate:mocks` and `npm run build` against them — the "schema
-validation in CI" the contracts always described now actually runs.
+## Regenerating schemas and fixtures
 
-## What's real vs. reference right now
+Whenever backend payloads or simulation behaviour change:
+
+```bash
+cd Backend
+python -m scripts.export_schemas --out ../contracts/schemas
+python -m scripts.export_mocks --out ../Frontend/src/mocks --cycles 160
+cd ../Frontend && npm run validate:mocks
+```
+
+## Configuration
+
+`Backend/config.yaml` holds every threshold and knob: warning/critical
+utilisation (with per-type overrides for venues and hotels), intervention
+lifetime (`interventions.ttl_sec`, `min_wall_visible_sec`), effect duration,
+default compliance, demand model, hotel saturation thresholds, cascade caps,
+projection horizon, departure options and the event schedule.
+
+No database or Redis setup is needed: SQLite (`Backend/eventflow.db`) and an
+in-process cache are the defaults; `DATABASE_URL` / `REDIS_URL` environment
+variables override them. Run tables are cleared on startup and on reset;
+interventions, certificates, executions, regret entries, nudges, the event
+schedule and the hotel catalogue persist.
+
+## What is real vs. reference
 
 | Module | State |
 |---|---|
-| REST API (all of `01_BACKEND_CONTRACT.md` §3) | **Real**, fully implemented |
-| WebSocket + reconnect/resync | **Real** |
-| 30s orchestration cycle, latency budgets, backpressure | **Real** |
-| Demo topology (66 entities, the `metro_b→gate_3→road_4→emergency_north` chain, the `gate_5` saturation trap) | **Real** |
-| `SyntheticGenerator` | **Real** (deterministic, seeded) |
-| `RiskScorer`, `AnomalyDetector` | **Real** (these are contractually *not* ML — arithmetic, by design) |
-| `EquilibriumSolver.certify()` | **Real** (the fixed-point solver + `derive_verdict`, exactly as specified) |
-| `InterventionOptimiser` | **Real** (rule-based templates + ranking) |
-| `Forecaster` | Reference (persistence / local trend model). Swap in Chronos-Bolt or your trained LightGBM by dropping `ML/forecaster.py` |
-| `CascadePredictor` | **Real HX-Cascade GNN** (`ML/cascade.py`, `use_gnn: true`) — 2-layer R-GCN, single-shot multi-horizon. Deterministic propagator (`03_ML_CONTRACT.md` §4.2) stays wired as `.fallback()`, firing automatically on any GNN exception/timeout/NaN |
-| `AssimilatedTwin` | Real EnKF (aggregate state, covariance inflation) — this doesn't need Kaggle at all. `step()` (the forecast half) is wired into the cycle; measured RMSE improvement vs. an uncorrected ABM is ~53%, clearing the ≥50% target |
-| Commander (LLM explainer) | **Deterministic, no paid API** — template synthesis over real tool-call results, so `ungrounded_count` is 0 by construction. `LOCAL_LLM_URL` env var (Ollama) optionally swaps in free local phrasing; the grounding validator runs identically either way |
-| Frontend (all of `02_FRONTEND_CONTRACT.md`) | **Real**, all components, mock mode and live mode share the same store/WS code path |
-| `/metrics` (`prediction`/`twin`/`decision` panels) | **Real** — `cascade_precision`/`cascade_recall` are measured online against actual outcomes (not a formula over cascade count), `certificate_accuracy_pct` cross-checks a certified equilibrium against an independent `twin.branch()` rollout, `convergence_rate_pct` is a separate field from that (03 §5.6 names two distinct metrics; they used to be one), and the decision-panel reductions compare against a genuine do-nothing counterfactual instead of a cycle-3 snapshot |
-
-Nothing here needs Kaggle to run end-to-end today — that's the point of the
-reference implementations. They upgrade in place when the trained models land.
+| City model (`SyntheticGenerator`) | Deterministic flow model: schedule-driven demand, hotel bookings, route choice, queues, spill, egress; seeded |
+| Digital twin | Real EnKF with localised analysis and a process model |
+| Forecaster | Quadratic-trend reference (Chronos is used if installed) |
+| Cascade | HX-Cascade GNN (`ML/cascade.py`) with physical-support gating; deterministic propagator as fallback |
+| Risk, anomaly | Arithmetic by design (explainable) |
+| Optimiser | Rule templates with executable actions; relief measured by simulation |
+| Equilibrium certificate | Fixed-point best-response solver |
+| Commander | Deterministic templates over tool results; every number validated |

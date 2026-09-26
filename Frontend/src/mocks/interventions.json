@@ -1,104 +1,135 @@
 {
-  "sim_time": "2026-09-04T14:45:00Z",
+  "sim_time": "2026-09-04T15:20:00Z",
   "interventions": [
     {
-      "intervention_id": "int_d781e",
-      "intervention_type": "notify_only",
+      "intervention_id": "int_65e13",
+      "intervention_type": "gate_redistribution",
       "status": "proposed",
       "target_entity_ids": [
-        "road_13"
+        "gate_6",
+        "gate_4"
       ],
-      "triggered_by_entity_id": "road_13",
-      "title": "Notify operations team",
-      "description": "Escalate road_13 to the operations desk for manual assessment.",
-      "estimated_relief_pct": 4.0,
-      "estimated_cost_paise": 0,
-      "estimated_delay_sec": 0,
-      "feasibility": 1.0,
-      "rank_score": 0.16,
+      "triggered_by_entity_id": "gate_6",
+      "title": "Reassign 30% of Gate 6 entries to Gate 4",
+      "description": "Stewards and app alerts direct 30% of arrivals heading for Gate 6 (127%) to Gate 4 (10%).",
+      "estimated_relief_pct": 14.2,
+      "estimated_cost_paise": 25000,
+      "estimated_delay_sec": 240,
+      "feasibility": 0.9,
+      "rank_score": 0.4773,
       "certificate": {
-        "certificate_id": "cert_4269",
-        "intervention_id": "int_d781e",
+        "certificate_id": "cert_0c80",
+        "intervention_id": "int_65e13",
         "verdict": "STABLE",
         "converged": true,
-        "iterations": 1,
-        "post_nudge_variance": 0.0107,
-        "baseline_variance": 0.0108,
-        "max_zone_utilisation": 0.5527,
-        "max_zone_entity_id": "road_13",
+        "iterations": 4,
+        "post_nudge_variance": 0.0288,
+        "baseline_variance": 0.0288,
+        "max_zone_utilisation": 0.7539,
+        "max_zone_entity_id": "zone_fanpark",
         "oscillation_risk": false,
-        "compliance_sensitivity": 0.0016,
-        "reason": "Equilibrium holds across 40-90% compliance; peak 55% at Arterial 13.",
+        "compliance_sensitivity": 0.0,
+        "reason": "Equilibrium holds across 40-90% compliance; peak 75% at Fan Park.",
         "compliance_sweep": [
           {
             "compliance_rate": 0.4,
-            "max_utilisation": 0.5527,
+            "max_utilisation": 0.7539,
             "verdict": "STABLE"
           },
           {
             "compliance_rate": 0.6,
-            "max_utilisation": 0.5521,
+            "max_utilisation": 0.7539,
             "verdict": "STABLE"
           },
           {
             "compliance_rate": 0.9,
-            "max_utilisation": 0.5511,
+            "max_utilisation": 0.7539,
             "verdict": "STABLE"
           }
         ]
       },
-      "created_at": "2026-09-04T14:45:00Z",
-      "expires_at": "2026-09-04T15:00:00Z"
+      "created_at": "2026-09-04T15:20:00Z",
+      "expires_at": "2026-09-04T15:40:00Z",
+      "evaluation": {
+        "horizon_sec": 1800,
+        "compliance": 0.6,
+        "root_entity_id": "gate_6",
+        "root_peak_before": 1.1609,
+        "root_peak_after": 0.9958,
+        "network_peak_before": 1.6149,
+        "network_peak_after": 1.161,
+        "critical_before": 5,
+        "critical_after": 4,
+        "new_critical_entities": [],
+        "people_redirected": 1368,
+        "travel_time_delta_sec": -33.4,
+        "rooms_unmet_delta": 0.0
+      }
     },
     {
-      "intervention_id": "int_5c0cd",
-      "intervention_type": "reroute_transport",
+      "intervention_id": "int_3cc88",
+      "intervention_type": "gate_redistribution",
       "status": "proposed",
       "target_entity_ids": [
-        "metro_b",
-        "metro_c"
+        "gate_1",
+        "gate_3"
       ],
-      "triggered_by_entity_id": "metro_b",
-      "title": "Redirect 402 attendees to Metro C Station",
-      "description": "Divert 72% of inbound flow from Metro B Station to Metro C Station via platform signage and app alerts.",
-      "estimated_relief_pct": 35.3,
-      "estimated_cost_paise": 120000,
-      "estimated_delay_sec": 540,
-      "feasibility": 0.84,
-      "rank_score": 0.1314,
+      "triggered_by_entity_id": "gate_1",
+      "title": "Reassign 30% of Gate 1 entries to Gate 3",
+      "description": "Stewards and app alerts direct 30% of arrivals heading for Gate 1 (105%) to Gate 3 (10%).",
+      "estimated_relief_pct": 40.5,
+      "estimated_cost_paise": 25000,
+      "estimated_delay_sec": 240,
+      "feasibility": 0.9,
+      "rank_score": 0.2042,
       "certificate": {
-        "certificate_id": "cert_3d61",
-        "intervention_id": "int_5c0cd",
+        "certificate_id": "cert_7caa",
+        "intervention_id": "int_3cc88",
         "verdict": "UNSTABLE",
-        "converged": false,
-        "iterations": 40,
-        "post_nudge_variance": 0.0291,
-        "baseline_variance": 0.0248,
-        "max_zone_utilisation": 0.8772,
-        "max_zone_entity_id": "metro_d",
+        "converged": true,
+        "iterations": 26,
+        "post_nudge_variance": 0.032,
+        "baseline_variance": 0.0314,
+        "max_zone_utilisation": 0.7726,
+        "max_zone_entity_id": "zone_fanpark",
         "oscillation_risk": false,
-        "compliance_sensitivity": 0.0391,
-        "reason": "Did not converge within iteration cap.",
+        "compliance_sensitivity": 0.0,
+        "reason": "Redistribution increases load variance from 0.031 to 0.032.",
         "compliance_sweep": [
           {
             "compliance_rate": 0.4,
-            "max_utilisation": 0.8381,
+            "max_utilisation": 0.7726,
             "verdict": "STABLE"
           },
           {
             "compliance_rate": 0.6,
-            "max_utilisation": 0.8578,
+            "max_utilisation": 0.7726,
             "verdict": "UNSTABLE"
           },
           {
             "compliance_rate": 0.9,
-            "max_utilisation": 0.8772,
+            "max_utilisation": 0.7726,
             "verdict": "UNSTABLE"
           }
         ]
       },
-      "created_at": "2026-09-04T14:45:00Z",
-      "expires_at": "2026-09-04T15:00:00Z"
+      "created_at": "2026-09-04T15:20:00Z",
+      "expires_at": "2026-09-04T15:40:00Z",
+      "evaluation": {
+        "horizon_sec": 1800,
+        "compliance": 0.6,
+        "root_entity_id": "gate_1",
+        "root_peak_before": 0.7422,
+        "root_peak_after": 0.442,
+        "network_peak_before": 1.6149,
+        "network_peak_after": 1.6149,
+        "critical_before": 6,
+        "critical_after": 6,
+        "new_critical_entities": [],
+        "people_redirected": 1072,
+        "travel_time_delta_sec": -16.4,
+        "rooms_unmet_delta": 0.0
+      }
     }
   ]
 }

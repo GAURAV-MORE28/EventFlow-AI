@@ -67,7 +67,7 @@ function ExecutedCard({ action, expanded, onToggle, onDismiss, nodesById, mockMo
             {verdictStyle(action.verdict).label}
           </span>
         )}
-        <span className="truncate text-xs font-semibold text-white">{action.title}</span>
+        <span className="truncate text-xs font-semibold text-slate-100">{action.title}</span>
         <span className="mx-1 hidden text-[11px] text-slate-500 sm:inline">·</span>
         <span className="hidden flex-1 truncate text-[11px] text-slate-300 sm:inline">
           {headline}
@@ -75,7 +75,7 @@ function ExecutedCard({ action, expanded, onToggle, onDismiss, nodesById, mockMo
         <button
           type="button"
           onClick={onToggle}
-          className="ml-auto rounded p-0.5 text-slate-400 hover:text-white"
+          className="ml-auto rounded p-0.5 text-slate-400 hover:text-slate-100"
           aria-label={expanded ? 'Collapse' : 'Expand'}
         >
           {expanded ? '▾' : '▸'}
@@ -83,7 +83,7 @@ function ExecutedCard({ action, expanded, onToggle, onDismiss, nodesById, mockMo
         <button
           type="button"
           onClick={onDismiss}
-          className="rounded p-0.5 text-slate-400 hover:text-white"
+          className="rounded p-0.5 text-slate-400 hover:text-slate-100"
           aria-label="Dismiss"
         >
           ✕
@@ -187,14 +187,14 @@ function WhatIfCard({ overlay, onDismiss, nodesById }) {
         <span className="chip border border-teal-500/40 bg-teal-500/15 font-semibold text-teal-300 font-mono text-[9px]">
           SIMULATED · WHAT-IF
         </span>
-        <span className="truncate text-xs font-semibold text-white">{overlay.label}</span>
+        <span className="truncate text-xs font-semibold text-slate-100">{overlay.label}</span>
         <span className="hidden flex-1 truncate text-[11px] text-teal-300/80 sm:inline">
           projection on a forked twin — not applied to the live world
         </span>
         <button
           type="button"
           onClick={onDismiss}
-          className="ml-auto rounded p-0.5 text-slate-400 hover:text-white"
+          className="ml-auto rounded p-0.5 text-slate-400 hover:text-slate-100"
           aria-label="Dismiss"
         >
           ✕

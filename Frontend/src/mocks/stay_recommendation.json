@@ -1,0 +1,200 @@
+{
+  "sim_time": "2026-09-04T15:20:00Z",
+  "destination_entity_id": "stadium_main",
+  "options": [
+    {
+      "property": {
+        "property_id": "htl_stadium_view_inn",
+        "name": "Stadium View Inn",
+        "cluster_entity_id": "hotel_north_cluster",
+        "zone": "North",
+        "lat": 19.090499,
+        "lon": 72.883278,
+        "tier": "budget",
+        "accessible": false,
+        "price_per_night_paise": 340000,
+        "rooms_total": 380,
+        "rooms_in_service": 380,
+        "rooms_occupied": 269,
+        "rooms_available": 110,
+        "occupancy": 0.7085,
+        "status": "available",
+        "transport_entity_id": "metro_b",
+        "transport_name": "Metro B Station",
+        "walk_to_transport_sec": 908,
+        "transport_utilisation": 0.5324,
+        "transport_closed": false,
+        "transport_forecast_utilisation": 0.4793,
+        "venue_entity_id": "stadium_main",
+        "travel_time_to_venue_sec": 2228
+      },
+      "score": 0.6676,
+      "factors": {
+        "availability": 0.965,
+        "price": 0.929,
+        "travel": 0.461,
+        "transport": 0.0,
+        "congestion": 0.556
+      },
+      "travel_time_sec": 2228,
+      "reasons": [
+        "110 rooms free (29% of rooms)",
+        "Rs 3,400 per night",
+        "37 min to Main Stadium",
+        "15 min walk to Metro B Station, currently at 53% load"
+      ]
+    },
+    {
+      "property": {
+        "property_id": "htl_riverside",
+        "name": "Riverside Hotel",
+        "cluster_entity_id": "hotel_south_cluster",
+        "zone": "South",
+        "lat": 19.059833,
+        "lon": 72.87531,
+        "tier": "midscale",
+        "accessible": false,
+        "price_per_night_paise": 480000,
+        "rooms_total": 360,
+        "rooms_in_service": 360,
+        "rooms_occupied": 262,
+        "rooms_available": 98,
+        "occupancy": 0.7277,
+        "status": "available",
+        "transport_entity_id": "metro_d",
+        "transport_name": "Metro D Station",
+        "walk_to_transport_sec": 747,
+        "transport_utilisation": 0.5409,
+        "transport_closed": false,
+        "transport_forecast_utilisation": 0.501,
+        "venue_entity_id": "stadium_main",
+        "travel_time_to_venue_sec": 2087
+      },
+      "score": 0.6673,
+      "factors": {
+        "availability": 0.907,
+        "price": 0.83,
+        "travel": 0.563,
+        "transport": 0.17,
+        "congestion": 0.549
+      },
+      "travel_time_sec": 2087,
+      "reasons": [
+        "98 rooms free (27% of rooms)",
+        "Rs 4,800 per night",
+        "35 min to Main Stadium",
+        "12 min walk to Metro D Station, currently at 54% load"
+      ]
+    },
+    {
+      "property": {
+        "property_id": "htl_metro_b_residency",
+        "name": "Metro B Residency",
+        "cluster_entity_id": "hotel_north_cluster",
+        "zone": "North",
+        "lat": 19.092491,
+        "lon": 72.884019,
+        "tier": "midscale",
+        "accessible": true,
+        "price_per_night_paise": 620000,
+        "rooms_total": 420,
+        "rooms_in_service": 420,
+        "rooms_occupied": 253,
+        "rooms_available": 166,
+        "occupancy": 0.6028,
+        "status": "available",
+        "transport_entity_id": "metro_b",
+        "transport_name": "Metro B Station",
+        "walk_to_transport_sec": 729,
+        "transport_utilisation": 0.5324,
+        "transport_closed": false,
+        "transport_forecast_utilisation": 0.4793,
+        "venue_entity_id": "stadium_main",
+        "travel_time_to_venue_sec": 2049
+      },
+      "score": 0.6659,
+      "factors": {
+        "availability": 1.0,
+        "price": 0.73,
+        "travel": 0.59,
+        "transport": 0.19,
+        "congestion": 0.556
+      },
+      "travel_time_sec": 2049,
+      "reasons": [
+        "166 rooms free (40% of rooms)",
+        "Rs 6,200 per night",
+        "34 min to Main Stadium",
+        "12 min walk to Metro B Station, currently at 53% load"
+      ]
+    },
+    {
+      "property": {
+        "property_id": "htl_south_station_inn",
+        "name": "South Station Inn",
+        "cluster_entity_id": "hotel_south_cluster",
+        "zone": "South",
+        "lat": 19.059123,
+        "lon": 72.874245,
+        "tier": "budget",
+        "accessible": false,
+        "price_per_night_paise": 240000,
+        "rooms_total": 330,
+        "rooms_in_service": 330,
+        "rooms_occupied": 286,
+        "rooms_available": 44,
+        "occupancy": 0.8665,
+        "status": "limited",
+        "transport_entity_id": "metro_d",
+        "transport_name": "Metro D Station",
+        "walk_to_transport_sec": 782,
+        "transport_utilisation": 0.5409,
+        "transport_closed": false,
+        "transport_forecast_utilisation": 0.501,
+        "venue_entity_id": "stadium_main",
+        "travel_time_to_venue_sec": 2122
+      },
+      "score": 0.6099,
+      "factors": {
+        "availability": 0.444,
+        "price": 1.0,
+        "travel": 0.537,
+        "transport": 0.131,
+        "congestion": 0.549
+      },
+      "travel_time_sec": 2122,
+      "reasons": [
+        "44 rooms free (13% of rooms)",
+        "Rs 2,400 per night",
+        "35 min to Main Stadium",
+        "13 min walk to Metro D Station, currently at 54% load"
+      ]
+    }
+  ],
+  "explanation": "Stadium View Inn recommended instead of Southgate Apartments: Southgate Apartments is 100% occupied (saturated); Stadium View Inn is 71% occupied with 110 rooms free, 37 min to the venue, and uses Metro B Station (53% load) instead of Metro D Station (54% load).",
+  "current": {
+    "property_id": "htl_southgate_apts",
+    "name": "Southgate Apartments",
+    "cluster_entity_id": "hotel_south_cluster",
+    "zone": "South",
+    "lat": 19.061943,
+    "lon": 72.877112,
+    "tier": "midscale",
+    "accessible": true,
+    "price_per_night_paise": 550000,
+    "rooms_total": 260,
+    "rooms_in_service": 260,
+    "rooms_occupied": 260,
+    "rooms_available": 0,
+    "occupancy": 1.0,
+    "status": "saturated",
+    "transport_entity_id": "metro_d",
+    "transport_name": "Metro D Station",
+    "walk_to_transport_sec": 374,
+    "transport_utilisation": 0.5409,
+    "transport_closed": false,
+    "transport_forecast_utilisation": 0.501,
+    "venue_entity_id": "stadium_main",
+    "travel_time_to_venue_sec": 1714
+  }
+}

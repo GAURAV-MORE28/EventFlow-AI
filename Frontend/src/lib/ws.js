@@ -20,12 +20,17 @@ export function connectWebSocket(store, { client = 'command_centre', attendeeId 
   let retryTimer = null;
 
   const handlers = {
-    tick: (p) => store.setSummary(p.summary, p.sim_time, p.cycle_number),
+    tick: (p) => store.setSummary(p.summary, p.sim_time, p.cycle_number, p.operations),
     state_update: (p) => store.mergeEntities(p.entities), // MERGE, never replace
     forecast_update: (p) => store.setPressureTimeline(p.pressure_timeline, p.active_source),
     cascade_alert: (p) => store.setCascade(p.cascade),
     intervention_queued: (p) => store.upsertIntervention(p.intervention),
-    intervention_resolved: (p) => store.updateInterventionStatus(p.intervention_id, p.status),
+    intervention_resolved: (p) => {
+      store.updateInterventionStatus(p.intervention_id, p.status);
+      if (p.status === 'executing') store.bumpWorld();
+    },
+    event_updated: (p) => store.upsertEvent(p.event),
+    disruption_update: (p) => store.setDisruptions(p.disruptions),
     twin_fidelity: (p) => store.setTwinFidelity(p),
     regret_update: (p) => store.appendRegret(p.entry, p.summary),
     anomaly: (p) => store.pushAnomaly(p),

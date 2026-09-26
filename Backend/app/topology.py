@@ -43,6 +43,9 @@ def build_entities() -> list[dict[str, Any]]:
 
     # --- venue ---------------------------------------------------------
     n.append(_e("stadium_main", "venue", "Main Stadium", 0.0, 0.0, 70000, tiers=3))
+    # Second venue: a convention centre hosting a multi-day expo whose egress
+    # overlaps the stadium's arrival wave (concurrent-event pressure).
+    n.append(_e("convention_centre", "venue", "City Convention Centre", 0.0185, -0.0105, 15000, halls=4))
 
     # --- gates (frozen 1..6) -------------------------------------------
     # gate_3 sits on the demo chain; gate_5 is deliberately the smallest, so a
@@ -229,6 +232,19 @@ def build_edges() -> list[dict[str, Any]]:
     ]
     for a, b in road_links:
         e.append(_edge(a, b, "adjacent_to", 0.22, 240))
+
+    # --- convention centre access (second venue) ---------------------------
+    e += [
+        _edge("metro_a", "convention_centre", "feeds", 0.45, 360),
+        _edge("metro_e", "convention_centre", "feeds", 0.35, 420),
+        _edge("bus_hub_north", "convention_centre", "feeds", 0.40, 300),
+        _edge("convention_centre", "road_7", "adjacent_to", 0.30, 240),
+        _edge("convention_centre", "road_13", "adjacent_to", 0.25, 240),
+        _edge("convention_centre", "emergency_north", "evacuates_to", 0.10, 420),
+        # fan park is itself an event venue (the Fan Festival); metro_a is its
+        # nearest rail access alongside the north bus hub.
+        _edge("metro_a", "zone_fanpark", "last_mile_to", 0.35, 540),
+    ]
 
     # --- emergency egress (chain step 3) ----------------------------------
     e += [

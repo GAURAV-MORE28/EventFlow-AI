@@ -53,193 +53,213 @@ class InterventionOptimiser:
         ]
 
     # --- §6.2 candidate templates -----------------------------------------------
+    # Each candidate carries `_action`: the concrete, executable parameters the
+    # simulator applies on approval (source -> destination and the share of
+    # visitors asked to move; gates to stagger; service capacity to add). The
+    # text an operator reads is generated from the same parameters, so the card
+    # always describes exactly what approving it does.
     def _generate(self, risk_context: dict, max_candidates: int) -> list[dict]:
         root = risk_context.get("root_entity_id")
         node_state: dict[str, dict] = risk_context.get("node_state", {})
         edges: list[dict] = risk_context.get("edges", [])
-        cascade: dict = risk_context.get("cascade") or {}
+        closed = set(risk_context.get("closed") or [])
         root_state = node_state.get(root, {})
         root_type = root_state.get("entity_type", "zone")
-        overflow = self._overflow(root_state)
 
-        out_edges = [e for e in edges if e["src_entity_id"] == root]
-        subs = [e for e in out_edges if e["edge_type"] == "substitutes_for"]
-        last_mile = [e for e in out_edges if e["edge_type"] == "last_mile_to"]
-        cascade_ids = [s["entity_id"] for s in cascade.get("steps", [])]
+        def util(e: str) -> float:
+            st = node_state.get(e, {})
+            return max(float(st.get("utilisation", 0.0)), float(st.get("forecast_1800") or 0.0))
 
+        def outs(e: str, etype: str | None = None) -> list[dict]:
+            return [x for x in edges if x["src_entity_id"] == e and (etype is None or x["edge_type"] == etype)]
+
+        def ins(e: str, etype: str | None = None) -> list[dict]:
+            return [x for x in edges if x["dst_entity_id"] == e and (etype is None or x["edge_type"] == etype)]
+
+        def of_type(e: str) -> str:
+            return node_state.get(e, {}).get("entity_type", "")
+
+        venue_gates: dict[str, list[str]] = risk_context.get("venue_gates") or {}
         candidates: list[dict] = []
 
-        # reroute_transport — root is a transport node/route with a substitute.
-        if root_type in ("transport_node", "transport_route") and subs:
-            best = max(subs, key=lambda e: e.get("substitutability", 0.0))
+        # Which gates and stations does this problem ultimately sit behind?
+        gates: list[str] = []
+        stations: list[str] = []
+        if root_type == "gate":
+            gates = [root]
+        elif root_type == "transport_node":
+            stations = [root]
+            gates = [x["dst_entity_id"] for x in outs(root) if of_type(x["dst_entity_id"]) == "gate"]
+        elif root_type == "transport_route":
+            stations = sorted((x["dst_entity_id"] for x in outs(root, "feeds")), key=lambda e: -util(e))[:1]
+        elif root_type == "road":
+            gates = [x["src_entity_id"] for x in ins(root, "adjacent_to") if of_type(x["src_entity_id"]) == "gate"]
+        elif root_type == "emergency_facility":
+            roads = [x["src_entity_id"] for x in ins(root, "evacuates_to") if of_type(x["src_entity_id"]) == "road"]
+            for r in roads:
+                gates += [x["src_entity_id"] for x in ins(r, "adjacent_to") if of_type(x["src_entity_id"]) == "gate"]
+        elif root_type == "venue":
+            gates = sorted(venue_gates.get(root, []), key=lambda g: -util(g))[:2]
+        elif root_type == "parking":
+            gates = [x["dst_entity_id"] for x in outs(root, "serves") if of_type(x["dst_entity_id"]) == "gate"]
+        gates = sorted((g for g in dict.fromkeys(gates) if g not in closed), key=lambda g: -util(g))
+        if not stations and gates:
+            # The busiest open station feeding the hottest gate.
+            feeders = [x["src_entity_id"] for g in gates for x in ins(g, "feeds") if of_type(x["src_entity_id"]) == "transport_node"]
+            stations = sorted(dict.fromkeys(feeders), key=lambda e: -util(e))[:1]
+        stations = [st for st in stations if st not in closed]
+
+        # reroute_transport: move riders from a pressured station to its best substitute.
+        for st in stations:
+            subs = [x for x in outs(st, "substitutes_for") if x["dst_entity_id"] not in closed]
+            if not subs:
+                continue
+            best = min(subs, key=lambda x: (util(x["dst_entity_id"]) - 0.3 * x.get("substitutability", 0.0)))
             dst = best["dst_entity_id"]
-            share = float(best.get("substitutability", 0.5))
-            people = int(overflow)
-            candidates.append(
-                self._make(
-                    risk_context, "reroute_transport", [root, dst],
-                    title=f"Redirect {people:,} attendees to {self._name(dst, node_state)}",
-                    description=(
-                        f"Divert {share:.0%} of inbound flow from {self._name(root, node_state)} "
-                        f"to {self._name(dst, node_state)} via platform signage and app alerts."
-                    ),
-                    relief=clamp(18.0 + share * 24.0, 5.0, 45.0),
-                    cost_paise=120_000, delay_sec=540,
-                    feasibility=clamp(0.55 + share * 0.4, 0.0, 0.98),
-                )
-            )
+            frac = round(clamp(0.2 + 0.3 * float(best.get("substitutability", 0.5)), 0.15, 0.5), 2)
+            candidates.append(self._make(
+                risk_context, "reroute_transport", [st, dst],
+                title=f"Redirect {frac:.0%} of riders from {self._name(st, node_state)} to {self._name(dst, node_state)}",
+                description=(
+                    f"Platform signage and app alerts ask {frac:.0%} of inbound riders to use "
+                    f"{self._name(dst, node_state)} (currently {util(dst):.0%} loaded) instead of "
+                    f"{self._name(st, node_state)} ({util(st):.0%})."
+                ),
+                relief=12.0, cost_paise=120_000, delay_sec=480,
+                feasibility=clamp(0.55 + 0.4 * float(best.get("substitutability", 0.5)), 0.0, 0.98),
+                action={"source": st, "destination": dst, "fraction": frac},
+            ))
 
-        # deploy_shuttle — a congested last-mile link.
-        if last_mile:
-            count = max(1, math.ceil(overflow / 400.0))
-            dst = last_mile[0]["dst_entity_id"]
-            candidates.append(
-                self._make(
-                    risk_context, "deploy_shuttle", [root, dst],
-                    title=f"Deploy {count} shuttle{'s' if count > 1 else ''} on the {self._name(root, node_state)} link",
-                    description=(
-                        f"Run {count} additional shuttle{'s' if count > 1 else ''} between "
-                        f"{self._name(root, node_state)} and {self._name(dst, node_state)} at 6-minute headway."
-                    ),
-                    relief=clamp(6.0 + count * 4.5, 5.0, 32.0),
-                    cost_paise=45_000 * count, delay_sec=300,
-                    feasibility=0.88,
-                )
-            )
+        # deploy_shuttle: extra clearance capacity at the pressured station.
+        for st in stations:
+            overflow = max(0.0, util(st) - 0.8) * float(node_state.get(st, {}).get("nominal_capacity", 1000.0))
+            count = int(clamp(math.ceil(overflow / 250.0), 2, 8))
+            candidates.append(self._make(
+                risk_context, "deploy_shuttle", [st],
+                title=f"Deploy {count} shuttles at {self._name(st, node_state)}",
+                description=(
+                    f"Run {count} extra shuttles from {self._name(st, node_state)} at 5-minute headway, "
+                    f"adding about {count * 12} passengers per minute of clearance capacity."
+                ),
+                relief=8.0, cost_paise=45_000 * count, delay_sec=300, feasibility=0.88,
+                action={"node": st, "capacity_per_min": float(count * 12)},
+            ))
 
-        # stagger_entry — root is a gate, or feeds one.
-        gates = [e["dst_entity_id"] for e in out_edges
-                 if node_state.get(e["dst_entity_id"], {}).get("entity_type") == "gate"]
-        if root_type == "gate" or gates:
-            targets = gates[:2] or [root]
-            candidates.append(
-                self._make(
-                    risk_context, "stagger_entry", targets,
-                    title="Stagger entry by segment + activate zone incentive",
-                    description=(
-                        "Delay group and price-sensitive segments by 12 minutes at "
-                        + ", ".join(self._name(g, node_state) for g in targets)
-                        + "; activate a Rs 500 North-zone credit to pull demand forward."
-                    ),
-                    relief=clamp(22.0 + len(targets) * 4.0, 8.0, 38.0),
-                    cost_paise=180_000, delay_sec=720,
-                    feasibility=0.85,
-                )
-            )
+        # gate_redistribution: part of a hot gate's demand to the coolest gate of its venue.
+        for g in gates[:1]:
+            venue = next((v for v, gs in venue_gates.items() if g in gs), None)
+            others = [x for x in venue_gates.get(venue, []) if x != g and x not in closed]
+            if not others:
+                continue
+            cool = min(others, key=util)
+            if util(cool) >= util(g):
+                continue
+            frac = 0.3
+            candidates.append(self._make(
+                risk_context, "gate_redistribution", [g, cool],
+                title=f"Reassign {frac:.0%} of {self._name(g, node_state)} entries to {self._name(cool, node_state)}",
+                description=(
+                    f"Stewards and app alerts direct {frac:.0%} of arrivals heading for "
+                    f"{self._name(g, node_state)} ({util(g):.0%}) to {self._name(cool, node_state)} ({util(cool):.0%})."
+                ),
+                relief=15.0, cost_paise=25_000, delay_sec=240, feasibility=0.9,
+                action={"sources": [g], "destination": cool, "fraction": frac},
+            ))
 
-        # gate_redistribution — >=2 gates serve the same venue.
-        venue_gates = sorted(
-            {e["src_entity_id"] for e in edges
-             if e["edge_type"] == "feeds"
-             and node_state.get(e["src_entity_id"], {}).get("entity_type") == "gate"
-             and node_state.get(e["dst_entity_id"], {}).get("entity_type") == "venue"}
-        )
-        if len(venue_gates) >= 2:
-            hot = [g for g in venue_gates if float(node_state.get(g, {}).get("utilisation", 0)) > 0.6][:2]
-            cool = [g for g in venue_gates if float(node_state.get(g, {}).get("utilisation", 0)) <= 0.6][:1]
-            if hot and cool:
-                candidates.append(
-                    self._make(
-                        risk_context, "gate_redistribution", hot + cool,
-                        title=f"Reassign entry share to {self._name(cool[0], node_state)}",
-                        description=(
-                            f"Move 20% of ticket-scan share from "
-                            f"{', '.join(self._name(g, node_state) for g in hot)} to "
-                            f"{self._name(cool[0], node_state)}."
-                        ),
-                        relief=16.5, cost_paise=25_000, delay_sec=240, feasibility=0.9,
-                    )
-                )
+        # stagger_entry: hold back part of the arrival wave at the pressured gates.
+        if gates:
+            targets = gates[:2]
+            candidates.append(self._make(
+                risk_context, "stagger_entry", targets,
+                title=f"Stagger entry at {', '.join(self._name(g, node_state) for g in targets)}",
+                description=(
+                    "Ask 35% of arrivals for these gates (group and price-sensitive ticket holders first) to "
+                    "arrive 12 minutes later, with a food-and-drink credit for doing so."
+                ),
+                relief=12.0, cost_paise=180_000, delay_sec=720, feasibility=0.85,
+                action={"gates": targets, "fraction": 0.35, "delay_min": 12.0},
+            ))
 
-        # parking_redistribution
-        hot_parking = [
-            e for e, s in node_state.items()
-            if s.get("entity_type") == "parking" and float(s.get("utilisation", 0)) > 0.85
+        # parking_redistribution: a filling lot and its substitute.
+        lots = [root] if root_type == "parking" else [
+            e for e, st in node_state.items() if st.get("entity_type") == "parking" and util(e) > 0.85
         ]
-        if hot_parking:
-            src = hot_parking[0]
-            alt = next(
-                (e["dst_entity_id"] for e in edges
-                 if e["src_entity_id"] == src and e["edge_type"] == "substitutes_for"), None
-            )
-            if alt:
-                candidates.append(
-                    self._make(
-                        risk_context, "parking_redistribution", [src, alt],
-                        title=f"Divert arrivals from {self._name(src, node_state)} to {self._name(alt, node_state)}",
-                        description=(
-                            f"Close {self._name(src, node_state)} to new arrivals and route them to "
-                            f"{self._name(alt, node_state)} with free transfer."
-                        ),
-                        relief=11.0, cost_paise=30_000, delay_sec=480, feasibility=0.82,
-                    )
-                )
+        for lot in lots[:1]:
+            alts = [x["dst_entity_id"] for x in outs(lot, "substitutes_for") if x["dst_entity_id"] not in closed]
+            if not alts:
+                continue
+            alt = min(alts, key=util)
+            candidates.append(self._make(
+                risk_context, "parking_redistribution", [lot, alt],
+                title=f"Divert arriving cars from {self._name(lot, node_state)} to {self._name(alt, node_state)}",
+                description=(
+                    f"Variable message signs send 50% of cars heading for {self._name(lot, node_state)} "
+                    f"({util(lot):.0%} full) to {self._name(alt, node_state)} ({util(alt):.0%})."
+                ),
+                relief=10.0, cost_paise=30_000, delay_sec=480, feasibility=0.82,
+                action={"source": lot, "destination": alt, "fraction": 0.5},
+            ))
 
-        # zone_incentive — one zone under 0.5 while another is over 0.85.
-        zones = {e: s for e, s in node_state.items() if s.get("entity_type") == "zone"}
-        cold = [e for e, s in zones.items() if float(s.get("utilisation", 0)) < 0.5]
-        hot_zone = [e for e, s in zones.items() if float(s.get("utilisation", 0)) > 0.85]
-        if cold and hot_zone:
-            candidates.append(
-                self._make(
-                    risk_context, "zone_incentive", [hot_zone[0], cold[0]],
-                    title=f"Rs 500 credit to move demand to {self._name(cold[0], node_state)}",
+        # zone_incentive: a crowded zone and a quieter neighbour or substitute.
+        if root_type == "zone":
+            subs = [x["dst_entity_id"] for x in outs(root, "substitutes_for")]
+            subs += [x["dst_entity_id"] for x in outs(root, "adjacent_to") if of_type(x["dst_entity_id"]) == "zone"]
+            subs = [z for z in dict.fromkeys(subs) if z not in closed]
+            if subs:
+                cold = min(subs, key=util)
+                candidates.append(self._make(
+                    risk_context, "zone_incentive", [root, cold],
+                    title=f"Rs 500 credit to move crowds to {self._name(cold, node_state)}",
                     description=(
-                        f"Offer a Rs 500 F&B credit and priority shuttle access for attendees who "
-                        f"relocate from {self._name(hot_zone[0], node_state)} to {self._name(cold[0], node_state)}."
+                        f"Offer a Rs 500 food-and-drink credit to visitors who move from "
+                        f"{self._name(root, node_state)} ({util(root):.0%}) to {self._name(cold, node_state)} ({util(cold):.0%})."
                     ),
-                    relief=14.0, cost_paise=250_000, delay_sec=900, feasibility=0.7,
-                )
-            )
+                    relief=12.0, cost_paise=250_000, delay_sec=600, feasibility=0.7,
+                    action={"source": root, "destination": cold, "fraction": 0.35},
+                ))
 
-        # accommodation_rebalance
-        hot_hotel = [
-            e for e, s in node_state.items()
-            if s.get("entity_type") == "hotel" and float(s.get("utilisation", 0)) > 0.88
-        ]
-        if hot_hotel:
-            src = hot_hotel[0]
-            alt = next(
-                (e["dst_entity_id"] for e in edges
-                 if e["src_entity_id"] == src and e["edge_type"] == "substitutes_for"), None
-            )
-            if alt:
-                candidates.append(
-                    self._make(
-                        risk_context, "accommodation_rebalance", [src, alt],
-                        title=f"Rebalance stays toward {self._name(alt, node_state)}",
-                        description=(
-                            f"Offer transfer credit for guests moving from {self._name(src, node_state)} "
-                            f"to {self._name(alt, node_state)}."
-                        ),
-                        relief=9.0, cost_paise=320_000, delay_sec=1200, feasibility=0.55,
-                    )
-                )
-
-        # emergency_corridor — an emergency facility appears in the cascade.
-        emergency_hit = [
-            e for e in cascade_ids
-            if node_state.get(e, {}).get("entity_type") == "emergency_facility"
-        ]
-        if emergency_hit:
-            roads = [e for e in cascade_ids if node_state.get(e, {}).get("entity_type") == "road"][:2]
-            candidates.append(
-                self._make(
-                    risk_context, "emergency_corridor", roads + emergency_hit[:1],
-                    title=f"Reserve emergency corridor to {self._name(emergency_hit[0], node_state)}",
+        # accommodation_rebalance: a saturated hotel cluster and the cluster with most free rooms.
+        availability: dict[str, int] = risk_context.get("hotel_availability") or {}
+        if root_type == "hotel":
+            alts = sorted(((c, n) for c, n in availability.items() if c != root and n > 20), key=lambda x: -x[1])
+            if alts:
+                dst, free = alts[0]
+                candidates.append(self._make(
+                    risk_context, "accommodation_rebalance", [root, dst],
+                    title=f"Offer transfers from {self._name(root, node_state)} to {self._name(dst, node_state)}",
                     description=(
-                        "Clear one lane on "
-                        + ", ".join(self._name(r, node_state) for r in roads)
-                        + f" to guarantee access to {self._name(emergency_hit[0], node_state)}."
+                        f"Offer event guests booked in {self._name(root, node_state)} ({util(root):.0%} occupied) a free "
+                        f"transfer and credit to {self._name(dst, node_state)}, which has {free} rooms free."
                     ),
-                    relief=7.5, cost_paise=60_000, delay_sec=300, feasibility=0.92,
-                )
-            )
+                    relief=10.0, cost_paise=320_000, delay_sec=1200, feasibility=0.6,
+                    action={"source": root, "destination": dst, "fraction": 0.25},
+                ))
 
-        # notify_only — always present as the baseline candidate.
-        candidates.extend(self.fallback(risk_context, 1))
+        # emergency_corridor: an emergency post downstream of crowded roads.
+        cascade_ids = [s["entity_id"] for s in (risk_context.get("cascade") or {}).get("steps", [])]
+        emergency = [root] if root_type == "emergency_facility" else [
+            e for e in cascade_ids if node_state.get(e, {}).get("entity_type") == "emergency_facility"
+        ]
+        for ef in emergency[:1]:
+            roads = [x["src_entity_id"] for x in ins(ef, "evacuates_to") if of_type(x["src_entity_id"]) == "road"][:2]
+            if not roads:
+                continue
+            candidates.append(self._make(
+                risk_context, "emergency_corridor", roads + [ef],
+                title=f"Reserve emergency corridor to {self._name(ef, node_state)}",
+                description=(
+                    "Clear one lane on " + ", ".join(self._name(r, node_state) for r in roads)
+                    + f" so ambulances reach {self._name(ef, node_state)} regardless of crowding."
+                ),
+                relief=8.0, cost_paise=60_000, delay_sec=300, feasibility=0.92,
+                action={"roads": roads},
+            ))
 
-        # §6.3 — feasibility below the floor gates the candidate out entirely.
+        # notify_only: the baseline when no physical action applies (it moves nobody).
+        if not candidates:
+            candidates.extend(self.fallback(risk_context, 1))
+
+        # §6.3: feasibility below the floor gates the candidate out entirely.
         candidates = [c for c in candidates if c["feasibility"] >= self.min_feasibility]
         return candidates[:max_candidates]
 
@@ -250,7 +270,12 @@ class InterventionOptimiser:
             verdict = (i.get("certificate") or {}).get("verdict")
             stability = STABILITY_FACTOR.get(verdict, 0.6)  # uncertified sits between
 
-            relief_norm = float(i.get("estimated_relief_pct", 0.0)) / 100.0
+            relief_norm = max(0.0, float(i.get("estimated_relief_pct", 0.0))) / 100.0
+            # The simulated evaluation is the physical check: an action that pushes
+            # another entity over the critical line is worth less, whatever the
+            # certificate says.
+            if (i.get("evaluation") or {}).get("new_critical_entities"):
+                stability *= 0.5
             cost_norm = 0.5 + 0.5 * (float(i.get("estimated_cost_paise", 0)) / MAX_COST_PAISE)
             delay_norm = 0.5 + 0.5 * (float(i.get("estimated_delay_sec", 0)) / 1800.0)
 
@@ -281,6 +306,7 @@ class InterventionOptimiser:
         cost_paise: int,
         delay_sec: int,
         feasibility: float,
+        action: dict | None = None,
     ) -> dict:
         root = risk_context.get("root_entity_id")
         sim_time = risk_context.get("sim_time")
@@ -303,4 +329,5 @@ class InterventionOptimiser:
             "created_at": sim_time,
             "expires_at": None,          # backend stamps this from sim_time + ttl
             "_ttl_sec": self.ttl_sec,
+            "_action": dict(action or {}),
         }

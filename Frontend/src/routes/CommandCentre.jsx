@@ -18,11 +18,30 @@ import CommanderBar from '../components/CommanderBar.jsx';
 import EntityDetailPanel from '../components/EntityDetailPanel.jsx';
 import InterventionQueue from '../components/InterventionQueue.jsx';
 import MapCanvas from '../components/MapCanvas.jsx';
+import NavBar from '../components/NavBar.jsx';
 import PressureTimeline from '../components/PressureTimeline.jsx';
 import TopBar from '../components/TopBar.jsx';
 import TwinFidelityGauge from '../components/TwinFidelityGauge.jsx';
 import WhatIfPanel from '../components/WhatIfPanel.jsx';
 import { useActionTracking } from '../lib/useActionTracking.js';
+import { useStore } from '../store/useStore.js';
+
+/** Live operational readout from the simulator (tick payload), no fixed labels. */
+function OpsLine() {
+  const ops = useStore((st) => st.operations);
+  const speed = useStore((st) => st.speed);
+  if (!ops) return null;
+  return (
+    <div className="flex items-center gap-3 text-[10px] text-slate-400 font-mono">
+      <span>{Math.round(ops.arrivals_per_min || 0)} arriving/min</span>
+      <span>·</span>
+      <span>{Math.round(ops.queued_people || 0).toLocaleString('en-IN')} queued</span>
+      <span>·</span>
+      <span>{Math.round(ops.rooms_available || 0).toLocaleString('en-IN')} hotel rooms free</span>
+      {speed && (<><span>·</span><span>{speed}× speed</span></>)}
+    </div>
+  );
+}
 
 export default function CommandCentre() {
   useActionTracking();
@@ -30,6 +49,7 @@ export default function CommandCentre() {
   return (
     <div className="flex h-screen flex-col overflow-hidden bg-surface-950 font-sans">
       <TopBar />
+      <NavBar />
 
       <main className="flex min-h-0 flex-1 flex-col gap-2 overflow-hidden p-2">
 
@@ -62,11 +82,7 @@ export default function CommandCentre() {
                 DECISION SUPPORT & REASONING
               </span>
             </div>
-            <div className="flex items-center gap-3 text-[10px] text-slate-400 font-mono">
-              <span className="hidden sm:inline">30s Pacing Cycle</span>
-              <span className="hidden sm:inline">·</span>
-              <span>Autonomous Dispatch Ready</span>
-            </div>
+            <OpsLine />
           </div>
 
           {/*

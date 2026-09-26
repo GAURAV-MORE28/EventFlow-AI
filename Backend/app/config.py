@@ -43,6 +43,13 @@ class Config:
     def horizons_sec(self) -> list[int]:
         return list(self._raw["forecaster"]["horizons_sec"])
 
+    def thresholds_for(self, entity_type: str | None) -> tuple[float, float]:
+        """(warning, critical) utilisation for an entity type."""
+        t = self._raw["thresholds"]
+        by = (t.get("by_type") or {}).get(entity_type or "", {})
+        return (float(by.get("warning", t.get("warning_utilisation", 0.75))),
+                float(by.get("critical", t["critical_utilisation"])))
+
     def budget_ms(self, step: str) -> int:
         return int(self._raw["budgets_ms"][step])
 
