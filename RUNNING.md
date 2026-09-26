@@ -76,24 +76,52 @@ new what-if are disabled, and What-If shows the one recorded scenario.
    their own lines). Cascades follow only edges load really moves along,
    capped to the most severe roots.
 5. **Interventions.** For the most urgent entity the optimiser proposes
-   concrete actions (redirect riders, redistribute gates, stagger entry, add
-   shuttles, divert parking, move crowds, rebalance hotel guests). Each is
+   concrete actions (redirect riders, spread riders over several alternative
+   stations, redistribute gates, stagger entry, add shuttles, divert parking,
+   move crowds, rebalance hotel guests, delay an event's start). Each is
    simulated on a copy of the live city before it is shown; ones that would not
    help are dropped. The equilibrium certificate is an independent check.
+   An approved event delay is a real schedule change: `/events`, attendee
+   plans and every model see the new time (except the do-nothing copy).
 6. **Approval changes the city.** The action is applied to the live model at
    the current attendee compliance rate, a do-nothing copy is forked, and 15
    sim-minutes later the realised relief is measured against it (regret ledger).
-7. **Attendees** plan journeys against the look-ahead projection; nudges reach
+7. **Attendees** plan journeys against the look-ahead projection, optionally
+   by preferred mode (metro, bus/shuttle, car, walk; car and walk access
+   times come from the geo provider); nudges reach
    only attendees whose route or hotel an approved action touches; accepting
    changes their plan and raises the compliance the simulator applies.
 8. **What-if** runs baseline and scenario copies of the live city forward and
-   compares them; any scenario can then be applied to the live city.
+   compares them (attendance, event delay or cancellation, gate / station /
+   road closure, capacity reduction, outages, rain, hotel shortage, pop-up
+   event, combinations); any scenario can then be applied to the live city.
+9. **Digital twin layers.** Each entity's detail shows the sensor reading (if
+   instrumented), the twin's estimate with its ensemble uncertainty, what the
+   announced plan implies, the 30-minute forecast, the do-nothing value for
+   every executing action, and an over-capacity flag.
+
+## External data and maps (optional)
+
+Everything runs on synthetic data by default. Two provider seams exist for
+real sources (`Backend/app/providers/`):
+
+- **Geography** (`geo.py`): travel time and distance between points.
+  `synthetic` (default) uses great-circle distance with a street detour
+  factor. Set `EVENTFLOW_GEO_PROVIDER=osrm` with `OSRM_URL`, or
+  `EVENTFLOW_GEO_PROVIDER=google` with `GOOGLE_MAPS_API_KEY`, in the
+  environment (never in a committed file). Calls have a timeout, one retry and
+  a cache, and fall back to synthetic on failure (the `source` field says so).
+  `GET /api/v1/geo/travel?from_entity_id=..&to_entity_id=..&mode=walk|drive`.
+- **City data** (`data.py`): `data.provider: file` in `config.yaml` reads
+  `events.json`, `hotels.json` and `topology.json` from `data.dir` (each is
+  optional) and normalises them to the wire conventions (ids, UTC timestamps,
+  paise, fractions), rejecting invalid records.
 
 ## Tests
 
 ```bash
 cd Backend
-python -m pytest tests/ -q       # 76 tests; uses a temporary database (tests/conftest.py)
+python -m pytest tests/ -q       # 92 tests; uses a temporary database (tests/conftest.py)
 cd ../Frontend
 npm run validate:mocks            # fixtures vs contracts/schemas
 npm run build
@@ -130,8 +158,8 @@ schedule and the hotel catalogue persist.
 |---|---|
 | City model (`SyntheticGenerator`) | Deterministic flow model: schedule-driven demand, hotel bookings, route choice, queues, spill, egress; seeded |
 | Digital twin | Real EnKF with localised analysis and a process model |
-| Forecaster | Quadratic-trend reference (Chronos is used if installed) |
-| Cascade | HX-Cascade GNN (`ML/cascade.py`) with physical-support gating; deterministic propagator as fallback |
+| Forecaster | Twin-model forecast: the digital twin's plan projection corrected by the live gap (trend reference without it) |
+| Cascade | HX-Cascade R-GCN (`ML/cascade.py`, checkpoint `ML/hx_cascade_v2.pt`) retrained on 80 flow-simulator scenarios with forecast features (`python -m scripts.train_cascade`); on 20 held-out scenarios it beats a forecast-threshold baseline on average precision at every horizon (see `ML/cascade_eval_v2.json`). Physical-support gating; deterministic propagator as fallback |
 | Risk, anomaly | Arithmetic by design (explainable) |
 | Optimiser | Rule templates with executable actions; relief measured by simulation |
 | Equilibrium certificate | Fixed-point best-response solver |

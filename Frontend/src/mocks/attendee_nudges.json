@@ -1,17 +1,17 @@
 {
   "nudges": [
     {
-      "nudge_id": "ndg_7fdf0",
+      "nudge_id": "ndg_27df9",
       "attendee_id": "att_demo_1",
-      "intervention_id": "int_4c249",
-      "headline": "A room is available at Airport Hotel Cluster",
-      "body": "Core Hotel Cluster is fully booked. Transfer to Airport Hotel Cluster with a free transfer and credit. Rs 80 credit.",
+      "intervention_id": "int_deebf",
+      "headline": "Use Metro D Station instead of Metro C Station",
+      "body": "Metro C Station is congested. Metro D Station is quieter. Rs 50 credit.",
       "tradeoff": {
-        "extra_travel_sec": 1200,
-        "credit_paise": 8000,
-        "perk": "free_transfer"
+        "extra_travel_sec": 480,
+        "credit_paise": 5000,
+        "perk": "priority_shuttle"
       },
-      "target_entity_id": "hotel_airport_cluster",
+      "target_entity_id": "metro_d",
       "status": "pending",
       "issued_at": "2026-09-04T15:20:00Z",
       "expires_at": "2026-09-04T15:35:00Z"

@@ -34,6 +34,72 @@ TRAVERSABLE = {
     "serves": "shuttle",
 }
 CROWD_WEIGHT = {"fastest": 0.0, "balanced": 1.0, "least_crowded": 3.0}
+# Travel-mode preference: a soft cost on the nodes of other modes, so the
+# preferred mode wins unless it is closed or unreasonably slow.
+MODE_PENALTY, MODE_BONUS = 5.0, 0.7
+
+
+def mode_class(entity_id: str, entity_type: str | None) -> str | None:
+    if entity_id.startswith(("metro_", "line_")):
+        return "metro"
+    if entity_id.startswith(("bus_hub", "shuttle_hub")):
+        return "bus"
+    if entity_type == "parking":
+        return "car"
+    return None
+
+
+def preference_penalty(store: Any, preference: str | None) -> dict[str, float]:
+    if not preference or preference == "any":
+        return {}
+    out = {}
+    for eid, node in store.nodes.items():
+        cls = mode_class(eid, node["entity_type"])
+        if cls is None:
+            continue
+        out[eid] = MODE_BONUS if cls == preference else MODE_PENALTY
+    return out
+
+
+def preference_met(store: Any, route: dict, preference: str | None) -> bool | None:
+    if not preference or preference == "any":
+        return None
+    used = {mode_class(l["to_entity_id"], store.nodes.get(l["to_entity_id"], {}).get("entity_type"))
+            for l in route["legs"]} | {mode_class(l["from_entity_id"], store.nodes.get(l["from_entity_id"], {}).get("entity_type"))
+                                        for l in route["legs"]}
+    used.discard(None)
+    return not used if preference == "walk" else preference in used
+
+
+def access_links(store: Any, origin: str, destination: str, preference: str | None) -> list[tuple[str, str, dict]]:
+    """Door-to-door links the transit graph does not model: driving from the
+    origin to a car park, or walking straight to the venue's gates. Travel
+    times come from the geo provider (synthetic unless OSRM/Google is set)."""
+    from ..providers.geo import get_geo_provider
+
+    if preference not in ("car", "walk"):
+        return []
+    o = store.nodes.get(origin)
+    if o is None:
+        return []
+    geo = get_geo_provider()
+    if preference == "car":
+        targets, mode = [e for e, n in store.nodes.items() if n["entity_type"] == "parking"], "drive"
+    else:
+        gates = [e["src_entity_id"] for e in store.edges
+                 if e["dst_entity_id"] == destination and store.nodes[e["src_entity_id"]]["entity_type"] == "gate"]
+        targets, mode = gates or [destination], "walk"
+    out = []
+    for t in targets:
+        n = store.nodes[t]
+        r = geo.travel((o["lat"], o["lon"]), (n["lat"], n["lon"]), mode)
+        out.append((origin, t, {
+            "edge_id": f"{origin}__{t}__{mode}", "src_entity_id": origin, "dst_entity_id": t,
+            "edge_type": "last_mile_to", "travel_time_sec": int(r["duration_sec"]), "geo_source": r["source"],
+        }))
+    return out
+
+
 # Nodes whose "utilisation" is not crowding a traveller moves through.
 NOT_CROWD = {"hotel"}
 
@@ -153,7 +219,8 @@ class Planner:
         if "transport_route" in ends:
             return "transit"
         if "parking" in ends:
-            return "drive"
+            # Drive to/from the car park; the car park <-> gate stretch is on foot.
+            return "walk" if "gate" in ends else "drive"
         if any(x.startswith("shuttle_hub") or x.startswith("bus_hub") for x in (a, b)) and "gate" not in ends:
             return "shuttle"
         return "walk"
@@ -231,7 +298,14 @@ def build_journey(engine: Any, request: dict) -> dict:
         base_offset = max(0.0, (parse(request["planned_departure"]) - now).total_seconds())
     base_offset = max(base_offset, float(attendee.get("depart_offset_sec", 0.0)))
 
+    preference = request.get("transport_preference")
+    mode_pen = preference_penalty(store, preference)
+    for a, b, edge in access_links(store, origin, destination, preference):
+        planner.graph.setdefault(a, []).append((b, edge, False))
+        planner.graph.setdefault(b, []).append((a, edge, True))
+
     def plan(offset: float, crowd_w: float, label: str, penalty: dict | None = None) -> dict | None:
+        penalty = {**mode_pen, **{k: v * mode_pen.get(k, 1.0) for k, v in (penalty or {}).items()}}
         legs = planner.search(origin, destination, offset, crowd_w, penalty)
         if legs is None and planner.avoid:
             planner.avoid = set()
@@ -389,6 +463,8 @@ def build_journey(engine: Any, request: dict) -> dict:
         "return_route": return_route,
         "event": event_view,
         "avoided_entity_ids": sorted(avoid),
+        "transport_preference": preference,
+        "preference_met": preference_met(store, recommended, preference),
     }
 
 

@@ -9,7 +9,7 @@
       "target": 0.9
     },
     "critical_locations": {
-      "value": 4.0,
+      "value": 2.0,
       "target": 0.0
     },
     "queued_people": {
@@ -50,26 +50,29 @@
   },
   "prediction": {
     "forecast_mae": {
-      "value": 0.0343,
+      "value": 0.0043,
       "baseline": 0.051,
       "baseline_name": "persistence",
-      "improvement_pct": 32.7
+      "improvement_pct": 91.6
     },
     "cascade_lead_time_sec": {
-      "value": 1904.0,
+      "value": 1740.0,
       "baseline": 0.0,
-      "baseline_name": "threshold_rule"
+      "baseline_name": "threshold_rule",
+      "sample_size": 1
     },
     "cascade_precision": {
-      "value": 0.0
+      "value": 1.0,
+      "sample_size": 1
     },
     "cascade_recall": {
-      "value": 0.0
+      "value": 1.0,
+      "sample_size": 1
     }
   },
   "twin": {
     "rmse": {
-      "value": 29.48,
+      "value": 29.55,
       "baseline": 2479.32,
       "baseline_name": "uncorrected_abm",
       "improvement_pct": 98.8
@@ -92,22 +95,22 @@
       "baseline_name": "do_nothing_counterfactual"
     },
     "unstable_interventions_caught": {
-      "value": 1.0,
+      "value": 6.0,
       "baseline_name": "naive_optimiser_would_approve"
     },
     "certificate_accuracy_pct": {
-      "value": 50.0,
+      "value": 32.0,
       "target": 85.0,
       "baseline_name": "twin_branch_ground_truth"
     },
     "convergence_rate_pct": {
-      "value": 83.9,
+      "value": 100.0,
       "target": 85.0
     }
   },
   "system": {
     "cycle_latency_ms": {
-      "value": 85.0,
+      "value": 220.0,
       "target": 2000.0
     },
     "commander_ungrounded_rate": {

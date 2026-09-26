@@ -208,7 +208,7 @@
     }
   ],
   "recommended_departure_offset_sec": 0,
-  "departure_advice": "Leave now: later departures are not less crowded (peak 57% on your route).",
+  "departure_advice": "Leave now: waiting does not meaningfully reduce crowding (peak 57% on your route).",
   "return_route": {
     "legs": [
       {
@@ -244,5 +244,7 @@
     "end_time": "2026-09-04T18:30:00Z",
     "venue_entity_id": "stadium_main"
   },
-  "avoided_entity_ids": []
+  "avoided_entity_ids": [],
+  "transport_preference": null,
+  "preference_met": null
 }

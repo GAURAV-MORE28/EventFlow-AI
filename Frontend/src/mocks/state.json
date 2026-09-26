@@ -78,7 +78,7 @@
       "current_count": 1918.3,
       "utilisation": 0.7378,
       "flow_rate_per_min": 77.9,
-      "risk_score": 79,
+      "risk_score": 77,
       "risk_band": "high",
       "is_observed": true
     },
@@ -138,7 +138,7 @@
       "current_count": 1297.3,
       "utilisation": 0.5406,
       "flow_rate_per_min": 15.6,
-      "risk_score": 49,
+      "risk_score": 35,
       "risk_band": "moderate",
       "is_observed": true
     },
@@ -198,8 +198,8 @@
       "current_count": 12674.5,
       "utilisation": 0.845,
       "flow_rate_per_min": 140.9,
-      "risk_score": 91,
-      "risk_band": "critical",
+      "risk_score": 73,
+      "risk_band": "high",
       "is_observed": true
     },
     {
@@ -238,8 +238,8 @@
       "current_count": 403.7,
       "utilisation": 0.4485,
       "flow_rate_per_min": -17.5,
-      "risk_score": 27,
-      "risk_band": "low",
+      "risk_score": 42,
+      "risk_band": "moderate",
       "is_observed": true
     },
     {
@@ -248,8 +248,8 @@
       "current_count": 394.7,
       "utilisation": 0.3947,
       "flow_rate_per_min": 3.3,
-      "risk_score": 24,
-      "risk_band": "low",
+      "risk_score": 39,
+      "risk_band": "moderate",
       "is_observed": true
     },
     {
@@ -258,8 +258,8 @@
       "current_count": 479.3,
       "utilisation": 0.4565,
       "flow_rate_per_min": 8.8,
-      "risk_score": 27,
-      "risk_band": "low",
+      "risk_score": 42,
+      "risk_band": "moderate",
       "is_observed": false
     },
     {
@@ -458,7 +458,7 @@
       "current_count": 7031.1,
       "utilisation": 0.7812,
       "flow_rate_per_min": 232.0,
-      "risk_score": 77,
+      "risk_score": 65,
       "risk_band": "high",
       "is_observed": true
     },
@@ -498,7 +498,7 @@
       "current_count": 1693.0,
       "utilisation": 0.9405,
       "flow_rate_per_min": 54.5,
-      "risk_score": 80,
+      "risk_score": 69,
       "risk_band": "high",
       "is_observed": true
     },
@@ -508,7 +508,7 @@
       "current_count": 1033.3,
       "utilisation": 0.9393,
       "flow_rate_per_min": -9.1,
-      "risk_score": 67,
+      "risk_score": 72,
       "risk_band": "high",
       "is_observed": true
     },
@@ -518,7 +518,7 @@
       "current_count": 800.5,
       "utilisation": 0.8426,
       "flow_rate_per_min": -30.2,
-      "risk_score": 55,
+      "risk_score": 57,
       "risk_band": "moderate",
       "is_observed": true
     },
@@ -528,8 +528,8 @@
       "current_count": 940.5,
       "utilisation": 0.9405,
       "flow_rate_per_min": 11.1,
-      "risk_score": 82,
-      "risk_band": "critical",
+      "risk_score": 71,
+      "risk_band": "high",
       "is_observed": true
     },
     {
@@ -548,7 +548,7 @@
       "current_count": 1119.1,
       "utilisation": 0.5087,
       "flow_rate_per_min": 40.1,
-      "risk_score": 46,
+      "risk_score": 44,
       "risk_band": "moderate",
       "is_observed": true
     },
@@ -578,7 +578,7 @@
       "current_count": 1081.8,
       "utilisation": 0.5409,
       "flow_rate_per_min": 30.6,
-      "risk_score": 50,
+      "risk_score": 48,
       "risk_band": "moderate",
       "is_observed": true
     },
@@ -658,7 +658,7 @@
       "current_count": 28.9,
       "utilisation": 0.2222,
       "flow_rate_per_min": -0.8,
-      "risk_score": 13,
+      "risk_score": 28,
       "risk_band": "low",
       "is_observed": true
     },
@@ -676,8 +676,8 @@
   "summary": {
     "overall_risk_score": 73,
     "overall_risk_band": "high",
-    "critical_count": 4,
-    "high_count": 5,
+    "critical_count": 2,
+    "high_count": 7,
     "load_variance": 0.0351
   }
 }

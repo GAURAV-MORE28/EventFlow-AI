@@ -27,6 +27,10 @@ const TYPES = {
   hotel_shortage: { label: 'Hotel rooms offline', fields: ['rooms_offline_pct'] },
   concurrent_event: { label: 'Pop-up concurrent event', fields: ['entity:venue,zone', 'attendance', 'start_offset_min', 'duration_min'] },
   event_delay: { label: 'Event delay', fields: ['event', 'delay_min'] },
+  event_cancellation: { label: 'Event cancellation', fields: ['event'] },
+  road_closure: { label: 'Road closure', fields: ['entity:road'] },
+  station_closure: { label: 'Station closure', fields: ['entity:transport_node'] },
+  capacity_reduction: { label: 'Capacity reduction', fields: ['entity:gate,transport_node,road,parking,zone,venue', 'delta_pct'] },
 };
 const DEFAULTS = { delta_pct: -20, rooms_offline_pct: 20, attendance: 8000, start_offset_min: 30, duration_min: 120, delay_min: 30, intensity: 'heavy' };
 const METRICS = [
@@ -89,7 +93,7 @@ function newScenario(type = 'gate_closure') {
     const n = f.split(':')[0];
     if (DEFAULTS[n] !== undefined) params[n] = DEFAULTS[n];
   }
-  if (type === 'event_delay') params.event_id = 'evt_demo';
+  if (type === 'event_delay' || type === 'event_cancellation') params.event_id = 'evt_demo';
   return { scenario_type: type, params };
 }
 
@@ -156,6 +160,10 @@ export default function WhatIf() {
       for (const s of scenarios) {
         if (s.scenario_type === 'event_delay') {
           const ev = await api.updateEvent(s.params.event_id, { delay_sec: Math.round((s.params.delay_min || 0) * 60) });
+          upsertEvent(ev);
+        } else if (s.scenario_type === 'event_cancellation') {
+          // A cancellation is a schedule change, not an incident: it goes on the event itself.
+          const ev = await api.updateEvent(s.params.event_id, { status: 'cancelled' });
           upsertEvent(ev);
         } else {
           await api.createDisruption({ scenario_type: s.scenario_type, params: s.params, label: TYPES[s.scenario_type].label });

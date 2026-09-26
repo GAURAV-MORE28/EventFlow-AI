@@ -12,8 +12,8 @@ from collections import deque
 from typing import Any, Iterable
 
 from ..simtime import parse, shift
-from ..catalog import build_properties, verify_catalogue
-from ..topology import build_topology, verify
+from ..catalog import verify_catalogue
+from ..topology import verify
 
 HISTORY_LIMIT = 240          # ~2 hours of sim at 30s steps
 TWIN_HISTORY_LIMIT = 20      # 00 §2.8 — last 20 cycles, oldest first
@@ -24,13 +24,16 @@ class StateStore:
     def __init__(self, sim_start: str) -> None:
         self._lock = threading.RLock()
 
-        topology = build_topology()
+        from ..providers.data import get_data_provider
+
+        provider = get_data_provider()
+        topology = provider.topology()
         verify(topology)
         self.nodes: dict[str, dict] = {n["entity_id"]: n for n in topology["nodes"]}
         self.edges: list[dict] = topology["edges"]
         self.segments: list[dict] = topology["segments"]
         self.bounds: dict[str, float] = topology["bounds"]
-        self.properties: list[dict] = build_properties(topology["nodes"], topology["edges"])
+        self.properties: list[dict] = provider.properties(topology["nodes"], topology["edges"])
         verify_catalogue(self.properties, topology["nodes"])
 
         self.edges_by_src: dict[str, list[dict]] = {}
@@ -133,6 +136,7 @@ class StateStore:
         self.root_cooldown: dict[str, int] = {}
         # Settled interventions: realised effect vs the do-nothing world.
         self.settlements: list[dict] = []
+        self.twin_layers: dict[str, dict] = {}
         # Live disruptions: disruption_id -> record.
         self.disruptions: dict[str, dict] = {}
         self.operations: dict = {}
@@ -285,5 +289,6 @@ class StateStore:
         self.attendees.clear()
         self.root_cooldown.clear()
         self.settlements.clear()
+        self.twin_layers.clear()
         self.disruptions.clear()
         self.operations = {}

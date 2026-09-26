@@ -419,6 +419,15 @@ class Commander:
             return None
         store = self.engine.store
         numbers = [float(x) for x in NUMBER_RE.findall(q.replace(",", ""))]
+        if "cancel" in q or "called off" in q:
+            ev = next((e for e in self.engine.events.events.values()
+                       if e["name"].lower() in q or e["event_id"] in q), None)
+            ev = ev or self.engine.events.get(self.engine.events.primary_event_id)
+            return {"scenario_type": "event_cancellation", "params": {"event_id": ev["event_id"]}}
+        if named and store.nodes[named]["entity_type"] == "road" and any(w in q for w in ("close", "closure", "shut", "block")):
+            return {"scenario_type": "road_closure", "params": {"entity_id": named}}
+        if named and any(w in q for w in ("capacity", "reduce", "cut")) and numbers and "attendance" not in q:
+            return {"scenario_type": "capacity_reduction", "params": {"entity_id": named, "delta_pct": -abs(numbers[0])}}
         if "delay" in q or "postpone" in q or "later" in q:
             ev = None
             for e in self.engine.events.events.values():
@@ -438,7 +447,8 @@ class Commander:
             return {"scenario_type": "gate_closure", "params": {"entity_id": named}}
         if named and store.nodes[named]["entity_type"] in ("transport_node", "transport_route") and any(
                 w in q for w in ("outage", "close", "closure", "shut", "fail", "down")):
-            return {"scenario_type": "transport_outage", "params": {"entity_id": named}}
+            kind = "station_closure" if store.nodes[named]["entity_type"] == "transport_node" and "clos" in q else "transport_outage"
+            return {"scenario_type": kind, "params": {"entity_id": named}}
         if "rain" in q:
             return {"scenario_type": "weather_rain", "params": {"intensity": "heavy" if "heavy" in q else "moderate"}}
         if "attendance" in q or "more people" in q or "crowd" in q:

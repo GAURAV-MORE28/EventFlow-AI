@@ -301,6 +301,8 @@ class SyntheticGenerator:
         out = []
         for ev in self._events_base + eff["extra_events"]:
             status = ev.get("status", "scheduled")
+            if ev["event_id"] in eff["cancelled_events"]:
+                status = "cancelled"
             if status == "cancelled":
                 attendance = 0.0
             else:
@@ -391,12 +393,16 @@ class SyntheticGenerator:
         params = dict(intervention.get("_action") or {})
         params.setdefault("targets", targets)
         until = None if duration_sec is None else self._elapsed_sec + float(duration_sec)
+        if itype == "event_delay":
+            until = None
         mod = self._new_modifier(
             "intervention", itype, params, compliance=float(clamp(compliance, 0.0, 1.0)),
             until_sec=until, intervention_id=intervention.get("intervention_id"),
         )
         if itype == "accommodation_rebalance":
             self._rebalance_rooms(mod)
+        if itype == "event_delay":
+            self._allocate_rooms()
         self._on_modifiers_changed(mod)
         return mod["modifier_id"]
 
@@ -424,9 +430,9 @@ class SyntheticGenerator:
 
     def _on_modifiers_changed(self, mod: dict | None) -> None:
         self._rebuild()
-        if mod is not None and mod["kind"] in ("attendance_delta", "concurrent_event", "event_delay"):
+        if mod is not None and mod["kind"] in ("attendance_delta", "concurrent_event", "event_delay", "event_cancellation"):
             self._allocate_rooms()
-        if mod is not None and mod["kind"] in ("gate_closure", "transport_outage"):
+        if mod is not None and mod["kind"] in ("gate_closure", "transport_outage", "station_closure"):
             self._requeue_closed()
 
     def _rebuild(self) -> None:
@@ -435,7 +441,7 @@ class SyntheticGenerator:
             "closed": set(), "cap_mult": {}, "weight_mult": {}, "attendance_mult": {},
             "event_shift_min": {}, "extra_events": [], "dwell_mult": 1.0,
             "diversions": [], "stagger": {}, "mu_boost": {}, "coupling_cut": {},
-            "room_mult": {}, "hotel_avoid": {},
+            "room_mult": {}, "hotel_avoid": {}, "cancelled_events": set(),
         }
         now = self._elapsed_sec
         for m in self._modifiers:
@@ -457,9 +463,15 @@ class SyntheticGenerator:
                         eff["weight_mult"][eid] = eff["weight_mult"].get(eid, 1.0) * max(0.05, 1.0 + delta)
             elif k == "weather_rain":
                 eff["dwell_mult"] *= RAIN_FACTOR.get(str(p.get("intensity", "moderate")), 1.12)
-            elif k in ("gate_closure", "transport_outage"):
+            elif k in ("gate_closure", "transport_outage", "road_closure", "station_closure"):
                 if eid in self.nodes:
                     eff["closed"].add(eid)
+            elif k == "capacity_reduction":
+                # Generic capacity cut on any entity (staffing, partial closure, works).
+                if eid in self.nodes:
+                    eff["cap_mult"][eid] = eff["cap_mult"].get(eid, 1.0) * max(0.05, 1.0 + delta)
+            elif k == "event_cancellation":
+                eff["cancelled_events"].add(p.get("event_id", "evt_demo"))
             elif k == "hotel_shortage":
                 frac = float(p.get("rooms_offline_pct", abs(delta) * 100.0 if delta else 15.0)) / 100.0
                 for h, t in self.types.items():
@@ -479,6 +491,13 @@ class SyntheticGenerator:
                     dst = targets[1] if len(targets) > 1 else self._best_substitute(src)
                 if src and dst:
                     eff["diversions"].append(("access", src, dst, float(p.get("fraction", 0.4)) * c))
+            elif k == "transport_redistribution":
+                src = p.get("source") or (targets[0] if targets else None)
+                shares = p.get("destinations") or [[d, 1.0] for d in targets[1:]]
+                tot = sum(float(s) for _, s in shares) or 1.0
+                for dst, s in shares:
+                    if src and dst:
+                        eff["diversions"].append(("access", src, dst, float(p.get("fraction", 0.4)) * c * float(s) / tot))
             elif k == "gate_redistribution":
                 hot = p.get("sources") or targets[:-1]
                 cool = p.get("destination") or (targets[-1] if targets else None)
@@ -797,7 +816,19 @@ class SyntheticGenerator:
             st = self._ev_state.setdefault(ev["event_id"], {"arrived": 0.0, "egressed": 0.0, "inside": 0.0, "split": {}, "queued": 0.0})
             A = ev["attendance"]
             lead, sd = float(d["arrival_lead_min"]), float(d["arrival_sd_min"])
-            target = A * _phi((t - (ev["start"] - lead)) / sd)
+            phi = _phi((t - (ev["start"] - lead)) / sd)
+            if st.get("start_seen") is None or dt_sec == 0.0:
+                st["start_seen"], st["anchor"] = ev["start"], None
+            elif ev["start"] != st["start_seen"]:
+                # Rescheduled mid-arrival: whoever has arrived stays; only the
+                # people still to come follow the new schedule from now on.
+                st["start_seen"] = ev["start"]
+                st["anchor"] = (st["arrived"], phi)
+            if st.get("anchor") and st["anchor"][1] < 0.999:
+                a0, p0 = st["anchor"]
+                target = a0 + max(0.0, A - a0) * clamp((phi - p0) / (1.0 - p0), 0.0, 1.0)
+            else:
+                target = A * phi
             if dt_sec == 0.0:
                 # t=0 snapshot: people who arrived before sim start are already inside.
                 pre = target - st["arrived"]
@@ -1007,6 +1038,13 @@ class SyntheticGenerator:
                 for r, c in self.spill_roads.get(g, []):
                     first[r] = first.get(r, 0.0) + lam / ppv * 1.5 * c * ROAD_DWELL_MIN * dm
         roads = [e for e, ty in self.types.items() if ty == "road"]
+        for r in roads:
+            if r in closed and first.get(r, 0.0) > 0:
+                nbrs = [(n, c) for n, c in self.road_neighbours.get(r, []) if n not in closed]
+                tot = sum(c for _, c in nbrs)
+                for n, c in nbrs:
+                    first[n] = first.get(n, 0.0) + first[r] * c / tot
+                first[r] = 0.0
         for r in roads:
             second = sum(first.get(n, 0.0) * c * 0.5 for n, c in self.road_neighbours.get(r, []))
             counts[r] = 0.0 if r in closed else self._background(r, t) * self.capacity(r) + first.get(r, 0.0) + second

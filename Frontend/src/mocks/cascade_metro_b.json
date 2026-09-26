@@ -2,14 +2,14 @@
   "root_entity_id": "line_red",
   "source": "gnn",
   "generated_at": "2026-09-04T15:20:00Z",
-  "total_downstream_failures": 2,
-  "max_depth": 2,
+  "total_downstream_failures": 6,
+  "max_depth": 4,
   "steps": [
     {
       "entity_id": "line_red",
-      "predicted_band": "critical",
+      "predicted_band": "high",
       "eta_sec": 0,
-      "failure_probability": 0.99,
+      "failure_probability": 0.812,
       "via_edge_id": null,
       "depth": 0,
       "step_index": 0
@@ -17,7 +17,7 @@
     {
       "entity_id": "gate_5",
       "predicted_band": "critical",
-      "eta_sec": 1875,
+      "eta_sec": 520,
       "failure_probability": 0.99,
       "via_edge_id": "metro_c__gate_5__feeds",
       "depth": 2,
@@ -26,11 +26,47 @@
     {
       "entity_id": "gate_6",
       "predicted_band": "critical",
-      "eta_sec": 1975,
+      "eta_sec": 620,
       "failure_probability": 0.99,
       "via_edge_id": "metro_c__gate_6__feeds",
       "depth": 2,
       "step_index": 2
+    },
+    {
+      "entity_id": "road_5",
+      "predicted_band": "critical",
+      "eta_sec": 820,
+      "failure_probability": 0.99,
+      "via_edge_id": "gate_5__road_5__adjacent_to",
+      "depth": 3,
+      "step_index": 3
+    },
+    {
+      "entity_id": "road_9",
+      "predicted_band": "high",
+      "eta_sec": 1060,
+      "failure_probability": 0.721,
+      "via_edge_id": "road_5__road_9__adjacent_to",
+      "depth": 4,
+      "step_index": 4
+    },
+    {
+      "entity_id": "road_6",
+      "predicted_band": "critical",
+      "eta_sec": 1085,
+      "failure_probability": 0.99,
+      "via_edge_id": "gate_6__road_6__adjacent_to",
+      "depth": 3,
+      "step_index": 5
+    },
+    {
+      "entity_id": "emergency_south",
+      "predicted_band": "critical",
+      "eta_sec": 1160,
+      "failure_probability": 0.966,
+      "via_edge_id": "road_5__emergency_south__evacuates_to",
+      "depth": 4,
+      "step_index": 6
     }
   ]
 }

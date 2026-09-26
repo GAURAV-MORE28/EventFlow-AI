@@ -69,14 +69,14 @@ FLOW_EDGE_TYPES = {"feeds", "adjacent_to", "serves", "last_mile_to", "evacuates_
 
 
 def _select_roots(node_state: dict[str, dict], critical: float, limit: int, forecast_util) -> list[str]:
-    """The most severe roots only: critical now, or high and forecast to cross
-    critical. Ranked by risk score then projected load; capped at `limit`."""
+    """The most severe roots only: critical now, or forecast to cross critical
+    (whatever the current band, so a cascade is predicted before it starts). Ranked by risk score then projected load; capped at `limit`."""
     def projected(st: dict) -> float:
         return max(forecast_util(st), float(st.get("utilisation", 0.0)))
 
     roots = [
         eid for eid, st in node_state.items()
-        if st.get("risk_band") == "critical" or (st.get("risk_band") == "high" and projected(st) >= critical)
+        if st.get("risk_band") == "critical" or projected(st) >= critical
     ]
     roots.sort(key=lambda e: (-int(node_state[e].get("risk_score", 0)), -projected(node_state[e]), e))
     return roots[:limit]
@@ -148,11 +148,14 @@ class CascadePredictor:
         try:
             torch.manual_seed(self.seed)
             ml_dir = self._resolve_ml_dir()
-            with open(ml_dir / "feature_norm.json", "r", encoding="utf-8") as f:
+            ckpt_name = Path(self.config.get("gnn_checkpoint") or "hx_cascade.pt").name
+            norm_name = self.config.get("gnn_feature_norm") or (
+                "feature_norm_v2.json" if "v2" in ckpt_name else "feature_norm.json")
+            with open(ml_dir / norm_name, "r", encoding="utf-8") as f:
                 norm = json.load(f)
 
             model = HXCascade(node_feat_dim=norm.get("node_feat_dim", 12))
-            state_dict = torch.load(ml_dir / "hx_cascade.pt", map_location="cpu", weights_only=True)
+            state_dict = torch.load(ml_dir / ckpt_name, map_location="cpu", weights_only=True)
             model.load_state_dict(state_dict)
             model.eval()
 
@@ -300,6 +303,12 @@ class CascadePredictor:
             if etype in type_order:
                 x[i, 2 + type_order.index(etype)] = 1.0
             x[i, 2 + n_types] = in_degree.get(eid, 0) / max_degree
+            if norm.get("forecast_features"):
+                # The live forecaster's projections (twin model + bias
+                # correction), exactly as built for training.
+                for j, h in enumerate((900, 1800, 3600)):
+                    fv = st.get(f"forecast_{h}")
+                    x[i, 3 + n_types + j] = min(float(util if fv is None else fv), util_clip)
 
         edge_type_order: list[str] = norm["edge_type_order"]
         src_list: list[int] = []

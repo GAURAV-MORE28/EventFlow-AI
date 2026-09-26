@@ -19,7 +19,11 @@
             "hotel_shortage",
             "concurrent_event",
             "combined",
-            "event_delay"
+            "event_delay",
+            "event_cancellation",
+            "road_closure",
+            "station_closure",
+            "capacity_reduction"
           ],
           "title": "Scenario Type",
           "type": "string"

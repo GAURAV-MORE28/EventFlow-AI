@@ -27,7 +27,7 @@ CertificateVerdict = Literal["STABLE", "CONDITIONAL", "UNSTABLE"]
 InterventionType = Literal[
     "reroute_transport", "deploy_shuttle", "stagger_entry", "gate_redistribution",
     "parking_redistribution", "zone_incentive", "accommodation_rebalance",
-    "emergency_corridor", "notify_only",
+    "emergency_corridor", "notify_only", "event_delay", "transport_redistribution",
 ]
 InterventionStatus = Literal[
     "proposed", "approved", "rejected", "executing", "completed", "expired",
@@ -35,12 +35,13 @@ InterventionStatus = Literal[
 SegmentId = Literal[
     "price_sensitive", "time_sensitive", "accessibility_constrained", "group", "premium",
 ]
-ForecastSource = Literal["persistence", "tsfm", "local_model"]
+ForecastSource = Literal["persistence", "tsfm", "local_model", "twin_model"]
 CascadeSource = Literal["deterministic", "gnn"]
 ScenarioType = Literal[
     "attendance_delta", "metro_capacity_delta", "road_capacity_delta",
     "weather_rain", "gate_closure", "transport_outage", "parking_loss",
     "hotel_shortage", "concurrent_event", "combined", "event_delay",
+    "event_cancellation", "road_closure", "station_closure", "capacity_reduction",
 ]
 NudgeStatus = Literal["pending", "accepted", "declined", "expired"]
 
@@ -203,12 +204,32 @@ class PressureTimelineFrame(Base):
     items: list[PressureTimelineItem]
 
 
+class TwinCounterfactual(Base):
+    intervention_id: str
+    utilisation: float
+
+
+class TwinView(Base):
+    """The digital twin's layers for one entity: what the sensor said, what the
+    twin estimates (and how sure it is), what the announced plan implies, what
+    it forecasts, and what the do-nothing worlds of executing actions show."""
+    observed_utilisation: Optional[float] = None
+    estimated_utilisation: Optional[float] = None
+    estimate_std: Optional[float] = None
+    plan_utilisation: Optional[float] = None
+    forecast_1800: Optional[float] = None
+    over_capacity: bool = False
+    over_capacity_pct: float = 0.0
+    counterfactuals: list[TwinCounterfactual] = []
+
+
 class EntityDetailResponse(Base):
     state: EntityState
     forecast: Optional[Forecast] = None
     edges_in: list[GraphEdge]
     edges_out: list[GraphEdge]
     risk_breakdown: list[RiskBreakdownItem]
+    twin: Optional[TwinView] = None
 
 
 # --- 00 §2.5 -------------------------------------------------------------
@@ -505,6 +526,7 @@ class MetricValue(Base):
     improvement_pct: Optional[float] = None
     target: Optional[float] = None
     target_range: Optional[list[float]] = None
+    sample_size: Optional[int] = None
 
 
 class MetricsResponse(Base):
@@ -547,6 +569,16 @@ class CommanderResponse(Base):
 RoutePriority = Literal["fastest", "balanced", "least_crowded"]
 
 
+class GeoTravelResponse(Base):
+    from_entity_id: str
+    to_entity_id: str
+    mode: str
+    provider: str
+    source: str
+    duration_sec: int
+    distance_m: int
+
+
 class JourneyRequest(Base):
     attendee_id: str
     segment_id: SegmentId
@@ -556,6 +588,7 @@ class JourneyRequest(Base):
     priority: RoutePriority = "balanced"
     include_return: bool = True
     hotel_property_id: Optional[str] = None
+    transport_preference: Optional[Literal["any", "metro", "bus", "car", "walk"]] = None
 
 
 class RouteLeg(Base):
@@ -600,6 +633,8 @@ class JourneyResponse(Base):
     return_route: Optional[Route] = None
     event: Optional[dict[str, Any]] = None
     avoided_entity_ids: list[str] = Field(default_factory=list)
+    transport_preference: Optional[str] = None
+    preference_met: Optional[bool] = None
 
 
 # --- 01 §3.13 demo control ----------------------------------------------

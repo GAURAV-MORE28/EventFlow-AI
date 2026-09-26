@@ -85,10 +85,10 @@ class MLRegistry:
         seed = cfg.demo_seed
         thresholds = raw["thresholds"]
 
-        from .topology import build_topology
+        from .providers.data import get_data_provider
 
         critical_by_entity = {
-            n["entity_id"]: cfg.thresholds_for(n["entity_type"])[1] for n in build_topology()["nodes"]
+            n["entity_id"]: cfg.thresholds_for(n["entity_type"])[1] for n in get_data_provider().topology()["nodes"]
         }
 
         # Each module gets its own config block plus the shared thresholds it needs.

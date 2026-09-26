@@ -23,13 +23,14 @@ forecaster:
   tsfm_model: "amazon/chronos-bolt-small"
   tsfm_enabled: true
   warm_start_after_points: 40
+  model_refresh_cycles: 4       # how often the twin-model projection behind forecasts is recomputed
   device: "cpu"
 
 cascade:
   use_gnn: true
   max_depth: 4
   propagation_threshold: 0.15
-  gnn_checkpoint: "ML/hx_cascade.pt"
+  gnn_checkpoint: "ML/hx_cascade_v2.pt"   # retrained on flow-sim data with forecast features; see ML/cascade_eval_v2.json
   # Output hygiene: a cascade is only useful if an operator can read it.
   max_roots: 5              # most severe roots per cycle
   max_steps: 8              # downstream steps kept per cascade (highest probability first)
@@ -139,6 +140,22 @@ attendee:
   min_crowding_gain: 0.05       # a later departure is advised only if it cuts peak crowding by this much
 
 # The event schedule. `event` below stays the primary event (GET /event).
+# Geography provider for door-to-door travel times (app/providers/geo.py).
+# synthetic = great-circle distance x street detour factor, per-mode speeds.
+# osrm / google need OSRM_URL / GOOGLE_MAPS_API_KEY in the environment
+# (EVENTFLOW_GEO_PROVIDER overrides `provider`); any failure falls back to synthetic.
+geo:
+  provider: synthetic
+  timeout_sec: 2.0
+  retries: 1
+  cache_ttl_sec: 3600
+
+# Static city data (app/providers/data.py). `file` reads events.json /
+# hotels.json / topology.json from `dir` (each optional) and normalises them.
+data:
+  provider: synthetic
+  dir: data
+
 events:
   - event_id: "evt_demo"
     name: "National Cup Final"

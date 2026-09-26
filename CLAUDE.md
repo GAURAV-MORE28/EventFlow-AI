@@ -54,7 +54,7 @@ npm run validate:mocks   # AJV-validates every mock against contracts/schemas/*.
 cd Backend
 pip install -r requirements.txt
 python run.py                       # http://localhost:8000, OpenAPI docs at /docs
-python -m pytest tests/ -q          # 76 tests (temp DB via tests/conftest.py)
+python -m pytest tests/ -q          # 92 tests (temp DB via tests/conftest.py)
 python -m pytest tests/test_contract.py::test_name -q     # single test
 ```
 No DB/Redis setup required — SQLite (`Backend/eventflow.db`) and an in-process cache are the
@@ -162,5 +162,12 @@ units, casing) or Pydantic rejects the output in `app/schemas.py` before it hits
 
 Per `RUNNING.md`, `RiskScorer`, `AnomalyDetector`, `EquilibriumSolver.certify()`,
 `InterventionOptimiser`, and `SyntheticGenerator` are contractually *arithmetic, not ML* and are
-"real" in `ml_reference/`. `Forecaster` there is a persistence/trend reference; `CascadePredictor`
-is the real GNN with the deterministic propagator wired as its `.fallback()`.
+"real" in `ml_reference/`. `Forecaster` there is the twin-model forecast (the nominal world's projection plus a decaying
+live-gap correction; trend reference without it); `CascadePredictor` is the real R-GCN
+(`ML/hx_cascade_v2.pt`, retrained on flow-simulator scenarios with forecast features by
+`Backend/scripts/train_cascade.py`; held-out results in `ML/cascade_eval_v2.json`) with the
+deterministic propagator wired as its `.fallback()`.
+
+Pluggable sources live in `Backend/app/providers/`: `geo.py` (travel times; synthetic by default,
+OSRM/Google via env vars, cached with timeout/retry/fallback) and `data.py` (topology/hotels/events;
+synthetic by default, `data.provider: file` reads and normalises JSON).

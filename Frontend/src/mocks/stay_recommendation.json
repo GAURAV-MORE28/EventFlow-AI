@@ -24,7 +24,7 @@
         "walk_to_transport_sec": 908,
         "transport_utilisation": 0.5324,
         "transport_closed": false,
-        "transport_forecast_utilisation": 0.4793,
+        "transport_forecast_utilisation": 0.4526,
         "venue_entity_id": "stadium_main",
         "travel_time_to_venue_sec": 2228
       },
@@ -66,7 +66,7 @@
         "walk_to_transport_sec": 747,
         "transport_utilisation": 0.5409,
         "transport_closed": false,
-        "transport_forecast_utilisation": 0.501,
+        "transport_forecast_utilisation": 0.4635,
         "venue_entity_id": "stadium_main",
         "travel_time_to_venue_sec": 2087
       },
@@ -108,7 +108,7 @@
         "walk_to_transport_sec": 729,
         "transport_utilisation": 0.5324,
         "transport_closed": false,
-        "transport_forecast_utilisation": 0.4793,
+        "transport_forecast_utilisation": 0.4526,
         "venue_entity_id": "stadium_main",
         "travel_time_to_venue_sec": 2049
       },
@@ -150,7 +150,7 @@
         "walk_to_transport_sec": 782,
         "transport_utilisation": 0.5409,
         "transport_closed": false,
-        "transport_forecast_utilisation": 0.501,
+        "transport_forecast_utilisation": 0.4635,
         "venue_entity_id": "stadium_main",
         "travel_time_to_venue_sec": 2122
       },
@@ -193,7 +193,7 @@
     "walk_to_transport_sec": 374,
     "transport_utilisation": 0.5409,
     "transport_closed": false,
-    "transport_forecast_utilisation": 0.501,
+    "transport_forecast_utilisation": 0.4635,
     "venue_entity_id": "stadium_main",
     "travel_time_to_venue_sec": 1714
   }

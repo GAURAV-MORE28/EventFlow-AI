@@ -1,6 +1,6 @@
 {
   "What is the biggest problem right now?": {
-    "response": "Across the event, 4 entities are critical and 5 are at high risk. The most urgent is Gate 5, projected to cross critical in 0 minutes. It is currently filling, net flow 71.0 per minute, against a nominal capacity of 1500, at 100 risk. The forecast source is local_model. No downstream propagation is predicted from this entity.",
+    "response": "Across the event, 2 entities are critical and 7 are at high risk. The most urgent is Gate 5, projected to cross critical in 0 minutes. It is currently filling, net flow 71.0 per minute, against a nominal capacity of 1500, at 100 risk. The forecast source is twin_model. Predicted propagation reaches road_5 in 11 minutes and road_6 in 18 minutes, 4 downstream failures in total.",
     "is_cached": false,
     "tool_calls": [
       {
@@ -22,39 +22,49 @@
         "args": {
           "entity_id": "gate_5"
         },
-        "result_digest": "time_to_critical_sec=0 source=local_model"
+        "result_digest": "time_to_critical_sec=0 source=twin_model"
       },
       {
         "tool": "get_cascade",
         "args": {
           "entity_id": "gate_5"
         },
-        "result_digest": "0 downstream failures"
+        "result_digest": "4 downstream failures"
       },
       {
         "tool": "summarize_window",
         "args": {},
-        "result_digest": "critical=4 high=5"
+        "result_digest": "critical=2 high=7"
       }
     ],
     "grounding": {
       "numbers_emitted": [
-        "4",
-        "5",
+        "2",
+        "7",
         "5",
         "0",
         "71.0",
         "1500",
-        "100"
+        "100",
+        "5",
+        "11",
+        "6",
+        "18",
+        "4"
       ],
       "numbers_grounded": [
-        "4",
-        "5",
+        "2",
+        "7",
         "5",
         "0",
         "71.0",
         "1500",
-        "100"
+        "100",
+        "5",
+        "11",
+        "6",
+        "18",
+        "4"
       ],
       "ungrounded": [],
       "ungrounded_count": 0,

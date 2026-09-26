@@ -130,6 +130,32 @@ class InterventionOptimiser:
                 action={"source": st, "destination": dst, "fraction": frac},
             ))
 
+        # transport_redistribution: spread a pressured station's riders over every
+        # open alternative (other stations, bus hubs), weighted by spare capacity.
+        for st in stations:
+            subs = [x for x in outs(st, "substitutes_for") if x["dst_entity_id"] not in closed]
+            spare = [(x["dst_entity_id"], max(0.0, 0.95 - util(x["dst_entity_id"]))
+                      * float(node_state.get(x["dst_entity_id"], {}).get("nominal_capacity", 1000.0)))
+                     for x in subs]
+            spare = [(d, s) for d, s in spare if s > 0]
+            if len(spare) < 2:
+                continue
+            spare.sort(key=lambda x: -x[1])
+            spare = spare[:3]
+            frac = 0.4
+            names = ", ".join(self._name(d, node_state) for d, _ in spare)
+            candidates.append(self._make(
+                risk_context, "transport_redistribution", [st] + [d for d, _ in spare],
+                title=f"Spread {frac:.0%} of {self._name(st, node_state)} riders across {len(spare)} alternatives",
+                description=(
+                    f"Journey-planner and platform announcements split {frac:.0%} of inbound riders for "
+                    f"{self._name(st, node_state)} ({util(st):.0%}) over {names}, in proportion to their spare capacity."
+                ),
+                relief=14.0, cost_paise=150_000, delay_sec=540,
+                feasibility=0.8,
+                action={"source": st, "destinations": [[d, round(s, 1)] for d, s in spare], "fraction": frac},
+            ))
+
         # deploy_shuttle: extra clearance capacity at the pressured station.
         for st in stations:
             overflow = max(0.0, util(st) - 0.8) * float(node_state.get(st, {}).get("nominal_capacity", 1000.0))
@@ -254,6 +280,30 @@ class InterventionOptimiser:
                 relief=8.0, cost_paise=60_000, delay_sec=300, feasibility=0.92,
                 action={"roads": roads},
             ))
+
+        # event_delay: push back the start of an event whose arrival wave is behind
+        # this problem, while most of its crowd has not yet set off.
+        venues = {root} if root_type in ("venue", "zone") else set()
+        for g in gates:
+            venues |= {v for v, gs in venue_gates.items() if g in gs}
+        for ev in risk_context.get("events") or []:
+            if ev.get("venue") not in venues or ev.get("cancelled"):
+                continue
+            if not (25.0 <= float(ev.get("minutes_to_start", -1)) <= 150.0) or float(ev.get("arrived_share", 1.0)) > 0.6:
+                continue
+            delay = 20
+            candidates.append(self._make(
+                risk_context, "event_delay", [ev["venue"]],
+                title=f"Delay {ev.get('name', ev['event_id'])} by {delay} minutes",
+                description=(
+                    f"Announce a {delay}-minute later start for {ev.get('name', ev['event_id'])} "
+                    f"({float(ev.get('arrived_share', 0.0)):.0%} of visitors have arrived). The arrival "
+                    f"wave flattens and the egress moves with it; every visitor gets the new time."
+                ),
+                relief=15.0, cost_paise=400_000, delay_sec=delay * 60, feasibility=0.75,
+                action={"event_id": ev["event_id"], "delay_min": float(delay)},
+            ))
+            break
 
         # notify_only: the baseline when no physical action applies (it moves nobody).
         if not candidates:

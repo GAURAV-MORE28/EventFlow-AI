@@ -30,6 +30,23 @@ router = APIRouter(prefix="/api/v1")
 
 
 # --- §3.1 system ------------------------------------------------------------
+@router.get("/geo/travel", response_model=S.GeoTravelResponse)
+async def geo_travel(from_entity_id: str, to_entity_id: str,
+                     mode: str = Query(default="walk", pattern="^(walk|drive|transit|cycle)$")) -> S.GeoTravelResponse:
+    """Door-to-door travel between two entities from the configured geo provider."""
+    from ..providers.geo import get_geo_provider
+
+    nodes = get_engine().store.nodes
+    for eid in (from_entity_id, to_entity_id):
+        if eid not in nodes:
+            raise ApiError("ENTITY_NOT_FOUND", f"No entity with id '{eid}'.", {"entity_id": eid})
+    a, b = nodes[from_entity_id], nodes[to_entity_id]
+    geo = get_geo_provider()
+    r = await asyncio.to_thread(geo.travel, (a["lat"], a["lon"]), (b["lat"], b["lon"]), mode)
+    return S.GeoTravelResponse(from_entity_id=from_entity_id, to_entity_id=to_entity_id, mode=mode,
+                               provider=geo.name, **r)
+
+
 @router.get("/health", response_model=S.HealthResponse)
 async def health() -> S.HealthResponse:
     engine = get_engine()
@@ -115,6 +132,7 @@ async def entity_detail(entity_id: str) -> S.EntityDetailResponse:
         edges_in=[S.GraphEdge(**e) for e in store.edges_by_dst.get(entity_id, [])],
         edges_out=[S.GraphEdge(**e) for e in store.edges_by_src.get(entity_id, [])],
         risk_breakdown=[S.RiskBreakdownItem(**b) for b in breakdown],
+        twin=S.TwinView(**get_engine().twin_view(entity_id)),
     )
 
 
@@ -224,6 +242,9 @@ async def approve(intervention_id: str, body: S.ApproveRequest) -> S.ApproveResp
         item["status"] = "proposed"
         raise
     nudges = issue_nudges(engine, item)
+    if item.get("_event_id"):
+        _persist_event(engine, item["_event_id"])
+        await MANAGER.broadcast("event_updated", {"event": engine.event_view(item["_event_id"])}, store.sim_time)
     _audit(engine, f"operator:{body.operator_id}", "approve", intervention_id,
            {"note": body.note, "compliance": applied["compliance"]})
     _record_execution(engine, item, body.operator_id, True, body.note, applied["branch_id"])
@@ -577,7 +598,14 @@ async def clear_disruption(disruption_id: str) -> S.Disruption:
     return S.Disruption(**record)
 
 
-ENTITY_SCENARIOS = {"metro_capacity_delta", "road_capacity_delta", "gate_closure", "transport_outage", "parking_loss"}
+ENTITY_SCENARIOS = {"metro_capacity_delta", "road_capacity_delta", "gate_closure", "transport_outage", "parking_loss",
+                    "road_closure", "station_closure", "capacity_reduction"}
+SCENARIO_ENTITY_TYPES = {
+    "gate_closure": ("gate",), "road_closure": ("road",), "station_closure": ("transport_node",),
+    "road_capacity_delta": ("road",), "parking_loss": ("parking",),
+    "transport_outage": ("transport_node", "transport_route"),
+    "metro_capacity_delta": ("transport_node", "transport_route"),
+}
 
 
 def _validate_scenario(engine, scenario_type: str, params: dict) -> None:
@@ -594,7 +622,11 @@ def _validate_scenario(engine, scenario_type: str, params: dict) -> None:
         if eid not in engine.store.nodes:
             raise ApiError("INVALID_SCENARIO", f"Scenario '{scenario_type}' needs a valid entity_id.",
                            {"entity_id": eid})
-    if scenario_type == "event_delay":
+        allowed = SCENARIO_ENTITY_TYPES.get(scenario_type)
+        if allowed and engine.store.nodes[eid]["entity_type"] not in allowed:
+            raise ApiError("INVALID_SCENARIO", f"'{scenario_type}' applies to {' / '.join(allowed)} entities.",
+                           {"entity_id": eid, "entity_type": engine.store.nodes[eid]["entity_type"]})
+    if scenario_type in ("event_delay", "event_cancellation"):
         engine.events.get(params.get("event_id", engine.events.primary_event_id))
     if scenario_type == "attendance_delta" and params.get("event_id"):
         engine.events.get(params["event_id"])

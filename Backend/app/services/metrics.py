@@ -130,12 +130,13 @@ def build_metrics(engine: Any) -> dict[str, Any]:
             },
             "cascade_lead_time_sec": {
                 "value": lead_time, "baseline": 0.0, "baseline_name": "threshold_rule",
+                "sample_size": len(store.cascade_lead_times[-50:]),
             },
             "cascade_precision": {
-                "value": precision,
+                "value": precision, "sample_size": ev["alerts_confirmed"] + ev["alerts_false"],
             },
             "cascade_recall": {
-                "value": recall,
+                "value": recall, "sample_size": ev["events_caught"] + ev["events_missed"],
             },
         },
         "twin": {

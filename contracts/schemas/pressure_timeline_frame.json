@@ -86,7 +86,8 @@
       "enum": [
         "persistence",
         "tsfm",
-        "local_model"
+        "local_model",
+        "twin_model"
       ],
       "title": "Active Source",
       "type": "string"

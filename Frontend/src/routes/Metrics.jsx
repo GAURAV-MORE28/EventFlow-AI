@@ -168,6 +168,13 @@ function MetricCard({ metricKey, metric, emphasised }) {
           </div>
         )}
 
+        {metric.sample_size !== null && metric.sample_size !== undefined && (
+          <div className="text-slate-400 flex items-center justify-between text-[10px]">
+            <span className="text-slate-400 font-sans">Measured over:</span>
+            <span className="text-slate-300">{metric.sample_size} {metric.sample_size === 1 ? 'event' : 'events'}</span>
+          </div>
+        )}
+
         {metric.target_range && (
           <div className="text-slate-400 flex items-center justify-between text-[10px]">
             <span className="text-slate-400 font-sans">Range:</span>

@@ -406,6 +406,7 @@ def test_operations_metrics_are_reported(client):
     ("When should visitors arrive?", ""),
     ("Which area will become critical next?", ""),
     ("How will delaying the Fan Festival by 30 minutes affect congestion?", "Simulated event delay"),
+    ("What happens if the Fan Festival is cancelled?", "Simulated event cancellation"),
 ])
 def test_commander_answers_product_questions_grounded(client, query, expect):
     body = client.post(f"{API}/commander/query", json={"query": query, "session_id": "t"}).json()
@@ -521,3 +522,153 @@ def test_accepting_a_hotel_transfer_moves_the_attendee(client):
     j = client.post(f"{API}/attendee/journey", json={"attendee_id": "att_hotel", "segment_id": "price_sensitive",
                                                       "origin_entity_id": new_pid, "destination_entity_id": "stadium_main"})
     assert j.status_code == 200
+
+
+# --- scenario and action types added for the final product ------------------------------
+def test_road_closure_moves_traffic_to_neighbouring_roads():
+    base, closed = _generator(), _generator()
+    for g in (base, closed):
+        for _ in range(170):
+            g.tick(30)
+    roads = [e for e, t in base.types.items() if t == "road" and base.road_neighbours.get(e)]
+    road = max(roads, key=lambda r: base.utilisation()[r])
+    closed.inject("road_closure", {"entity_id": road})
+    for g in (base, closed):
+        for _ in range(10):
+            g.tick(30)
+    b, c = base.utilisation(), closed.utilisation()
+    assert c[road] == 0.0
+    nbrs = [n for n, _ in base.road_neighbours[road]]
+    assert sum(c[n] for n in nbrs) > sum(b[n] for n in nbrs)
+
+
+def test_event_cancellation_scenario_empties_the_venue_and_frees_rooms():
+    g = _generator()
+    for _ in range(150):
+        g.tick(30)
+    inside = g.event_states()["evt_fanfest"]["inside"]
+    g.inject("event_cancellation", {"event_id": "evt_fanfest"})
+    for _ in range(90):
+        g.tick(30)
+    assert g.event_states()["evt_fanfest"]["cancelled"]
+    assert g.event_states()["evt_fanfest"]["inside"] < inside * 0.05
+
+
+def test_capacity_reduction_raises_utilisation():
+    base, cut = _generator(), _generator()
+    for g in (base, cut):
+        for _ in range(170):
+            g.tick(30)
+    cut.inject("capacity_reduction", {"entity_id": "gate_3", "delta_pct": -40})
+    assert cut.capacity("gate_3") < base.capacity("gate_3")
+
+
+def test_transport_redistribution_spreads_riders_over_alternatives():
+    base, act = _generator(), _generator()
+    for g in (base, act):
+        for _ in range(150):
+            g.tick(30)
+    act.apply_intervention({"intervention_type": "transport_redistribution",
+                            "target_entity_ids": ["metro_c", "metro_d", "metro_b"],
+                            "_action": {"source": "metro_c", "destinations": [["metro_d", 2.0], ["metro_b", 1.0]],
+                                        "fraction": 0.4}}, compliance=0.8)
+    for g in (base, act):
+        for _ in range(10):
+            g.tick(30)
+    b, a = base.utilisation(), act.utilisation()
+    assert a["metro_c"] < b["metro_c"]
+    assert a["metro_d"] > b["metro_d"]
+    assert act.stats()["diverted_people"] > 0
+
+
+def test_event_delay_intervention_changes_the_published_schedule(client):
+    engine = get_engine()
+    before = client.get(f"{API}/events").json()
+    ev = next(e for e in before["events"] if e["event_id"] == "evt_demo")
+    body = _approve_synthetic(client, engine, "int_delay_test", "event_delay", ["stadium_main"],
+                              {"event_id": "evt_demo", "delay_min": 20.0})
+    assert body["status"] == "executing"
+    after = next(e for e in client.get(f"{API}/events").json()["events"] if e["event_id"] == "evt_demo")
+    from app.simtime import parse
+
+    assert (parse(after["start_time"]) - parse(ev["start_time"])).total_seconds() == 1200
+    # the do-nothing counterfactual keeps the old schedule
+    cf = engine.counterfactuals["int_delay_test"]
+    assert cf.event_states()["evt_demo"]["start_min"] < engine.generator.event_states()["evt_demo"]["start_min"]
+
+
+def test_whatif_new_scenarios_validate(client):
+    def sim(sc):
+        return client.post(f"{API}/simulate", json={"scenarios": [sc], "horizon_sec": 600})
+
+    assert sim({"scenario_type": "station_closure", "params": {"entity_id": "gate_1"}}).status_code in (400, 422)
+    assert sim({"scenario_type": "event_cancellation", "params": {"event_id": "nope"}}).status_code in (400, 404)
+    assert sim({"scenario_type": "road_closure", "params": {"entity_id": "road_3"}}).status_code == 202
+    assert sim({"scenario_type": "event_cancellation", "params": {"event_id": "evt_expo"}}).status_code == 202
+
+
+def test_gnn_uses_forecast_features_when_the_checkpoint_has_them():
+    import json
+    from pathlib import Path
+
+    import torch
+
+    ml = Path(__file__).resolve().parents[2] / "ML"
+    if not (ml / "hx_cascade_v2.pt").exists():
+        pytest.skip("v2 checkpoint not trained")
+    import sys
+
+    sys.path.insert(0, str(ml.parent))
+    from ML.cascade import CascadePredictor
+
+    norm = json.loads((ml / "feature_norm_v2.json").read_text())
+    assert norm["forecast_features"] and norm["node_feat_dim"] == 15
+    topo = build_topology()
+    cp = CascadePredictor({"use_gnn": True, "gnn_checkpoint": "ML/hx_cascade_v2.pt", "critical_utilisation": 0.9})
+    assert cp._norm and cp._norm.get("forecast_features")
+    state = {n["entity_id"]: {"entity_id": n["entity_id"], "entity_type": n["entity_type"],
+                              "nominal_capacity": n["nominal_capacity"], "utilisation": 0.5,
+                              "forecast_900": 0.6, "forecast_1800": 0.7, "forecast_3600": 0.8}
+             for n in topo["nodes"]}
+    _, _, x, _, _ = cp._build_graph_tensors(state, topo["edges"])
+    assert x.shape[1] == 15 and torch.isclose(x[0, -1], torch.tensor(0.8))
+
+
+def test_entity_detail_exposes_twin_layers(client):
+    body = client.get(f"{API}/state/stadium_main").json()
+    twin = body["twin"]
+    for key in ("observed_utilisation", "estimated_utilisation", "estimate_std", "plan_utilisation",
+                "forecast_1800", "over_capacity", "over_capacity_pct", "counterfactuals"):
+        assert key in twin
+    assert twin["plan_utilisation"] is not None
+    assert twin["over_capacity"] == (body["state"]["utilisation"] > 1.0)
+
+
+def test_journey_honours_transport_preference(client):
+    base = {"attendee_id": "att_mode", "segment_id": "time_sensitive", "origin_entity_id": "hotel_north_cluster",
+            "destination_entity_id": "stadium_main", "include_return": False}
+    for pref in ("metro", "car", "walk"):
+        body = client.post(f"{API}/attendee/journey", json={**base, "transport_preference": pref}).json()
+        assert body["transport_preference"] == pref
+        assert body["preference_met"] is True, (pref, [l["to_entity_id"] for l in body["recommended_route"]["legs"]])
+        if pref == "car":
+            modes = [l["mode"] for l in body["recommended_route"]["legs"]]
+            assert modes[0] == "drive" and modes[-1] == "walk"
+
+
+def test_mid_run_delay_keeps_arrivals_flowing():
+    """A delay announced mid-arrival slows the remaining wave; it never stops it."""
+    g = _generator()
+    for _ in range(105):
+        g.tick(30)
+    events = [dict(e) for e in get_config().raw["events"]]
+    for e in events:
+        if e["event_id"] == "evt_demo":
+            e["start_time"], e["end_time"] = "2026-09-04T16:20:00Z", "2026-09-04T18:50:00Z"
+    g.set_events(events)
+    arrived = [g.event_states()["evt_demo"]["arrived"]]
+    for _ in range(3):
+        for _ in range(10):
+            g.tick(30)
+        arrived.append(g.event_states()["evt_demo"]["arrived"])
+    assert all(b > a for a, b in zip(arrived, arrived[1:]))

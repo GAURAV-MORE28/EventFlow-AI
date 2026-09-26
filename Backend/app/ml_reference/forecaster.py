@@ -19,6 +19,8 @@ from __future__ import annotations
 import logging
 from typing import Any
 
+import math
+
 from .common import clamp
 
 log = logging.getLogger("eventflow.ml.forecaster")
@@ -67,13 +69,24 @@ class Forecaster:
         capacities: dict[str, float],
         horizons_sec: list[int] | None = None,
         sim_time: str | None = None,
+        model_prior: dict[str, dict] | None = None,
     ) -> dict[str, dict]:
+        """`model_prior` (optional): per entity `{"now": u, "points": {h: u}}`, the
+        digital twin's process-model projection under the announced plan. When
+        given, the forecast is that projection corrected by the gap between the
+        latest reading and the model's own "now" (the correction decays with
+        horizon: an unexplained deviation is assumed to fade, not to persist
+        forever). Without it the local trend model is used."""
         horizons = list(horizons_sec or self.horizons)
         try:
-            return {
-                eid: self._forecast_one(eid, hist, horizons, sim_time)
-                for eid, hist in series.items()
-            }
+            out = {}
+            for eid, hist in series.items():
+                prior = (model_prior or {}).get(eid)
+                if prior and len(hist) >= 2:
+                    out[eid] = self._forecast_model(eid, hist, prior, horizons, sim_time)
+                else:
+                    out[eid] = self._forecast_one(eid, hist, horizons, sim_time)
+            return out
         except Exception:  # 03 §0 rule 6 — no exception escapes
             log.exception("forecast failed; using persistence fallback")
             return self.fallback(series, capacities, horizons, sim_time)
@@ -110,6 +123,35 @@ class Forecaster:
         return out
 
     # --- internals ---------------------------------------------------------
+    BIAS_DECAY_SEC = 1800.0
+
+    def _forecast_model(self, entity_id: str, history: list[float], prior: dict,
+                        horizons: list[int], sim_time: str | None) -> dict:
+        last = float(history[-1])
+        gap = last - float(prior.get("now", last))
+        # Spread from how well the model tracked this entity recently (the gap
+        # itself), floored so a perfect run still carries honest uncertainty.
+        spread = max(0.02, abs(gap) * 0.5)
+        points = []
+        for h in horizons:
+            base = float(prior["points"].get(h, prior["points"].get(str(h), last)))
+            value = clamp(base + gap * math.exp(-h / self.BIAS_DECAY_SEC), 0.0, 1.8)
+            widen = spread * (1.0 + h / 3600.0)
+            points.append({
+                "horizon_sec": h,
+                "predicted_utilisation": round(value, 4),
+                "lower_90": round(max(0.0, value - widen), 4),
+                "upper_90": round(value + widen, 4),
+            })
+        return {
+            "source": "twin_model",
+            "generated_at": sim_time,
+            "baseline_value": round(last, 4),
+            "points": points,
+            "time_to_critical_sec": self._time_to_critical(last, points, entity_id),
+            "baseline_comparison": self._baseline_comparison(history),
+        }
+
     def _forecast_one(
         self, entity_id: str, history: list[float], horizons: list[int], sim_time: str | None
     ) -> dict:

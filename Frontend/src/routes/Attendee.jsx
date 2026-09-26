@@ -182,6 +182,7 @@ export default function Attendee() {
     origin: 'htl_central_budget',
     destination: 'stadium_main',
     priority: 'balanced',
+    mode: 'any',
   });
   const [busy, setBusy] = useState(false);
   const hotels = useLiveQuery(() => api.hotels({ sort: 'availability' }), [], { everyCycles: 20 });
@@ -193,6 +194,7 @@ export default function Attendee() {
     origin_entity_id: plan.origin,
     destination_entity_id: plan.destination,
     priority: plan.priority,
+    transport_preference: plan.mode,
     include_return: true,
   }), [plan]);
   const journey = useLiveQuery(() => api.journey(request), [JSON.stringify(request)], { everyCycles: 10 });
@@ -285,6 +287,14 @@ export default function Attendee() {
               {PRIORITIES.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
             </select>
           </label>
+          <label className="flex flex-col gap-0.5">
+            <span className="text-[10px] text-slate-400">Travel by</span>
+            <select id="att-mode" className={select} value={plan.mode} onChange={(e) => setPlan({ ...plan, mode: e.target.value })}>
+              {[['any', 'Any mode'], ['metro', 'Metro'], ['bus', 'Bus / shuttle'], ['car', 'Car'], ['walk', 'Walk only']].map(([v, l]) => (
+                <option key={v} value={v}>{l}</option>
+              ))}
+            </select>
+          </label>
         </fieldset>
 
         {pending.map((n) => (
@@ -302,6 +312,11 @@ export default function Attendee() {
               </div>
               <div className="mt-2"><RiskScore score={j.journey_risk_score} band={j.journey_risk_band} /></div>
               <p className="mt-2 text-[11px] leading-relaxed text-slate-300">{j.advice}</p>
+              {j.preference_met === false && (
+                <p className="mt-1 text-[11px] text-amber-700">
+                  No reasonable {j.transport_preference === 'walk' ? 'walking-only' : j.transport_preference} route right now; this is the best available.
+                </p>
+              )}
               {j.avoided_entity_ids?.length > 0 && (
                 <p className="mt-1 text-[10px] text-sky-700">
                   Avoiding {j.avoided_entity_ids.map((id) => nodesById[id]?.display_name || id).join(', ')} as you accepted.

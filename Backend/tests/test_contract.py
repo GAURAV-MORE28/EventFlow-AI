@@ -82,7 +82,7 @@ def test_unknown_entity_returns_the_error_envelope(client):
 # --- forecast ---------------------------------------------------------------
 def test_forecast_horizons_are_exactly_the_three_contract_values(client):
     body = client.get("/api/v1/forecast").json()
-    assert body["active_source"] in ("persistence", "tsfm", "local_model")
+    assert body["active_source"] in ("persistence", "tsfm", "local_model", "twin_model")
     for forecast in body["forecasts"]:
         assert [p["horizon_sec"] for p in forecast["points"]] == [900, 1800, 3600]
 

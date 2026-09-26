@@ -68,7 +68,12 @@ class Engine:
         self.icfg = raw.get("interventions", {})
 
         self.store = StateStore(sim_start=event_cfg["sim_start_time"])
-        self.events = EventSchedule(raw.get("events") or [self._primary_from_event_cfg(event_cfg)], event_cfg["event_id"])
+        from ..providers.data import get_data_provider
+
+        self.events = EventSchedule(
+            get_data_provider().events(raw.get("events") or [self._primary_from_event_cfg(event_cfg)]),
+            event_cfg["event_id"],
+        )
         # Guards every generator mutation and every clone, so a what-if or a
         # projection never copies a half-applied cycle.
         self.world_lock = threading.RLock()
@@ -218,15 +223,17 @@ class Engine:
 
         # 4. forecast ------------------------------------------------------------
         if store.cycle_number >= self._shed_forecast_until:
+            prior = await asyncio.to_thread(self._model_prior)
             forecasts, forecast_degraded, forecast_ms = await call_ml(
                 "forecaster.predict",
-                self.registry.forecaster.predict,
+                self._predict_with_prior,
                 self.registry.forecaster.fallback,
                 self.config.budget_sec("forecast"),
                 store.series(),
                 store.capacities(),
                 self.config.horizons_sec,
                 sim_time,
+                prior,
             )
             self._apply_forecasts(forecasts or {}, sim_time)
         else:
@@ -330,6 +337,12 @@ class Engine:
             utilisation = round(clamp(count / cap, 0.0, 2.0), 4)
             store.cycles_over_critical[eid] = store.cycles_over_critical.get(eid, 0) + 1 if utilisation >= critical else 0
 
+            tw = twin_state.get(eid) or {}
+            store.twin_layers[eid] = {
+                "observed_utilisation": round(float(observations[eid]) / cap, 4) if observed else None,
+                "estimated_utilisation": round(float(tw["current_count"]) / cap, 4) if "current_count" in tw else None,
+                "estimate_std": round(float(tw["ensemble_std"]) / cap, 4) if tw.get("ensemble_std") is not None else None,
+            }
             store.entity_states[eid] = {
                 "entity_id": eid,
                 "sim_time": sim_time,
@@ -344,6 +357,42 @@ class Engine:
 
     # --- step 4 -------------------------------------------------------------------------
     VALIDATION_HORIZON_SEC = 900
+
+    def _predict_with_prior(self, series, capacities, horizons, sim_time, prior):
+        """Forecaster call that passes the twin's model projection when the
+        forecaster supports it (an ML drop-in without `model_prior` still works)."""
+        try:
+            return self.registry.forecaster.predict(series, capacities, horizons, sim_time, model_prior=prior)
+        except TypeError:
+            return self.registry.forecaster.predict(series, capacities, horizons, sim_time)
+
+    def _model_prior(self) -> dict[str, dict] | None:
+        """Projection of the twin's process model (announced plan + approved
+        actions, not unannounced disruptions) at the forecast horizons.
+        Refreshed every `forecaster.model_refresh_cycles` and whenever the plan
+        changes; cheap in between."""
+        if self.nominal is None or not hasattr(self.nominal, "clone"):
+            return None
+        refresh = int(self.config.raw.get("forecaster", {}).get("model_refresh_cycles", 4))
+        key = (self.store.cycle_number // max(refresh, 1), self.world_version)
+        cached = getattr(self, "_prior_cache", None)
+        if cached and cached[0] == key:
+            return cached[1]
+        horizons = sorted(self.config.horizons_sec)
+        with self.world_lock:
+            clone = self.nominal.clone()
+        now = clone.utilisation()
+        points: dict[str, dict[int, float]] = {e: {} for e in now}
+        elapsed, step = 0, 60
+        for h in horizons:
+            while elapsed < h:
+                clone.tick(step)
+                elapsed += step
+            for e, u in clone.utilisation().items():
+                points[e][h] = u
+        prior = {e: {"now": now[e], "points": points[e]} for e in now}
+        self._prior_cache = (key, prior)
+        return prior
 
     def _apply_forecasts(self, forecasts: dict[str, dict], sim_time: str) -> None:
         store = self.store
@@ -464,9 +513,6 @@ class Engine:
                 active_roots.add(c["root_entity_id"])
                 if c["root_entity_id"] not in store.previously_active_cascade_roots:
                     newly_active.append(c)
-                etas = [s["eta_sec"] for s in c["steps"] if s["depth"] > 0]
-                if etas:
-                    store.cascade_lead_times.append(float(max(etas)))
                 self._schedule_cascade_checks(c)
         store.previously_active_cascade_roots = active_roots
         if cascades:
@@ -478,7 +524,13 @@ class Engine:
         pending_entities = {eid for _, eid in store.cascade_pending_checks}
         for step in cascade["steps"][1:]:
             eid = step["entity_id"]
-            store.cascade_predicted_at[eid] = store.cycle_number
+            # Keep the *first* prediction inside the look-back window: a cascade
+            # re-predicted every cycle must not reset its own lead time (that
+            # made every caught transition look unpredicted).
+            first = store.cascade_predicted_at.get(eid)
+            lookback = max(1, self.CASCADE_RECALL_LOOKBACK_SEC // self.sim_dt)
+            if first is None or store.cycle_number - first > lookback:
+                store.cascade_predicted_at[eid] = store.cycle_number
             if eid in pending_entities:
                 continue
             due = store.cycle_number + max(1, round(step["eta_sec"] / self.sim_dt))
@@ -502,24 +554,34 @@ class Engine:
 
     CASCADE_RECALL_LOOKBACK_SEC = 3600
 
+    # What a cascade claims to predict: a downstream entity of these types
+    # crossing into critical (the same definition the model is evaluated on
+    # offline, ML/cascade_eval_v2.json). Venues, zones, parking and hotels fill
+    # from their own demand, not from a cascade, so they are not scored here.
+    CASCADE_SCORED_TYPES = ("gate", "road", "transport_node", "emergency_facility")
+
     def _track_cascade_recall(self, previous_states: dict[str, dict]) -> None:
-        """Recall: of the non-root entities that just turned high/critical, how
+        """Recall: of the non-root entities that just turned critical, how
         many had been predicted in advance by a cascade?"""
         store = self.store
         lookback_cycles = max(1, self.CASCADE_RECALL_LOOKBACK_SEC // self.sim_dt)
         roots = set(store.cascades)
         for eid, state in store.entity_states.items():
-            if state["risk_band"] not in ("high", "critical") or eid in roots:
+            if state["risk_band"] != "critical":
                 continue
-            if store.nodes[eid]["entity_type"] in ("hotel",):
+            if store.nodes[eid]["entity_type"] not in self.CASCADE_SCORED_TYPES:
                 continue
             prev = previous_states.get(eid)
-            if bool(prev) and prev["risk_band"] in ("high", "critical"):
+            if bool(prev) and prev["risk_band"] == "critical":
                 continue
             predicted_cycle = store.cascade_predicted_at.get(eid)
             if predicted_cycle is not None and 1 <= store.cycle_number - predicted_cycle <= lookback_cycles:
                 store.cascade_eval["events_caught"] += 1
-            else:
+                # Measured lead time: how long before the crossing it was predicted.
+                store.cascade_lead_times.append(float((store.cycle_number - predicted_cycle) * self.sim_dt))
+            elif eid not in roots:
+                # An unpredicted root is where a cascade starts, not a failure
+                # the cascade model was asked to foresee.
                 store.cascade_eval["events_missed"] += 1
 
     def _cascade_exposure(self) -> dict[str, float]:
@@ -553,9 +615,23 @@ class Engine:
             venue_gates = ({v: self.generator.gates_of_venue(v) for v, n in self.store.nodes.items()
                             if n["entity_type"] in ("venue", "zone")} if has else {})
             venue_gates = {v: g for v, g in venue_gates.items() if g}
+            events = []
+            if hasattr(self.generator, "event_states"):
+                now_min = self.generator._elapsed_sec / 60.0 if hasattr(self.generator, "_elapsed_sec") else 0.0
+                for ev_id, ev in self.generator.event_states().items():
+                    att = float(ev.get("attendance") or 0.0)
+                    if ev_id not in self.events.events:
+                        continue    # pop-up scenario events have no schedule to change
+                    name = self.events.events[ev_id]["name"]
+                    events.append({
+                        "event_id": ev_id, "name": name, "venue": ev["venue"], "cancelled": ev["cancelled"],
+                        "minutes_to_start": round(ev["start_min"] - now_min, 1),
+                        "arrived_share": round(ev["arrived"] / att, 3) if att > 0 else 1.0,
+                    })
         return {
             "closed": closed,
             "venue_gates": venue_gates,
+            "events": events,
             "hotel_availability": cluster_availability(self) if hasattr(self.generator, "properties_state") else {},
         }
 
@@ -693,7 +769,21 @@ class Engine:
         with self.world_lock:
             if hasattr(self.generator, "clone"):
                 self.counterfactuals[item["intervention_id"]] = self.generator.clone()
-            if hasattr(self.generator, "apply_intervention"):
+            if item["intervention_type"] == "event_delay":
+                # A delay is an announced schedule change: it goes on the
+                # schedule itself (so /events, attendee plans and every world
+                # see it), except the do-nothing counterfactual just forked.
+                action = item.get("_action") or {}
+                self.events.update(action["event_id"], store.sim_time,
+                                   delay_sec=int(float(action.get("delay_min", 20)) * 60))
+                schedule = self.events.to_generator()
+                cf = self.counterfactuals.get(item["intervention_id"])
+                for w in self._all_worlds():
+                    if w is not cf and hasattr(w, "set_events"):
+                        w.set_events(schedule)
+                mod_id = None
+                item["_event_id"] = action["event_id"]
+            elif hasattr(self.generator, "apply_intervention"):
                 mod_id = self.generator.apply_intervention(item, compliance, duration)
                 if self.nominal is not None:
                     self.nominal.apply_intervention(item, compliance, duration)
@@ -973,6 +1063,29 @@ class Engine:
     def event_view(self, event_id: str) -> dict[str, Any]:
         ev = self.events.get(event_id)
         return next(v for v in self.event_views() if v["event_id"] == ev["event_id"])
+
+    def twin_view(self, entity_id: str) -> dict[str, Any]:
+        """Every layer the twin holds for one entity (see `schemas.TwinView`)."""
+        store = self.store
+        layers = dict(store.twin_layers.get(entity_id) or {})
+        util = float(store.entity_states.get(entity_id, {}).get("utilisation", 0.0))
+        fc = store.forecasts.get(entity_id) or {}
+        f1800 = next((p["predicted_utilisation"] for p in fc.get("points", []) if p["horizon_sec"] == 1800), None)
+        cfs = []
+        with self.world_lock:
+            plan = self.nominal.utilisation().get(entity_id) if self.nominal is not None else None
+            for iid, world in self.counterfactuals.items():
+                if store.interventions.get(iid, {}).get("status") == "executing":
+                    cfs.append({"intervention_id": iid,
+                                "utilisation": round(float(world.utilisation().get(entity_id, 0.0)), 4)})
+        layers.update({
+            "plan_utilisation": None if plan is None else round(float(plan), 4),
+            "forecast_1800": f1800,
+            "over_capacity": util > 1.0,
+            "over_capacity_pct": round(max(0.0, util - 1.0) * 100.0, 1),
+            "counterfactuals": cfs,
+        })
+        return layers
 
     def update_event(self, event_id: str, **changes: Any) -> dict[str, Any]:
         """Apply a schedule change to every world (it is announced, so the twin's

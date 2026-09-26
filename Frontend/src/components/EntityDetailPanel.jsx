@@ -5,7 +5,7 @@
  * breakdown by `risk_type`, inbound/outbound edges (clickable), and a button to
  * arm the cascade overlay for this entity.
  */
-import { useEffect, useState } from 'react';
+import { Fragment, useEffect, useState } from 'react';
 import {
   Area,
   ComposedChart,
@@ -228,6 +228,34 @@ export default function EntityDetailPanel() {
               {decimals(state.flow_rate_per_min, 1)}/min
             </div>
           </div>
+        </div>
+      )}
+
+      {detail?.twin && (
+        <div className="mt-2 rounded border border-surface-700/60 bg-surface-950/50 p-2 text-[10px]">
+          <h4 className="panel-title mb-1">Digital twin</h4>
+          <dl className="grid grid-cols-2 gap-x-2 gap-y-0.5 font-mono">
+            <dt className="text-slate-400">Sensor reading</dt>
+            <dd className="text-right">{detail.twin.observed_utilisation == null ? 'no sensor' : percent(detail.twin.observed_utilisation)}</dd>
+            <dt className="text-slate-400">Twin estimate</dt>
+            <dd className="text-right">
+              {detail.twin.estimated_utilisation == null ? '—' : percent(detail.twin.estimated_utilisation)}
+              {detail.twin.estimate_std != null && <span className="text-slate-400"> ±{percent(detail.twin.estimate_std)}</span>}
+            </dd>
+            <dt className="text-slate-400">Announced plan</dt>
+            <dd className="text-right">{detail.twin.plan_utilisation == null ? '—' : percent(detail.twin.plan_utilisation)}</dd>
+            <dt className="text-slate-400">Forecast +30 min</dt>
+            <dd className="text-right">{detail.twin.forecast_1800 == null ? '—' : percent(detail.twin.forecast_1800)}</dd>
+            {detail.twin.counterfactuals.map((cf) => (
+              <Fragment key={cf.intervention_id}>
+                <dt className="text-slate-400">Without {cf.intervention_id}</dt>
+                <dd className="text-right">{percent(cf.utilisation)}</dd>
+              </Fragment>
+            ))}
+          </dl>
+          {detail.twin.over_capacity && (
+            <p className="mt-1 font-semibold text-red-700">Over capacity by {decimals(detail.twin.over_capacity_pct, 1)}%</p>
+          )}
         </div>
       )}
 

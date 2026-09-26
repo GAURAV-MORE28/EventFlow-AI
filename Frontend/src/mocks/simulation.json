@@ -67,7 +67,7 @@
       {
         "entity_id": "gate_1",
         "predicted_band": "critical",
-        "eta_sec": 1311,
+        "eta_sec": 0,
         "failure_probability": 0.99,
         "via_edge_id": null,
         "depth": 0,
