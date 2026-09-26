@@ -27,31 +27,15 @@ def _rate(numerator: int, denominator: int) -> float:
     return round(numerator / denominator, 3) if denominator else 0.0
 
 
-def _counterfactual_variance(store: Any) -> float:
-    """Zone variance if every zone that has ever had a settled intervention sat
-    at its twin do-nothing projection instead of its real (relief-affected)
-    value — the actual counterfactual `load_variance_reduction_pct` needs."""
-    utils = []
-    for eid in store.zone_ids():
-        cf = store.counterfactual_utilisation.get(eid)
-        if cf is not None:
-            utils.append(cf)
-        else:
-            state = store.entity_states.get(eid)
-            if state:
-                utils.append(state["utilisation"])
-    return variance(utils)
-
-
-def _counterfactual_peak(store: Any) -> float:
-    """Peak utilisation if every entity with a settled intervention sat at its
-    do-nothing projection instead. Entities never targeted keep their real
-    value — there is nothing to counterfactualise for them."""
-    peak = 0.0
-    for eid, state in store.entity_states.items():
-        util = store.counterfactual_utilisation.get(eid, state["utilisation"])
-        peak = max(peak, util)
-    return peak
+def _settlement_reduction(store: Any, actual_key: str, cf_key: str) -> float:
+    """Mean % reduction of a quantity vs the do-nothing world, over settled
+    interventions (each measured at its own settlement moment)."""
+    vals = []
+    for st in store.settlements:
+        cf, actual = float(st[cf_key]), float(st[actual_key])
+        if cf > 1e-9:
+            vals.append((cf - actual) / cf * 100.0)
+    return round(sum(vals) / len(vals), 1) if vals else 0.0
 
 
 def build_metrics(engine: Any) -> dict[str, Any]:
@@ -75,24 +59,13 @@ def build_metrics(engine: Any) -> dict[str, Any]:
 
     assimilated = float(twin.get("assimilated_rmse") or 0.0)
     uncorrected = twin.get("uncorrected_rmse")
-    coverage = round(min(0.95, max(0.80, 0.85 + float(twin.get("ensemble_spread") or 0.0))), 2)
+    coverage = getattr(engine.registry.twin, "last_coverage", None)
+    coverage = float(coverage) if coverage is not None else 0.0
 
-    # Genuinely counterfactual (03 §5.6 / 01 §3.10): compares the real,
-    # relief-affected present against what the twin's do-nothing branch
-    # predicted for the same entities at the same settlement point — not a
-    # temporal diff against a cycle-3 snapshot, which just measures the event
-    # ramping up regardless of what any operator did.
-    current_variance = store.summary["load_variance"]
-    cf_variance = _counterfactual_variance(store)
-    variance_reduction = (
-        round((cf_variance - current_variance) / cf_variance * 100.0, 1) if cf_variance > 1e-9 else 0.0
-    )
-
-    current_peak = max((s["utilisation"] for s in store.entity_states.values()), default=0.0)
-    cf_peak = _counterfactual_peak(store)
-    peak_reduction = (
-        round((cf_peak - current_peak) / cf_peak * 100.0, 1) if cf_peak > 1e-9 else 0.0
-    )
+    # Genuinely counterfactual: each settled intervention's live city against
+    # the do-nothing fork taken at approval (engine._settle_executing_interventions).
+    variance_reduction = _settlement_reduction(store, "zone_variance_actual", "zone_variance_counterfactual")
+    peak_reduction = _settlement_reduction(store, "root_actual", "root_counterfactual")
 
     # 03 §5.6 names two distinct metrics that used to be conflated into one
     # field: convergence rate (mechanical — did the solver converge) and
@@ -119,8 +92,36 @@ def build_metrics(engine: Any) -> dict[str, Any]:
         if store.commander_tool_calls_total else 0.0
     )
 
+    ops = store.operations or {}
+    states = store.entity_states
+    crowd_utils = [s["utilisation"] for e, s in states.items() if store.nodes[e]["entity_type"] != "hotel"]
+    settled = store.settlements
+    realised = [e["realised_relief_pct"] for e in store.regret_entries]
+    operations = {
+        "capacity_utilisation": {"value": round(sum(crowd_utils) / len(crowd_utils), 4) if crowd_utils else 0.0},
+        "peak_congestion": {"value": round(max(crowd_utils), 4) if crowd_utils else 0.0,
+                            "target": engine.config.critical_utilisation},
+        "critical_locations": {"value": float(store.summary.get("critical_count", 0)), "target": 0.0},
+        "queued_people": {"value": float(ops.get("queued_people", 0.0))},
+        "avg_travel_time_sec": {"value": float(ops.get("avg_travel_time_sec", 0.0))},
+        "late_entries": {"value": float(ops.get("late_entries", 0.0)), "target": 0.0},
+        "unmet_room_requests": {"value": float(ops.get("rooms_unmet", 0.0)), "target": 0.0},
+        "rooms_available": {"value": float(ops.get("rooms_available", 0.0))},
+        "saturated_hotels": {"value": float(ops.get("saturated_properties", 0.0))},
+        "visitors_redirected": {"value": float(ops.get("diverted_people", 0.0))},
+        "interventions_settled": {"value": float(len(settled))},
+        "mean_realised_relief_pct": {
+            "value": round(sum(realised) / len(realised), 1) if realised else 0.0,
+            "baseline_name": "do_nothing_counterfactual",
+        },
+        "attendee_compliance": {"value": engine.current_compliance(),
+                                "baseline": float(engine.icfg.get("default_compliance", 0.6)),
+                                "baseline_name": "configured_prior"},
+    }
+
     return {
         "sim_time": store.sim_time,
+        "operations": operations,
         "prediction": {
             "forecast_mae": {
                 "value": model_mae, "baseline": persistence_mae,
@@ -129,12 +130,13 @@ def build_metrics(engine: Any) -> dict[str, Any]:
             },
             "cascade_lead_time_sec": {
                 "value": lead_time, "baseline": 0.0, "baseline_name": "threshold_rule",
+                "sample_size": len(store.cascade_lead_times[-50:]),
             },
             "cascade_precision": {
-                "value": precision, "baseline": 0.31, "baseline_name": "random_propagation",
+                "value": precision, "sample_size": ev["alerts_confirmed"] + ev["alerts_false"],
             },
             "cascade_recall": {
-                "value": recall, "baseline": 0.30, "baseline_name": "random_propagation",
+                "value": recall, "sample_size": ev["events_caught"] + ev["events_missed"],
             },
         },
         "twin": {

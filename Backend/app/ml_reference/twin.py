@@ -29,6 +29,10 @@ class AssimilatedTwin:
         self.process_noise_var = float(self.config.get("process_noise_var", 9.0))
         self.drift_mode_enabled = bool(self.config.get("drift_mode_enabled", False))
         self.seed = int(self.config.get("seed", 42))
+        # Relative noise models (fractions of capacity / of the reading).
+        self.process_noise_rel = float(self.config.get("process_noise_rel", 0.004))
+        self.obs_noise_rel = float(self.config.get("obs_noise_rel", 0.012))
+        self.relaxation = float(self.config.get("relaxation", 0.05))
 
         self.entity_ids: list[str] = []
         self.capacities: np.ndarray = np.zeros(0)
@@ -38,6 +42,8 @@ class AssimilatedTwin:
         self._last_fidelity: dict[str, Any] | None = None
         self._drift_started_at: str | None = None
         self._branch_counter = 0
+        self._unobserved_mask: np.ndarray = np.zeros(0)
+        self.last_coverage: float | None = None
 
     # --- setup --------------------------------------------------------------
     def initialise(self, entity_ids: list[str], capacities: dict[str, float], counts: dict[str, float]) -> None:
@@ -52,6 +58,7 @@ class AssimilatedTwin:
         flows = np.zeros((n, self.m))
         self._X = np.vstack([np.maximum(members, 0.0), flows])
         self._X_uncorrected = None
+        self._unobserved_mask = np.zeros(n)
 
     def ready(self) -> bool:
         return self._X.size > 0
@@ -61,33 +68,67 @@ class AssimilatedTwin:
         return len(self.entity_ids)
 
     # --- 03 §3.1 forecast step ----------------------------------------------
-    def step(self, dt_sec: int = 30) -> None:
+    def step(self, dt_sec: int = 30, model: dict | None = None) -> None:
+        """Forecast step. `model` carries the process model's view of the world:
+        `{"counts": {eid: count}, "delta": {eid: change this step}}` from the
+        nominal (announced-schedule) city model. Without it the ensemble just
+        persists its last state — never a free random walk.
+        """
         if not self.ready():
             return
-        self._X = self._advance(self._X, dt_sec, inflate=True)
+        self._X = self._advance(self._X, dt_sec, model, inflate=True)
         if self._X_uncorrected is not None:
             # Stepped but never assimilated — that divergence is the demo.
-            self._X_uncorrected = self._advance(self._X_uncorrected, dt_sec, inflate=True)
+            self._X_uncorrected = self._advance(self._X_uncorrected, dt_sec, model, inflate=True)
 
-    def _advance(self, X: np.ndarray, dt_sec: int, inflate: bool) -> np.ndarray:
+    def shift(self, delta: dict[str, float]) -> None:
+        """An announced change of the process model at the current instant (an
+        operator re-planned the schedule): every member moves by the model's
+        change, so estimates follow the plan without waiting for sensors."""
+        if not self.ready():
+            return
+        v = self._vector(delta)
+        if v is None:
+            return
         n = self.n
-        counts, flows = X[:n], X[n:]
-        minutes = dt_sec / 60.0
+        self._X[:n] = np.maximum(self._X[:n] + v[:, None], 0.0)
 
-        # Crude agent-based surrogate: occupancy moves by its flow, flow decays
-        # toward the recent trend. Good enough — the point is that it drifts, and
-        # that assimilation is what pulls it back.
-        new_counts = counts + flows * minutes
-        new_flows = flows * 0.92
+    def _vector(self, values: dict[str, float] | None) -> np.ndarray | None:
+        if not values:
+            return None
+        return np.array([float(values.get(e, 0.0)) for e in self.entity_ids], dtype=float)
 
-        new_counts += self._rng.normal(0.0, self.process_noise_var ** 0.5, size=counts.shape)
-        new_flows += self._rng.normal(0.0, (self.process_noise_var * 0.25) ** 0.5, size=flows.shape)
-        new_counts = np.maximum(new_counts, 0.0)
+    def _advance(self, X: np.ndarray, dt_sec: int, model: dict | None, inflate: bool) -> np.ndarray:
+        n = self.n
+        counts = X[:n].copy()
+        delta = self._vector((model or {}).get("delta"))
+        target = self._vector((model or {}).get("counts"))
+        minutes = max(dt_sec / 60.0, 1e-6)
 
-        X = np.vstack([new_counts, new_flows])
+        if delta is not None:
+            counts = counts + delta[:, None]
+            flows = np.repeat((delta / minutes)[:, None], self.m, axis=1)
+        else:
+            flows = X[n:] * 0.5  # no model: hold the level, let the trend fade
+        # Weak relaxation toward the process model for entities no sensor sees
+        # this cycle: bounded error instead of an unbounded random walk (the
+        # root cause of the 0%/200% phantom values).
+        if target is not None:
+            counts += self.relaxation * (target[:, None] - counts) * self._unobserved_mask[:, None]
+
+        # Process noise is proportional to capacity — an absolute noise of a
+        # few people is meaningless against counts in the thousands and made
+        # the filter trust a model that was never right.
+        sd = self.process_noise_rel * self.capacities
+        counts += self._rng.normal(0.0, 1.0, size=counts.shape) * sd[:, None]
+        flows += self._rng.normal(0.0, 1.0, size=flows.shape) * (sd / minutes)[:, None] * 0.25
+        counts = np.clip(counts, 0.0, (self.capacities * 2.5)[:, None])
+
+        X = np.vstack([counts, flows])
         if inflate:
             mean = X.mean(axis=1, keepdims=True)
             X = mean + self.inflation * (X - mean)   # §3.2: mandatory, do not remove
+            X[:n] = np.clip(X[:n], 0.0, (self.capacities * 2.5)[:, None])
         return X
 
     # --- 03 §3.1 analysis step ------------------------------------------------
@@ -103,38 +144,34 @@ class AssimilatedTwin:
 
     def _assimilate(self, observations: dict[str, float], sim_time: str | None,
                     truth: dict[str, float] | None) -> dict:
+        """Localised EnKF analysis: each reading corrects its own entity (count
+        and flow). Cross-entity gain from a 20-member ensemble is sampling noise,
+        and it is what used to drag unobserved entities to 0 or 200%. An entity
+        without a reading this cycle keeps its forecast — last valid state plus
+        the process model's tendency."""
         n = self.n
         index = {e: i for i, e in enumerate(self.entity_ids)}
-        obs_ids = [e for e in observations if e in index]
-
-        if obs_ids:
-            rows = [index[e] for e in obs_ids]
-            y = np.array([observations[e] for e in obs_ids], dtype=float)
-            k = len(rows)
-
-            HX = self._X[rows, :]                       # H selects observed counts
-            X_mean = self._X.mean(axis=1, keepdims=True)
-            A = self._X - X_mean                        # anomalies
-            HA = A[rows, :]
-
-            denom = max(self.m - 1, 1)
-            PHt = (A @ HA.T) / denom                    # (2N, k)
-            HPHt = (HA @ HA.T) / denom                  # (k, k)
-            R = np.eye(k) * self.obs_noise_var
-
-            try:
-                K = PHt @ np.linalg.inv(HPHt + R)
-            except np.linalg.LinAlgError:
-                log.warning("HPH^T + R singular; using pseudo-inverse")
-                K = PHt @ np.linalg.pinv(HPHt + R)
-
-            perturbed = y[:, None] + self._rng.normal(0.0, self.obs_noise_var ** 0.5, size=(k, self.m))
-            self._X = self._X + K @ (perturbed - HX)
-            self._X[:n] = np.maximum(self._X[:n], 0.0)
-
-            # Flow is the observable's rate of change; keep it consistent post-update.
-            self._X[n:][rows, :] = (self._X[rows, :] - HX) * 2.0 + self._X[n:][rows, :] * 0.5
-
+        mask = np.ones(n)
+        denom = max(self.m - 1, 1)
+        for e, y in observations.items():
+            i = index.get(e)
+            if i is None or not np.isfinite(y):
+                continue
+            mask[i] = 0.0
+            xi = self._X[i]
+            fi = self._X[n + i]
+            a = xi - xi.mean()
+            var = float(a @ a) / denom
+            r = self.obs_noise_var + (self.obs_noise_rel * max(float(y), 0.0)) ** 2
+            if var + r <= 0:
+                continue
+            k = var / (var + r)
+            kf = float((fi - fi.mean()) @ a) / denom / (var + r)
+            perturbed = y + self._rng.normal(0.0, r ** 0.5, size=self.m)
+            innov = perturbed - xi
+            self._X[i] = np.clip(xi + k * innov, 0.0, self.capacities[i] * 2.5)
+            self._X[n + i] = fi + kf * innov
+        self._unobserved_mask = mask
         return self._fidelity(observations, sim_time, truth)
 
     def _rmse(self, ensemble: np.ndarray | None, reference: dict[str, float]) -> float | None:
@@ -160,6 +197,21 @@ class AssimilatedTwin:
 
         counts = self._X[:self.n]
         spread = float(np.mean(counts.std(axis=1) / np.maximum(self.capacities, 1.0)))
+        # Measured 90% interval coverage: how often truth falls inside mean ± 1.645σ
+        # (floored at the observation-noise scale so a tight ensemble is not
+        # penalised for sensor noise it cannot see).
+        if truth:
+            index = {e: i for i, e in enumerate(self.entity_ids)}
+            hits, total = 0, 0
+            mean, sd = counts.mean(axis=1), counts.std(axis=1)
+            for e, v in truth.items():
+                i = index.get(e)
+                if i is None:
+                    continue
+                half = 1.645 * max(sd[i], self.obs_noise_rel * max(float(v), 1.0))
+                hits += int(abs(mean[i] - float(v)) <= half)
+                total += 1
+            self.last_coverage = round(hits / total, 3) if total else None
 
         fidelity = {
             "sim_time": sim_time,
@@ -265,10 +317,10 @@ class AssimilatedTwin:
                 demand_mult[index[eid]] = float(mult)
 
         traj: dict[str, list[float]] = {e: [] for e in self.entity_ids}
+        scen_X[:self.n] *= demand_mult[:, None]  # applied once, never compounded
         for _ in range(steps):
-            base_X = self._advance(base_X, dt, inflate=False)
-            scen_X = self._advance(scen_X, dt, inflate=False)
-            scen_X[:self.n] *= demand_mult[:, None]
+            base_X = self._advance(base_X, dt, None, inflate=False)
+            scen_X = self._advance(scen_X, dt, None, inflate=False)
             util = (scen_X[:self.n].mean(axis=1) / np.maximum(self.capacities * cap_mult, 1.0))
             for i, eid in enumerate(self.entity_ids):
                 traj[eid].append(round(float(util[i]), 4))

@@ -131,7 +131,34 @@ function CertificateDetail({ certificate }) {
   );
 }
 
-export default function InterventionCard({ intervention, onApprove, onReject, busy }) {
+/** What simulating this action on a copy of the live city showed. */
+function EvaluationStrip({ evaluation, nodesById }) {
+  if (!evaluation) return null;
+  const name = (id) => nodesById?.[id]?.display_name || id;
+  const before = Math.round(evaluation.root_peak_before * 100);
+  const after = Math.round(evaluation.root_peak_after * 100);
+  return (
+    <div className="mt-2 rounded border border-teal-500/25 bg-teal-500/[0.05] p-1.5 text-[10px] leading-relaxed text-slate-300">
+      <div className="font-semibold text-teal-800">
+        Simulated over {Math.round(evaluation.horizon_sec / 60)} min at {Math.round(evaluation.compliance * 100)}% compliance
+      </div>
+      <div>
+        Peak at {name(evaluation.root_entity_id)}: {before}% → <b className={after < before ? 'text-emerald-700' : 'text-red-600'}>{after}%</b>
+        {evaluation.people_redirected > 0 && <> · {evaluation.people_redirected.toLocaleString('en-IN')} visitors redirected</>}
+        {evaluation.travel_time_delta_sec !== 0 && (
+          <> · trip time {evaluation.travel_time_delta_sec > 0 ? '+' : ''}{Math.round(evaluation.travel_time_delta_sec)}s</>
+        )}
+      </div>
+      {evaluation.new_critical_entities?.length > 0 && (
+        <div className="text-red-600">
+          Side effect: pushes {evaluation.new_critical_entities.map(name).join(', ')} over the critical line
+        </div>
+      )}
+    </div>
+  );
+}
+
+export default function InterventionCard({ intervention, onApprove, onReject, busy, nodesById }) {
   const [expanded, setExpanded] = useState(false);
   const certificate = intervention.certificate;
   const unstable = certificate?.verdict === 'UNSTABLE';
@@ -200,6 +227,9 @@ export default function InterventionCard({ intervention, onApprove, onReject, bu
           </span>
         </div>
       </div>
+
+      <p className="mt-1.5 text-[10px] leading-relaxed text-slate-400">{intervention.description}</p>
+      <EvaluationStrip evaluation={intervention.evaluation} nodesById={nodesById} />
 
       {/* Verbatim Certificate Reason from Solver */}
       {certificate && (

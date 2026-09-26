@@ -17,7 +17,8 @@ from ..cache import CACHE, TTL
 from ..config import get_config
 from ..errors import ApiError
 from ..ml_reference.common import band_from_score
-from ..services.attendee import build_journey, issue_nudges
+from ..services import accommodation as ACC
+from ..services.attendee import apply_nudge_response, build_journey, issue_nudges, public_nudge
 from ..services.engine import get_engine
 from ..services.metrics import build_metrics, build_regret
 from ..services.simulation import SIMULATIONS
@@ -29,6 +30,23 @@ router = APIRouter(prefix="/api/v1")
 
 
 # --- §3.1 system ------------------------------------------------------------
+@router.get("/geo/travel", response_model=S.GeoTravelResponse)
+async def geo_travel(from_entity_id: str, to_entity_id: str,
+                     mode: str = Query(default="walk", pattern="^(walk|drive|transit|cycle)$")) -> S.GeoTravelResponse:
+    """Door-to-door travel between two entities from the configured geo provider."""
+    from ..providers.geo import get_geo_provider
+
+    nodes = get_engine().store.nodes
+    for eid in (from_entity_id, to_entity_id):
+        if eid not in nodes:
+            raise ApiError("ENTITY_NOT_FOUND", f"No entity with id '{eid}'.", {"entity_id": eid})
+    a, b = nodes[from_entity_id], nodes[to_entity_id]
+    geo = get_geo_provider()
+    r = await asyncio.to_thread(geo.travel, (a["lat"], a["lon"]), (b["lat"], b["lon"]), mode)
+    return S.GeoTravelResponse(from_entity_id=from_entity_id, to_entity_id=to_entity_id, mode=mode,
+                               provider=geo.name, **r)
+
+
 @router.get("/health", response_model=S.HealthResponse)
 async def health() -> S.HealthResponse:
     engine = get_engine()
@@ -46,7 +64,10 @@ async def health() -> S.HealthResponse:
                 ready=registry.forecaster.ready(), active_source=store.active_forecast_source
             ),
             "cascade": S.ModuleHealth(
-                ready=registry.cascade.ready(), active_source=store.active_cascade_source
+                ready=registry.cascade.ready(),
+                # the loaded cascade model (it annotates the deterministic cascade)
+                active_source=(registry.cascade.active_source() if hasattr(registry.cascade, "active_source")
+                               else store.active_cascade_source)
             ),
             "twin": S.ModuleHealth(
                 ready=twin_ready,
@@ -62,16 +83,17 @@ async def health() -> S.HealthResponse:
 @router.get("/event", response_model=S.EventResponse)
 async def event() -> S.EventResponse:
     engine = get_engine()
-    cfg = get_config().raw["event"]
+    primary = engine.events.get(engine.events.primary_event_id)
+    concurrent = {e["event_id"] for e in engine.events.concurrent_with(primary["event_id"])}
     return S.EventResponse(
-        event_id=cfg["event_id"],
-        name=cfg["name"],
-        venue_entity_id=cfg["venue_entity_id"],
-        expected_attendance=int(cfg["expected_attendance"]),
-        start_time=cfg["start_time"],
-        end_time=cfg["end_time"],
+        event_id=primary["event_id"],
+        name=primary["name"],
+        venue_entity_id=primary["venue_entity_id"],
+        expected_attendance=int(primary["expected_attendance"]),
+        start_time=primary["start_time"],
+        end_time=primary["end_time"],
         sim_time=engine.store.sim_time,
-        concurrent_events=[],
+        concurrent_events=[v for v in engine.event_views() if v["event_id"] in concurrent],
     )
 
 
@@ -113,6 +135,7 @@ async def entity_detail(entity_id: str) -> S.EntityDetailResponse:
         edges_in=[S.GraphEdge(**e) for e in store.edges_by_dst.get(entity_id, [])],
         edges_out=[S.GraphEdge(**e) for e in store.edges_by_src.get(entity_id, [])],
         risk_breakdown=[S.RiskBreakdownItem(**b) for b in breakdown],
+        twin=S.TwinView(**get_engine().twin_view(entity_id)),
     )
 
 
@@ -155,15 +178,13 @@ async def cascade(entity_id: str) -> S.CascadeResult:
     if existing:
         return S.CascadeResult(**existing)
 
-    # Not currently a cascade root: compute on demand so the click-through works.
-    result = await asyncio.to_thread(
-        engine.registry.cascade.predict,
-        entity_id,
-        store.node_state_for_ml(),
-        store.edges,
-        None,
-        store.sim_time,
-    )
+    # Not currently a cascade root: the same deterministic flow cascade, on demand.
+    from ..services.cascade_flow import cascade_for
+
+    with engine.world_lock:
+        closed = set(engine.generator.closed_entities()) if hasattr(engine.generator, "closed_entities") else set()
+    result = cascade_for(entity_id, store.node_state_for_ml(), store.edges, engine.config.thresholds_for,
+                         engine.config.raw.get("cascade", {}), store.sim_time, closed)
     return S.CascadeResult(**result)
 
 
@@ -213,47 +234,35 @@ async def approve(intervention_id: str, body: S.ApproveRequest) -> S.ApproveResp
             {"intervention_id": intervention_id},
         )
 
-    # A counterfactual branch is forked at approval time so the regret ledger can
-    # later answer "what if we had done nothing" with evidence rather than a guess
-    # (engine.py:_settle_executing_interventions reads `_counterfactual_trajectory`
-    # 900s from now to compute `counterfactual_relief_pct`/`realised_relief_pct` for
-    # real, instead of a hash()-derived number that also broke seed reproducibility).
-    branch = await asyncio.to_thread(engine.registry.twin.branch, {}, 1800)
-    targets = [t for t in item["target_entity_ids"] if t in store.entity_states]
-    util_at_approval = (
-        sum(store.entity_states[t]["utilisation"] for t in targets) / len(targets) if targets else 0.0
-    )
-
-    item["status"] = "executing"
-    item["_applied_at"] = store.sim_time
-    item["_util_at_approval"] = util_at_approval
-    item["_counterfactual_trajectory"] = {t: branch["trajectory"].get(t, []) for t in targets}
-    item["_twin_branch_id"] = branch["branch_id"]
-
-    # This is the step that used to be missing entirely: approving an
-    # intervention only ever flipped a status flag before, so nothing an
-    # operator did could change `load_variance` or any other live metric.
-    # `apply_relief` mirrors the demo-control `inject()` mechanism the
-    # generator already had — same persist-until-reset demand multiplier,
-    # just driven by a real approval instead of a scripted scenario.
-    relief_fraction = float(item.get("estimated_relief_pct", 0.0)) / 100.0
-    engine.generator.apply_relief(item["target_entity_ids"], relief_fraction)
-
+    # Claimed synchronously (no await in between), so a double-click or a
+    # second operator cannot apply the same action twice.
+    item["status"] = "approved"
+    try:
+        applied = await asyncio.to_thread(engine.approve_intervention, item)
+    except Exception:
+        item["status"] = "proposed"
+        raise
+    await engine.reconcile("intervention_approved")
     nudges = issue_nudges(engine, item)
-    _audit(engine, f"operator:{body.operator_id}", "approve", intervention_id, {"note": body.note})
+    if item.get("_event_id"):
+        _persist_event(engine, item["_event_id"])
+        await MANAGER.broadcast("event_updated", {"event": engine.event_view(item["_event_id"])}, store.sim_time)
+    _audit(engine, f"operator:{body.operator_id}", "approve", intervention_id,
+           {"note": body.note, "compliance": applied["compliance"]})
+    _record_execution(engine, item, body.operator_id, True, body.note, applied["branch_id"])
 
     await MANAGER.broadcast(
         "intervention_resolved", {"intervention_id": intervention_id, "status": "executing"}, store.sim_time
     )
     for nudge in nudges:
-        await MANAGER.broadcast("nudge_pushed", {"nudge": nudge}, store.sim_time)
+        await MANAGER.broadcast("nudge_pushed", {"nudge": public_nudge(nudge)}, store.sim_time)
 
     return S.ApproveResponse(
         intervention_id=intervention_id,
         status="executing",
         applied_at=store.sim_time,
         nudges_issued=len(nudges),
-        twin_branch_id=branch["branch_id"],
+        twin_branch_id=applied["branch_id"],
     )
 
 
@@ -275,7 +284,10 @@ async def reject(intervention_id: str, body: S.RejectRequest) -> S.RejectRespons
         )
 
     item["status"] = "rejected"
+    item["_rejected_at"] = store.sim_time
+    store.root_cooldown[item.get("triggered_by_entity_id") or ""] = store.cycle_number
     _audit(engine, f"operator:{body.operator_id}", "reject", intervention_id, {"reason": body.reason})
+    _record_execution(engine, item, body.operator_id, False, body.reason, None)
     await MANAGER.broadcast(
         "intervention_resolved", {"intervention_id": intervention_id, "status": "rejected"}, store.sim_time
     )
@@ -303,11 +315,14 @@ async def simulate(body: S.SimulateRequest, background: BackgroundTasks) -> S.Si
         raise ApiError("INVALID_HORIZON", "horizon_sec must be between 60 and 7200.", {"horizon_sec": body.horizon_sec})
 
     engine = get_engine()
+    for sc in body.scenarios:
+        _validate_scenario(engine, sc.scenario_type, sc.params)
     simulation_id = SIMULATIONS.new_id()
     SIMULATIONS.create(simulation_id, body.label)
     scenarios = [s.model_dump() for s in body.scenarios]
     background.add_task(SIMULATIONS.run, engine, simulation_id, scenarios, body.horizon_sec)
-    return S.SimulateAcceptedResponse(simulation_id=simulation_id, status="running", eta_sec=3)
+    return S.SimulateAcceptedResponse(simulation_id=simulation_id, status="running",
+                                      eta_sec=max(1, int(body.horizon_sec // 1800)))
 
 
 @router.get("/simulate/{simulation_id}", response_model=S.SimulationResult)
@@ -362,7 +377,7 @@ async def commander(body: S.CommanderQueryRequest) -> S.CommanderResponse:
 @router.post("/attendee/journey", response_model=S.JourneyResponse)
 async def journey(body: S.JourneyRequest) -> S.JourneyResponse:
     engine = get_engine()
-    result = build_journey(engine, body.model_dump())
+    result = await asyncio.to_thread(build_journey, engine, body.model_dump())
     await MANAGER.broadcast(
         "journey_risk_update",
         {
@@ -379,7 +394,8 @@ async def journey(body: S.JourneyRequest) -> S.JourneyResponse:
 async def nudges(attendee_id: str = Query(...)) -> S.NudgeListResponse:
     store = get_engine().store
     items = [n for n in store.nudges.values() if n["attendee_id"] == attendee_id]
-    return S.NudgeListResponse(nudges=[S.Nudge(**n) for n in items])
+    items.sort(key=lambda n: n["issued_at"], reverse=True)
+    return S.NudgeListResponse(nudges=[S.Nudge(**public_nudge(n)) for n in items])
 
 
 @router.post("/attendee/nudges/{nudge_id}/respond", response_model=S.NudgeRespondResponse)
@@ -395,12 +411,18 @@ async def respond(nudge_id: str, body: S.NudgeRespondRequest) -> S.NudgeRespondR
             {"nudge_id": nudge_id},
         )
 
+    if parse(nudge["expires_at"]) <= parse(store.sim_time):
+        nudge["status"] = "expired"
+        raise ApiError("INTERVENTION_EXPIRED", f"Nudge '{nudge_id}' expired at {nudge['expires_at']}.",
+                       {"nudge_id": nudge_id})
     nudge["status"] = "accepted" if body.accepted else "declined"
-    # Observed compliance feeds back into the solver's elasticities within the run.
-    store.observed_compliance.append(bool(body.accepted))
-    _audit(engine, "attendee", "nudge_response", nudge_id, {"accepted": body.accepted})
+    # The answer changes this attendee's plan and the compliance every active
+    # intervention runs at in the simulator (engine.record_compliance).
+    plan_change = await asyncio.to_thread(apply_nudge_response, engine, nudge, bool(body.accepted))
+    _audit(engine, "attendee", "nudge_response", nudge_id,
+           {"accepted": body.accepted, "compliance": engine.current_compliance()})
     return S.NudgeRespondResponse(
-        nudge_id=nudge_id, status=nudge["status"], compliance_recorded=True
+        nudge_id=nudge_id, status=nudge["status"], compliance_recorded=True, plan_change=plan_change
     )
 
 
@@ -416,13 +438,309 @@ async def demo_control(body: S.DemoControlRequest) -> S.DemoControlResponse:
         body.inject.model_dump() if body.inject else None,
     )
     _audit(engine, "operator:demo", "demo_control", None, body.model_dump(exclude_none=True))
-    return S.DemoControlResponse(**result)
+    if body.inject:
+        await MANAGER.broadcast("disruption_update", {"disruptions": list(engine.store.disruptions.values())},
+                                engine.store.sim_time)
+    if body.action in ("reset", "seek"):
+        # The clock moved backwards: every client must replace its state
+        # wholesale (01 §4 resync) or it keeps showing the previous run.
+        from .ws_routes import _resync_payload
+
+        await MANAGER.broadcast("resync", _resync_payload(engine), engine.store.sim_time)
+    return S.DemoControlResponse(**result, cycle_sec=engine.sim_dt)
+
+
+# --- live city overview -----------------------------------------------------------------------
+DOMAINS = {
+    "venues": ("venue", "gate"),
+    "transport": ("transport_node", "transport_route"),
+    "roads": ("road",),
+    "crowd": ("zone",),
+    "parking": ("parking",),
+    "hospitality": ("hotel",),
+    "emergency": ("emergency_facility",),
+}
+
+
+@router.get("/overview", response_model=S.OverviewResponse)
+async def overview() -> S.OverviewResponse:
+    engine = get_engine()
+    store = engine.store
+    with engine.world_lock:
+        closed = engine.generator.closed_entities() if hasattr(engine.generator, "closed_entities") else set()
+        delays = {e: engine.generator.queue_delay_sec(e) for e in store.nodes} if hasattr(engine.generator, "queue_delay_sec") else {}
+    domains: dict[str, list] = {k: [] for k in DOMAINS}
+    for eid, node in store.nodes.items():
+        st = store.entity_states.get(eid)
+        if not st:
+            continue
+        fc = store.forecasts.get(eid) or {}
+        f1800 = next((p["predicted_utilisation"] for p in fc.get("points", []) if p["horizon_sec"] == 1800), None)
+        row = S.DomainEntity(
+            entity_id=eid, display_name=node["display_name"], entity_type=node["entity_type"],
+            nominal_capacity=float(node["nominal_capacity"]), current_count=st["current_count"],
+            utilisation=st["utilisation"], risk_score=st["risk_score"], risk_band=st["risk_band"],
+            is_observed=st["is_observed"], closed=eid in closed, forecast_1800=f1800,
+            time_to_critical_sec=fc.get("time_to_critical_sec"), queue_delay_sec=int(round(delays.get(eid, 0.0))),
+            inflow_per_min=st.get("inflow_per_min"), outflow_per_min=st.get("outflow_per_min"),
+            queue_people=st.get("queue_people"),
+            available_capacity=max(0.0, float(node["nominal_capacity"]) - float(st["current_count"])),
+            event_ids=[e["event_id"] for e in engine.events.events.values()
+                       if e["venue_entity_id"] == eid and e["status"] != "cancelled"],
+        )
+        for domain, types in DOMAINS.items():
+            if node["entity_type"] in types:
+                domains[domain].append(row)
+    for rows in domains.values():
+        rows.sort(key=lambda r: (-r.risk_score, r.entity_id))
+    return S.OverviewResponse(
+        sim_time=store.sim_time, cycle_number=store.cycle_number,
+        speed_multiplier=engine.speed_multiplier, paused=engine.paused,
+        summary=S.StateSummary(**store.summary), operations=engine.operations_summary(), domains=domains,
+    )
+
+
+# --- events (schedule) -----------------------------------------------------------------------
+@router.get("/events", response_model=S.EventListResponse)
+async def events() -> S.EventListResponse:
+    engine = get_engine()
+    return S.EventListResponse(
+        sim_time=engine.store.sim_time, primary_event_id=engine.events.primary_event_id,
+        events=[S.EventView(**v) for v in engine.event_views()],
+    )
+
+
+@router.get("/events/venues", response_model=S.EventVenueList)
+async def event_venues() -> S.EventVenueList:
+    """Where an event can be held (reachable venues and open zones)."""
+    return S.EventVenueList(venues=get_engine().event_venues())
+
+
+@router.get("/events/{event_id}", response_model=S.EventView)
+async def event_detail(event_id: str) -> S.EventView:
+    return S.EventView(**get_engine().event_view(event_id))
+
+
+EVENT_FIELDS = ("delay_sec", "start_time", "expected_attendance", "status", "end_time", "name", "venue_entity_id",
+                "category", "description", "arrival_window_start", "arrival_window_end",
+                "departure_window_start", "departure_window_end")
+
+
+@router.post("/events", response_model=S.EventView, status_code=201)
+async def create_event(body: S.EventCreateRequest) -> S.EventView:
+    """A new demand source. The simulator starts planning its arrivals at once."""
+    engine = get_engine()
+    fields = body.model_dump(exclude={"operator_id"})
+    view = await asyncio.to_thread(engine.create_event, **fields)
+    _audit(engine, f"operator:{body.operator_id}", "event_create", view["event_id"], fields)
+    _persist_event(engine, view["event_id"])
+    await engine.reconcile("event_created")
+    view = engine.event_view(view["event_id"])
+    await MANAGER.broadcast("event_updated", {"event": view}, engine.store.sim_time)
+    return S.EventView(**view)
+
+
+@router.post("/events/{event_id}", response_model=S.EventView)
+async def update_event(event_id: str, body: S.EventUpdateRequest) -> S.EventView:
+    engine = get_engine()
+    changes = {k: getattr(body, k) for k in EVENT_FIELDS if getattr(body, k) is not None}
+    if not changes:
+        raise ApiError("INVALID_REQUEST", "Nothing to change.")
+    await asyncio.to_thread(engine.update_event, event_id, **changes)
+    _audit(engine, f"operator:{body.operator_id}", "event_update", event_id,
+           body.model_dump(exclude_none=True, exclude={"operator_id"}))
+    _persist_event(engine, event_id)
+    # The schedule changed: re-state the live city now, not at the next cycle.
+    await engine.reconcile("event_updated")
+    view = engine.event_view(event_id)
+    await MANAGER.broadcast("event_updated", {"event": view}, engine.store.sim_time)
+    return S.EventView(**view)
+
+
+@router.delete("/events/{event_id}", response_model=S.EventDeleteResponse)
+async def delete_event(event_id: str, operator_id: str = Query(default="operator")) -> S.EventDeleteResponse:
+    """Remove from the active schedule: no more demand; visitors already in the
+    city leave through the normal departure logic (they are not removed)."""
+    engine = get_engine()
+    result = await asyncio.to_thread(engine.delete_event, event_id)
+    _audit(engine, f"operator:{operator_id}", "event_delete", event_id, result)
+    _unpersist_event(event_id)
+    await engine.reconcile("event_deleted")
+    await MANAGER.broadcast("event_deleted", {"event_id": event_id}, engine.store.sim_time)
+    return S.EventDeleteResponse(**result)
+
+
+# --- accommodation ------------------------------------------------------------------------------
+@router.get("/accommodation/hotels", response_model=S.HotelListResponse)
+async def hotels(
+    venue_entity_id: str | None = Query(default=None),
+    zone: str | None = Query(default=None),
+    tier: str | None = Query(default=None),
+    max_price_paise: int | None = Query(default=None, ge=0),
+    min_rooms: int = Query(default=0, ge=0),
+    accessible_only: bool = Query(default=False),
+    status: str | None = Query(default=None),
+    sort: str = Query(default="occupancy"),
+) -> S.HotelListResponse:
+    result = await asyncio.to_thread(
+        ACC.hotel_list, get_engine(), venue_entity_id, zone, tier, max_price_paise, min_rooms,
+        accessible_only, status, sort,
+    )
+    return S.HotelListResponse(**result)
+
+
+@router.get("/accommodation/hotels/{property_id}", response_model=S.HotelProperty)
+async def hotel(property_id: str, venue_entity_id: str | None = Query(default=None)) -> S.HotelProperty:
+    return S.HotelProperty(**ACC.get_property(get_engine(), property_id, venue_entity_id))
+
+
+@router.post("/accommodation/recommend", response_model=S.StayRecommendationResponse)
+async def recommend_stay(body: S.StayRecommendationRequest) -> S.StayRecommendationResponse:
+    engine = get_engine()
+    dest = body.destination_entity_id
+    if body.event_id:
+        dest = engine.events.get(body.event_id)["venue_entity_id"]
+    result = await asyncio.to_thread(
+        ACC.recommend, engine, dest, body.segment_id, body.max_price_paise, body.accessible_only,
+        body.rooms, body.current_property_id, body.limit,
+    )
+    return S.StayRecommendationResponse(**result)
+
+
+@router.get("/accommodation/saturation", response_model=S.SaturationResponse)
+async def hotel_saturation(venue_entity_id: str | None = Query(default=None)) -> S.SaturationResponse:
+    return S.SaturationResponse(**await asyncio.to_thread(ACC.saturation, get_engine(), venue_entity_id))
+
+
+# --- live disruptions ----------------------------------------------------------------------------
+@router.get("/disruptions", response_model=S.DisruptionListResponse)
+async def disruptions() -> S.DisruptionListResponse:
+    store = get_engine().store
+    return S.DisruptionListResponse(
+        sim_time=store.sim_time, disruptions=[S.Disruption(**d) for d in store.disruptions.values()]
+    )
+
+
+@router.post("/disruptions", response_model=S.Disruption, status_code=201)
+async def create_disruption(body: S.DisruptionCreateRequest) -> S.Disruption:
+    engine = get_engine()
+    _validate_scenario(engine, body.scenario_type, body.params)
+    record = await asyncio.to_thread(engine.inject_disruption, body.scenario_type, body.params, body.label)
+    _audit(engine, f"operator:{body.operator_id}", "disruption_start", record["disruption_id"],
+           {"scenario_type": body.scenario_type, "params": body.params})
+    await engine.reconcile("disruption_started")
+    await MANAGER.broadcast("disruption_update", {"disruptions": list(engine.store.disruptions.values())},
+                            engine.store.sim_time)
+    return S.Disruption(**record)
+
+
+@router.delete("/disruptions/{disruption_id}", response_model=S.Disruption)
+async def clear_disruption(disruption_id: str) -> S.Disruption:
+    engine = get_engine()
+    record = await asyncio.to_thread(engine.clear_disruption, disruption_id)
+    _audit(engine, "operator:demo", "disruption_clear", disruption_id, {})
+    await engine.reconcile("disruption_cleared")
+    await MANAGER.broadcast("disruption_update", {"disruptions": list(engine.store.disruptions.values())},
+                            engine.store.sim_time)
+    return S.Disruption(**record)
+
+
+ENTITY_SCENARIOS = {"metro_capacity_delta", "road_capacity_delta", "gate_closure", "transport_outage", "parking_loss",
+                    "road_closure", "station_closure", "capacity_reduction"}
+SCENARIO_ENTITY_TYPES = {
+    "gate_closure": ("gate",), "road_closure": ("road",), "station_closure": ("transport_node",),
+    "road_capacity_delta": ("road",), "parking_loss": ("parking",),
+    "transport_outage": ("transport_node", "transport_route"),
+    "metro_capacity_delta": ("transport_node", "transport_route"),
+}
+
+
+def _validate_scenario(engine, scenario_type: str, params: dict) -> None:
+    """Reject scenarios that would silently do nothing (unknown entity or event)."""
+    if scenario_type == "combined":
+        subs = params.get("scenarios") or []
+        if not subs:
+            raise ApiError("INVALID_SCENARIO", "A combined scenario needs at least one sub-scenario.")
+        for sub in subs:
+            _validate_scenario(engine, sub.get("scenario_type", ""), sub.get("params", {}))
+        return
+    if scenario_type in ENTITY_SCENARIOS:
+        eid = params.get("entity_id")
+        if eid not in engine.store.nodes:
+            raise ApiError("INVALID_SCENARIO", f"Scenario '{scenario_type}' needs a valid entity_id.",
+                           {"entity_id": eid})
+        allowed = SCENARIO_ENTITY_TYPES.get(scenario_type)
+        if allowed and engine.store.nodes[eid]["entity_type"] not in allowed:
+            raise ApiError("INVALID_SCENARIO", f"'{scenario_type}' applies to {' / '.join(allowed)} entities.",
+                           {"entity_id": eid, "entity_type": engine.store.nodes[eid]["entity_type"]})
+    if scenario_type in ("event_delay", "event_cancellation"):
+        engine.events.get(params.get("event_id", engine.events.primary_event_id))
+    if scenario_type == "attendance_delta" and params.get("event_id"):
+        engine.events.get(params["event_id"])
 
 
 # --- helpers -----------------------------------------------------------------------------------------
 def _clean(intervention: dict) -> dict:
     """Strip the internal bookkeeping keys before the model validates."""
     return {k: v for k, v in intervention.items() if not k.startswith("_")}
+
+
+def _record_execution(engine, item: dict, operator_id: str, approved: bool, note: str | None,
+                      branch_id: str | None) -> None:
+    from ..db import models
+    from ..db.base import SessionLocal
+
+    try:
+        with SessionLocal() as session:
+            session.merge(models.Intervention(
+                intervention_id=item["intervention_id"], intervention_type=item["intervention_type"],
+                status=item["status"], target_entity_ids=item["target_entity_ids"],
+                triggered_by_entity_id=item.get("triggered_by_entity_id"), title=item["title"],
+                description=item["description"], estimated_relief_pct=item["estimated_relief_pct"],
+                estimated_cost_paise=item["estimated_cost_paise"], estimated_delay_sec=item["estimated_delay_sec"],
+                feasibility=item["feasibility"], rank_score=item["rank_score"],
+                created_at=parse(item["created_at"]), expires_at=parse(item["expires_at"]),
+            ))
+            session.flush()
+            session.merge(models.Execution(
+                execution_id=f"exe_{item['intervention_id']}", intervention_id=item["intervention_id"],
+                operator_id=operator_id, approved=approved, note=note, twin_branch_id=branch_id,
+                applied_at=parse(engine.store.sim_time),
+            ))
+            session.commit()
+    except Exception:
+        log.exception("execution record failed for %s", item["intervention_id"])
+
+
+def _unpersist_event(event_id: str) -> None:
+    from ..db import models
+    from ..db.base import SessionLocal
+
+    try:
+        with SessionLocal() as session:
+            session.query(models.EventSchedule).filter(models.EventSchedule.event_id == event_id).delete()
+            session.commit()
+    except Exception:
+        log.exception("event delete persistence failed for %s", event_id)
+
+
+def _persist_event(engine, event_id: str) -> None:
+    from ..db import models
+    from ..db.base import SessionLocal
+
+    ev = engine.events.get(event_id)
+    try:
+        with SessionLocal() as session:
+            session.merge(models.EventSchedule(
+                event_id=ev["event_id"], name=ev["name"], category=ev["category"],
+                venue_entity_id=ev["venue_entity_id"], start_time=parse(ev["start_time"]),
+                end_time=parse(ev["end_time"]), original_start_time=parse(ev["original_start_time"]),
+                expected_attendance=ev["expected_attendance"], status=ev["status"],
+                updated_at=datetime.now(timezone.utc),
+            ))
+            session.commit()
+    except Exception:
+        log.exception("event persistence failed for %s", event_id)
 
 
 def _audit(engine, actor: str, action: str, subject_id: str | None, detail: dict) -> None:

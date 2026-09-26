@@ -1,0 +1,56 @@
+{
+  "horizons_sec": [
+    900,
+    1800,
+    3600
+  ],
+  "train_scenarios": 80,
+  "heldout_scenarios": 20,
+  "train_snapshots": 2160,
+  "heldout_snapshots": 540,
+  "evaluated_on": "cascade-relevant nodes (gate, road, transport_node, emergency_facility)",
+  "model": {
+    "900": {
+      "average_precision": 0.971,
+      "precision": 0.712,
+      "recall": 0.959,
+      "f1": 0.818,
+      "positives": 1325
+    },
+    "1800": {
+      "average_precision": 0.946,
+      "precision": 0.686,
+      "recall": 0.93,
+      "f1": 0.79,
+      "positives": 1806
+    },
+    "3600": {
+      "average_precision": 0.94,
+      "precision": 0.788,
+      "recall": 0.912,
+      "f1": 0.846,
+      "positives": 2789
+    }
+  },
+  "baseline_forecast_threshold": {
+    "900": {
+      "average_precision": 0.865,
+      "precision": 0.951,
+      "recall": 0.682,
+      "f1": 0.794
+    },
+    "1800": {
+      "average_precision": 0.695,
+      "precision": 0.923,
+      "recall": 0.474,
+      "f1": 0.626
+    },
+    "3600": {
+      "average_precision": 0.511,
+      "precision": 0.923,
+      "recall": 0.296,
+      "f1": 0.448
+    }
+  },
+  "decision": "use_v2"
+}

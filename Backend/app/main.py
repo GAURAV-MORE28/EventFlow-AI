@@ -10,7 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from .api.routes import router as api_router
 from .api.ws_routes import router as ws_router
 from .db.base import create_all
-from .db.seed import clear_run_tables, seed_topology
+from .db.seed import clear_run_tables, persist_events, seed_topology
 from .errors import install_error_handlers
 from .services.commander import Commander
 from .services.engine import Engine, set_engine
@@ -33,7 +33,11 @@ async def lifespan(app: FastAPI):
     engine = Engine()
     engine.commander = Commander(engine)
     seed_topology(engine.store)
+    persist_events(engine.events.to_generator())
     set_engine(engine)
+    engine.prime_state()
+    for h in engine.store.history.values():
+        h.clear()
     await engine.start()
     log.info("EventFlow AI backend ready on /api/v1")
     try:

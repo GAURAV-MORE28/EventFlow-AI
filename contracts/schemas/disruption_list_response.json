@@ -1,0 +1,83 @@
+{
+  "$defs": {
+    "Disruption": {
+      "additionalProperties": false,
+      "properties": {
+        "disruption_id": {
+          "title": "Disruption Id",
+          "type": "string"
+        },
+        "scenario_type": {
+          "enum": [
+            "attendance_delta",
+            "metro_capacity_delta",
+            "road_capacity_delta",
+            "weather_rain",
+            "gate_closure",
+            "transport_outage",
+            "parking_loss",
+            "hotel_shortage",
+            "concurrent_event",
+            "combined",
+            "event_delay",
+            "event_cancellation",
+            "road_closure",
+            "station_closure",
+            "capacity_reduction"
+          ],
+          "title": "Scenario Type",
+          "type": "string"
+        },
+        "params": {
+          "title": "Params",
+          "type": "object"
+        },
+        "label": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Label"
+        },
+        "started_at": {
+          "title": "Started At",
+          "type": "string"
+        }
+      },
+      "required": [
+        "disruption_id",
+        "scenario_type",
+        "params",
+        "started_at"
+      ],
+      "title": "Disruption",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "sim_time": {
+      "title": "Sim Time",
+      "type": "string"
+    },
+    "disruptions": {
+      "items": {
+        "$ref": "#/$defs/Disruption"
+      },
+      "title": "Disruptions",
+      "type": "array"
+    }
+  },
+  "required": [
+    "sim_time",
+    "disruptions"
+  ],
+  "title": "disruption_list_response",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

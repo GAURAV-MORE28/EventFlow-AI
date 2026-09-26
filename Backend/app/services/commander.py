@@ -170,15 +170,59 @@ class Commander:
         self.tools.register("propose_action", self._tool_propose_action)
 
     # --- the eight tools -------------------------------------------------------
-    def _tool_get_state(self, entity_id: str = "all") -> dict:
+    def _tool_get_state(self, entity_id: str = "all", entity_type: str | None = None) -> dict:
         store = self.engine.store
+        if entity_type:
+            return self._domain_state(entity_type)
         if entity_id == "all":
             return {"summary": store.summary, "cycle_number": store.cycle_number}
         state = store.entity_states.get(entity_id)
         if not state:
             raise ApiError("ENTITY_NOT_FOUND", f"No entity with id '{entity_id}'.", {"entity_id": entity_id})
         node = store.nodes[entity_id]
-        return {**state, "nominal_capacity": node["nominal_capacity"], "display_name": node["display_name"]}
+        return {**state, "nominal_capacity": node["nominal_capacity"], "display_name": node["display_name"],
+                "utilisation_pct": int(round(state["utilisation"] * 100))}
+
+    DOMAIN_TYPES = {
+        "transport": ("transport_node", "transport_route"),
+        "venue": ("venue", "gate"),
+        "road": ("road",),
+        "zone": ("zone",),
+        "parking": ("parking",),
+    }
+
+    def _domain_state(self, domain: str) -> dict:
+        store = self.engine.store
+        if domain == "hotel":
+            from .accommodation import hotel_list, recommend
+
+            listing = hotel_list(self.engine, sort="occupancy")
+            hotels = listing["hotels"]
+            def row(h: dict) -> dict:
+                return {"property_id": h["property_id"], "name": h["name"], "zone": h["zone"],
+                        "occupancy_pct": int(round(h["occupancy"] * 100)), "rooms_available": h["rooms_available"],
+                        "status": h["status"], "price_rupees": h["price_per_night_paise"] // 100,
+                        "travel_min": None if h["travel_time_to_venue_sec"] is None else int(round(h["travel_time_to_venue_sec"] / 60))}
+            rec = recommend(self.engine, limit=3)
+            return {
+                "entity_type": "hotel",
+                "summary": listing["summary"],
+                "nearing_capacity": [row(h) for h in hotels if h["status"] != "available"][:4],
+                "most_available": [row(h) for h in sorted(hotels, key=lambda h: -h["rooms_available"])[:3]],
+                "recommended": [row(o["property"]) for o in rec["options"][:2]],
+            }
+        types = self.DOMAIN_TYPES.get(domain, (domain,))
+        rows = []
+        for eid, node in store.nodes.items():
+            if node["entity_type"] not in types or eid not in store.entity_states:
+                continue
+            st = store.entity_states[eid]
+            fc = store.forecasts.get(eid) or {}
+            rows.append({"entity_id": eid, "display_name": node["display_name"],
+                         "utilisation_pct": int(round(st["utilisation"] * 100)), "risk_band": st["risk_band"],
+                         "time_to_critical_sec": fc.get("time_to_critical_sec")})
+        rows.sort(key=lambda r: -r["utilisation_pct"])
+        return {"entity_type": domain, "entities": rows}
 
     def _tool_get_forecast(self, entity_id: str, horizon_sec: int | None = None) -> dict:
         forecast = self.engine.store.forecasts.get(entity_id)
@@ -210,11 +254,28 @@ class Commander:
     def _tool_run_whatif(self, scenario_spec: dict) -> dict:
         from .simulation import SIMULATIONS
 
-        return SIMULATIONS.run_sync(self.engine, [scenario_spec], horizon_sec=3600, label="commander")
-
-    def _tool_summarize_window(self, start: str | None = None, end: str | None = None) -> dict:
-        store = self.engine.store
+        result = SIMULATIONS.run_sync(self.engine, [scenario_spec], horizon_sec=3600, label="commander")
+        names = self.engine.store.nodes
+        b, sc = result["baseline"], result["scenario"]
         return {
+            **result,
+            "scenario_spec": scenario_spec,
+            "baseline_peak_pct": int(round(b["peak_utilisation"] * 100)),
+            "scenario_peak_pct": int(round(sc["peak_utilisation"] * 100)),
+            "baseline_peak_name": names.get(b["peak_entity_id"] or "", {}).get("display_name", b["peak_entity_id"]),
+            "scenario_peak_name": names.get(sc["peak_entity_id"] or "", {}).get("display_name", sc["peak_entity_id"]),
+            "baseline_transport_pct": int(round((b.get("transport_pressure") or 0) * 100)),
+            "scenario_transport_pct": int(round((sc.get("transport_pressure") or 0) * 100)),
+            "new_critical_names": [names[e]["display_name"] for e in result["delta"]["new_critical_entities"] if e in names],
+            "late_entries_change": int(round((sc.get("late_entries") or 0) - (b.get("late_entries") or 0))),
+            "top_change_names": [c["display_name"] for c in result.get("top_changes", [])[:3]],
+            "top_change_pcts": [[int(round(c["baseline_peak"] * 100)), int(round(c["scenario_peak"] * 100))]
+                                for c in result.get("top_changes", [])[:3]],
+        }
+
+    def _tool_summarize_window(self, start: str | None = None, end: str | None = None, kind: str | None = None) -> dict:
+        store = self.engine.store
+        base = {
             "sim_time": store.sim_time,
             "cycle_number": store.cycle_number,
             "critical_count": store.summary["critical_count"],
@@ -223,6 +284,50 @@ class Commander:
             "interventions_proposed": len(store.interventions_by_status("proposed", limit=50)),
             "anomalies": len(store.anomalies),
         }
+        if kind not in ("outlook", "arrival"):
+            return base
+        from .projection import PROJECTIONS
+
+        proj = PROJECTIONS.get(self.engine)
+        cfg = self.engine.config
+        if kind == "outlook":
+            upcoming = []
+            now = proj["samples"][0]["util"]
+            for eid, node in store.nodes.items():
+                if node["entity_type"] == "hotel":
+                    continue
+                crit = cfg.thresholds_for(node["entity_type"])[1]
+                if now.get(eid, 0.0) >= crit:
+                    continue
+                hit = next((smp for smp in proj["samples"] if smp["util"].get(eid, 0.0) >= crit), None)
+                if hit:
+                    peak = max(smp["util"].get(eid, 0.0) for smp in proj["samples"])
+                    upcoming.append({"entity_id": eid, "display_name": node["display_name"],
+                                     "minutes": int(round(hit["offset_sec"] / 60)), "peak_pct": int(round(peak * 100))})
+            upcoming.sort(key=lambda r: (r["minutes"], -r["peak_pct"]))
+            return {**base, "kind": "outlook", "horizon_min": int(proj["horizon_sec"] // 60), "upcoming": upcoming[:5]}
+
+        # arrival: pressure on the primary venue's access nodes and gates, by departure window
+        ev = self.engine.events.get(self.engine.events.primary_event_id)
+        venue = ev["venue_entity_id"]
+        gates = self.engine.generator.gates_of_venue(venue) if hasattr(self.engine.generator, "gates_of_venue") else []
+        access = sorted({e["src_entity_id"] for e in store.edges if e["dst_entity_id"] in gates
+                         and store.nodes[e["src_entity_id"]]["entity_type"] == "transport_node"})
+        watch = gates + access
+        from ..simtime import parse
+
+        to_start = (parse(ev["start_time"]) - parse(store.sim_time)).total_seconds()
+        windows = []
+        for depart_min in range(0, 91, 15):
+            arrive = depart_min * 60 + 1200  # ~20 minutes door to gate
+            if to_start > 0 and arrive > to_start:
+                break
+            smp = min(proj["samples"], key=lambda x: abs(x["offset_sec"] - arrive))
+            peak = max((smp["util"].get(e, 0.0) for e in watch), default=0.0)
+            windows.append({"depart_in_min": depart_min, "peak_pct": int(round(peak * 100))})
+        best = min(windows, key=lambda w: (w["peak_pct"], w["depart_in_min"])) if windows else None
+        return {**base, "kind": "arrival", "event_name": ev["name"], "typical_trip_min": 20,
+                "minutes_to_start": int(round(to_start / 60)), "windows": windows, "best": best}
 
     def _tool_propose_action(self, intervention_id: str) -> dict:
         """QUEUES ONLY. There is deliberately no execution path in this function.
@@ -255,6 +360,29 @@ class Commander:
 
         plan: list[tuple[str, dict]] = [("get_state", {"entity_id": "all"})]
 
+        # --- product questions: what-if, hotels, transport, timing, outlook -------------
+        scenario = self._scenario_from_query(q, named)
+        if scenario is not None:
+            meta["intent"] = "whatif"
+            plan.append(("run_whatif", {"scenario_spec": scenario}))
+            return plan, meta
+        if any(w in q for w in ("hotel", "room", "accommodation", "stay", "booking")):
+            meta["intent"] = "hotels"
+            plan.append(("get_state", {"entity_id": "all", "entity_type": "hotel"}))
+            return plan, meta
+        if any(w in q for w in ("when should", "best time", "off-peak", "off peak", "arrive", "depart", "leave")):
+            meta["intent"] = "arrival"
+            plan.append(("summarize_window", {"kind": "arrival"}))
+            return plan, meta
+        if any(w in q for w in ("next", "will become", "going to be critical", "outlook", "upcoming")):
+            meta["intent"] = "outlook"
+            plan.append(("summarize_window", {"kind": "outlook"}))
+            return plan, meta
+        if not named and any(w in q for w in ("transport", "metro", "station", "train", "bus", "transit", "line")):
+            meta["intent"] = "transport"
+            plan.append(("get_state", {"entity_id": "all", "entity_type": "transport"}))
+            return plan, meta
+
         if any(w in q for w in ("do nothing", "nothing", "if we wait", "no action")):
             meta["intent"] = "do_nothing"
             plan.append(("summarize_window", {}))
@@ -284,6 +412,51 @@ class Commander:
                 # both resolve to the same most-urgent subject.
                 plan.append(("summarize_window", {}))
         return plan, meta
+
+    def _scenario_from_query(self, q: str, named: str | None) -> dict | None:
+        """A what-if question, turned into a scenario spec, or None."""
+        if not any(w in q for w in ("what if", "what happens if", "if we", "would happen", "impact of", "effect of", "affect")):
+            return None
+        store = self.engine.store
+        numbers = [float(x) for x in NUMBER_RE.findall(q.replace(",", ""))]
+        if "cancel" in q or "called off" in q:
+            ev = next((e for e in self.engine.events.events.values()
+                       if e["name"].lower() in q or e["event_id"] in q), None)
+            ev = ev or self.engine.events.get(self.engine.events.primary_event_id)
+            return {"scenario_type": "event_cancellation", "params": {"event_id": ev["event_id"]}}
+        if named and store.nodes[named]["entity_type"] == "road" and any(w in q for w in ("close", "closure", "shut", "block")):
+            return {"scenario_type": "road_closure", "params": {"entity_id": named}}
+        if named and any(w in q for w in ("capacity", "reduce", "cut")) and numbers and "attendance" not in q:
+            return {"scenario_type": "capacity_reduction", "params": {"entity_id": named, "delta_pct": -abs(numbers[0])}}
+        if "delay" in q or "postpone" in q or "later" in q:
+            ev = None
+            for e in self.engine.events.events.values():
+                if e["name"].lower() in q or e["event_id"] in q:
+                    ev = e
+            if ev is None:
+                letters = [e for e in sorted(self.engine.events.events.values(), key=lambda x: x["start_time"])]
+                for i, e in enumerate(letters):
+                    if f"event {chr(ord('a') + i)}" in q:
+                        ev = e
+            ev = ev or self.engine.events.get(self.engine.events.primary_event_id)
+            minutes = numbers[0] if numbers else 30.0
+            if "hour" in q and minutes < 10:
+                minutes *= 60
+            return {"scenario_type": "event_delay", "params": {"event_id": ev["event_id"], "delay_min": minutes}}
+        if named and store.nodes[named]["entity_type"] == "gate" and any(w in q for w in ("close", "closure", "shut")):
+            return {"scenario_type": "gate_closure", "params": {"entity_id": named}}
+        if named and store.nodes[named]["entity_type"] in ("transport_node", "transport_route") and any(
+                w in q for w in ("outage", "close", "closure", "shut", "fail", "down")):
+            kind = "station_closure" if store.nodes[named]["entity_type"] == "transport_node" and "clos" in q else "transport_outage"
+            return {"scenario_type": kind, "params": {"entity_id": named}}
+        if "rain" in q:
+            return {"scenario_type": "weather_rain", "params": {"intensity": "heavy" if "heavy" in q else "moderate"}}
+        if "attendance" in q or "more people" in q or "crowd" in q:
+            pct = numbers[0] if numbers else 20.0
+            return {"scenario_type": "attendance_delta", "params": {"delta_pct": pct}}
+        if "hotel" in q and any(w in q for w in ("shortage", "offline", "fewer rooms", "lose")):
+            return {"scenario_type": "hotel_shortage", "params": {"rooms_offline_pct": numbers[0] if numbers else 15.0}}
+        return None
 
     # A cached answer older than this many cycles is stale enough that the sim
     # has moved on — re-answer rather than replay the first-ever response for
@@ -352,8 +525,21 @@ class Commander:
             return f"{len(items)} proposed, top rank_score={items[0]['rank_score'] if items else None}"
         if name == "get_certificate":
             return f"verdict={result.get('verdict')} max_utilisation={result.get('max_zone_utilisation')}"
+        if name == "summarize_window" and result.get("kind") == "outlook":
+            return f"{len(result.get('upcoming', []))} entities projected critical within {result.get('horizon_min')} min"
+        if name == "summarize_window" and result.get("kind") == "arrival":
+            best = result.get("best") or {}
+            return f"best departure in {best.get('depart_in_min')} min at {best.get('peak_pct')}% peak"
         if name == "summarize_window":
             return f"critical={result.get('critical_count')} high={result.get('high_count')}"
+        if name == "run_whatif":
+            return (f"peak {result.get('baseline_peak_pct')}% -> {result.get('scenario_peak_pct')}%, "
+                    f"{len(result.get('new_critical_names', []))} newly critical")
+        if name == "get_state" and result.get("entity_type") == "hotel":
+            sm = result.get("summary", {})
+            return f"{sm.get('saturated')} saturated, {sm.get('rooms_available')} rooms free"
+        if name == "get_state" and "entities" in result:
+            return f"{len(result['entities'])} {result.get('entity_type')} entities"
         return json.dumps(result)[:120]
 
     def _compose(self, query: str, tool_calls: list[dict], results: list[Any], meta: dict | None = None) -> str:
@@ -371,6 +557,10 @@ class Commander:
         )
 
         parts: list[str] = []
+
+        special = self._compose_product(intent, results)
+        if special:
+            return special
 
         # A "what's the biggest problem" question and a "why is X happening"
         # question used to compose byte-identical answers whenever X was also
@@ -478,6 +668,94 @@ class Commander:
         if not parts:
             parts.append("No grounded data is available for that question yet.")
         return " ".join(parts)
+
+    def _compose_product(self, intent: str, results: list[Any]) -> str | None:
+        """Answers for the product questions. Every number is a tool value."""
+        if intent == "whatif":
+            r = next((x for x in results if isinstance(x, dict) and "scenario_spec" in x), None)
+            if not r:
+                return "The what-if simulation could not run for that question."
+            spec = r["scenario_spec"]
+            label = spec["scenario_type"].replace("_", " ")
+            text = (
+                f"Simulated {label} for the next {r['horizon_sec'] // 60} minutes against an unchanged copy of the city. "
+                f"Peak utilisation goes from {r['baseline_peak_pct']} percent at {r['baseline_peak_name']} "
+                f"to {r['scenario_peak_pct']} percent at {r['scenario_peak_name']}. "
+            )
+            if r["new_critical_names"]:
+                text += "Newly critical: " + ", ".join(r["new_critical_names"]) + ". "
+            else:
+                text += "No additional location crosses the critical line. "
+            if r["top_change_names"]:
+                moves = [f"{n} {a} to {b} percent" for n, (a, b) in zip(r["top_change_names"], r["top_change_pcts"])]
+                text += "Biggest changes: " + "; ".join(moves) + ". "
+            text += (
+                f"Average transport pressure moves from {r['baseline_transport_pct']} to "
+                f"{r['scenario_transport_pct']} percent, and late entries change by {r['late_entries_change']}."
+            )
+            return text
+        if intent == "hotels":
+            r = next((x for x in results if isinstance(x, dict) and x.get("entity_type") == "hotel"), None)
+            if not r:
+                return None
+            sm = r["summary"]
+            text = (
+                f"{sm['saturated']} of {sm['properties']} hotels are saturated and {sm['limited']} have limited "
+                f"rooms; {sm['rooms_available']} rooms are free city-wide and {sm['unmet_room_requests']} booking "
+                f"requests could not be placed. "
+            )
+            if r["nearing_capacity"]:
+                text += "Nearing or at capacity: " + ", ".join(
+                    f"{h['name']} ({h['occupancy_pct']} percent)" for h in r["nearing_capacity"]) + ". "
+            if r["recommended"]:
+                h = r["recommended"][0]
+                text += (
+                    f"Best alternative right now: {h['name']} in {h['zone']}, {h['rooms_available']} rooms free at "
+                    f"Rs {h['price_rupees']} per night, {h['travel_min']} minutes to the venue."
+                )
+            return text
+        if intent == "transport":
+            r = next((x for x in results if isinstance(x, dict) and x.get("entity_type") == "transport"), None)
+            if not r:
+                return None
+            top = r["entities"][:4]
+            pressured = [e for e in top if e["risk_band"] in ("high", "critical")]
+            lead = "Under pressure: " if pressured else "No transport node is under high pressure. Busiest: "
+            return lead + ", ".join(
+                f"{e['display_name']} at {e['utilisation_pct']} percent ({e['risk_band']})" for e in (pressured or top)
+            ) + "."
+        if intent == "arrival":
+            r = next((x for x in results if isinstance(x, dict) and x.get("kind") == "arrival"), None)
+            if not r:
+                return None
+            if not r.get("best"):
+                if r["minutes_to_start"] <= 0:
+                    return f"{r['event_name']} has already started; visitors arriving now go straight to entry."
+                return (
+                    f"{r['event_name']} starts in {r['minutes_to_start']} minutes and a typical trip to the gates "
+                    f"takes about {r['typical_trip_min']} minutes, so visitors who have not left yet will arrive "
+                    f"after the start whatever they do; they should leave immediately."
+                )
+            best, first = r["best"], r["windows"][0]
+            if best["depart_in_min"] == 0:
+                return (
+                    f"Visitors should set off now: {r['event_name']} starts in {r['minutes_to_start']} minutes and "
+                    f"later departures meet more pressure at the gates (now {first['peak_pct']} percent)."
+                )
+            return (
+                f"The lowest-pressure window is to depart in {best['depart_in_min']} minutes: peak load on the "
+                f"stations and gates serving {r['event_name']} falls from {first['peak_pct']} to {best['peak_pct']} "
+                f"percent, still ahead of the start in {r['minutes_to_start']} minutes."
+            )
+        if intent == "outlook":
+            r = next((x for x in results if isinstance(x, dict) and x.get("kind") == "outlook"), None)
+            if not r:
+                return None
+            if not r["upcoming"]:
+                return f"No further location is projected to turn critical in the next {r['horizon_min']} minutes."
+            parts = [f"{u['display_name']} in {u['minutes']} minutes (peak {u['peak_pct']} percent)" for u in r["upcoming"]]
+            return "Projected to turn critical next: " + "; ".join(parts) + "."
+        return None
 
     def _phrase_with_local_llm(self, query: str, results: list[Any]) -> str | None:
         """Optional free/local rephrasing. The validator still gates every number."""

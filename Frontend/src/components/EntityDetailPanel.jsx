@@ -5,7 +5,7 @@
  * breakdown by `risk_type`, inbound/outbound edges (clickable), and a button to
  * arm the cascade overlay for this entity.
  */
-import { useEffect, useState } from 'react';
+import { Fragment, useEffect, useState } from 'react';
 import {
   Area,
   ComposedChart,
@@ -176,7 +176,7 @@ export default function EntityDetailPanel() {
               className="h-2 w-2 rounded-full shrink-0"
               style={{ backgroundColor: band.hex }}
             />
-            <h3 className="text-sm font-bold text-white tracking-tight truncate">
+            <h3 className="text-sm font-bold text-slate-100 tracking-tight truncate">
               {node?.display_name || selectedEntityId}
             </h3>
           </div>
@@ -189,7 +189,7 @@ export default function EntityDetailPanel() {
         <button
           type="button"
           onClick={clearSelection}
-          className="rounded p-1 text-slate-400 hover:bg-surface-750 hover:text-white transition-colors"
+          className="rounded p-1 text-slate-400 hover:bg-surface-750 hover:text-slate-100 transition-colors"
           aria-label="Close detail panel"
         >
           <X className="h-4 w-4" />
@@ -223,11 +223,47 @@ export default function EntityDetailPanel() {
             </div>
           </div>
           <div className="rounded bg-surface-950/80 p-2 border border-surface-700/40">
-            <span className="text-slate-400 text-[9px] uppercase font-bold tracking-wider">Throughput Flow</span>
+            <span className="text-slate-400 text-[9px] uppercase font-bold tracking-wider">In / Out</span>
             <div className="mt-0.5 font-mono text-xs font-semibold text-slate-200">
-              {decimals(state.flow_rate_per_min, 1)}/min
+              {state.inflow_per_min == null ? '—' : `${decimals(state.inflow_per_min, 0)} / ${decimals(state.outflow_per_min, 0)} per min`}
             </div>
           </div>
+          {state.queue_people != null && (
+            <div className="col-span-2 rounded bg-surface-950/80 p-2 border border-surface-700/40">
+              <span className="text-slate-400 text-[9px] uppercase font-bold tracking-wider">Waiting outside (queue)</span>
+              <div className="mt-0.5 font-mono text-xs font-semibold text-slate-200">
+                {integer(state.queue_people)} people — not counted in the load above
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {detail?.twin && (
+        <div className="mt-2 rounded border border-surface-700/60 bg-surface-950/50 p-2 text-[10px]">
+          <h4 className="panel-title mb-1">Digital twin</h4>
+          <dl className="grid grid-cols-2 gap-x-2 gap-y-0.5 font-mono">
+            <dt className="text-slate-400">Sensor reading</dt>
+            <dd className="text-right">{detail.twin.observed_utilisation == null ? 'no sensor' : percent(detail.twin.observed_utilisation)}</dd>
+            <dt className="text-slate-400">Twin estimate</dt>
+            <dd className="text-right">
+              {detail.twin.estimated_utilisation == null ? '—' : percent(detail.twin.estimated_utilisation)}
+              {detail.twin.estimate_std != null && <span className="text-slate-400"> ±{percent(detail.twin.estimate_std)}</span>}
+            </dd>
+            <dt className="text-slate-400">Announced plan</dt>
+            <dd className="text-right">{detail.twin.plan_utilisation == null ? '—' : percent(detail.twin.plan_utilisation)}</dd>
+            <dt className="text-slate-400">Forecast +30 min</dt>
+            <dd className="text-right">{detail.twin.forecast_1800 == null ? '—' : percent(detail.twin.forecast_1800)}</dd>
+            {detail.twin.counterfactuals.map((cf) => (
+              <Fragment key={cf.intervention_id}>
+                <dt className="text-slate-400">Without {cf.intervention_id}</dt>
+                <dd className="text-right">{percent(cf.utilisation)}</dd>
+              </Fragment>
+            ))}
+          </dl>
+          {detail.twin.over_capacity && (
+            <p className="mt-1 font-semibold text-red-700">Over capacity by {decimals(detail.twin.over_capacity_pct, 1)}%</p>
+          )}
         </div>
       )}
 

@@ -1,16 +1,16 @@
 {
   "status": "ok",
-  "server_time": "2026-09-04T14:45:00Z",
-  "sim_time": "2026-09-04T14:45:00Z",
-  "cycle_number": 90,
+  "server_time": "2026-09-04T15:20:00Z",
+  "sim_time": "2026-09-04T15:20:00Z",
+  "cycle_number": 160,
   "modules": {
     "forecaster": {
       "ready": true,
-      "active_source": "local_model"
+      "active_source": "twin_model"
     },
     "cascade": {
       "ready": true,
-      "active_source": "gnn"
+      "active_source": "deterministic"
     },
     "twin": {
       "ready": true,

@@ -118,6 +118,120 @@
       ],
       "title": "ComplianceSweepRow",
       "type": "object"
+    },
+    "InterventionEffect": {
+      "additionalProperties": false,
+      "description": "Live consequence of an executing action: the live city vs its do-nothing copy.",
+      "properties": {
+        "entity_id": {
+          "title": "Entity Id",
+          "type": "string"
+        },
+        "utilisation": {
+          "title": "Utilisation",
+          "type": "number"
+        },
+        "counterfactual_utilisation": {
+          "title": "Counterfactual Utilisation",
+          "type": "number"
+        },
+        "delta": {
+          "title": "Delta",
+          "type": "number"
+        }
+      },
+      "required": [
+        "entity_id",
+        "utilisation",
+        "counterfactual_utilisation",
+        "delta"
+      ],
+      "title": "InterventionEffect",
+      "type": "object"
+    },
+    "InterventionEvaluation": {
+      "additionalProperties": false,
+      "description": "What simulating the candidate on a clone of the live city showed.",
+      "properties": {
+        "horizon_sec": {
+          "title": "Horizon Sec",
+          "type": "integer"
+        },
+        "compliance": {
+          "title": "Compliance",
+          "type": "number"
+        },
+        "root_entity_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Root Entity Id"
+        },
+        "root_peak_before": {
+          "title": "Root Peak Before",
+          "type": "number"
+        },
+        "root_peak_after": {
+          "title": "Root Peak After",
+          "type": "number"
+        },
+        "network_peak_before": {
+          "title": "Network Peak Before",
+          "type": "number"
+        },
+        "network_peak_after": {
+          "title": "Network Peak After",
+          "type": "number"
+        },
+        "critical_before": {
+          "title": "Critical Before",
+          "type": "integer"
+        },
+        "critical_after": {
+          "title": "Critical After",
+          "type": "integer"
+        },
+        "new_critical_entities": {
+          "items": {
+            "type": "string"
+          },
+          "title": "New Critical Entities",
+          "type": "array"
+        },
+        "people_redirected": {
+          "default": 0,
+          "title": "People Redirected",
+          "type": "integer"
+        },
+        "travel_time_delta_sec": {
+          "default": 0.0,
+          "title": "Travel Time Delta Sec",
+          "type": "number"
+        },
+        "rooms_unmet_delta": {
+          "default": 0.0,
+          "title": "Rooms Unmet Delta",
+          "type": "number"
+        }
+      },
+      "required": [
+        "horizon_sec",
+        "compliance",
+        "root_peak_before",
+        "root_peak_after",
+        "network_peak_before",
+        "network_peak_after",
+        "critical_before",
+        "critical_after"
+      ],
+      "title": "InterventionEvaluation",
+      "type": "object"
     }
   },
   "additionalProperties": false,
@@ -136,7 +250,9 @@
         "zone_incentive",
         "accommodation_rebalance",
         "emergency_corridor",
-        "notify_only"
+        "notify_only",
+        "event_delay",
+        "transport_redistribution"
       ],
       "title": "Intervention Type",
       "type": "string"
@@ -218,6 +334,32 @@
     "expires_at": {
       "title": "Expires At",
       "type": "string"
+    },
+    "evaluation": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/InterventionEvaluation"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "live_effect": {
+      "anyOf": [
+        {
+          "items": {
+            "$ref": "#/$defs/InterventionEffect"
+          },
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Live Effect"
     }
   },
   "required": [

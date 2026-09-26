@@ -13,6 +13,7 @@ import logging
 
 from fastapi import APIRouter, Query, WebSocket, WebSocketDisconnect
 
+from ..services.attendee import public_nudge
 from ..services.engine import get_engine
 from ..services.metrics import build_regret
 from ..ws.manager import MANAGER
@@ -34,7 +35,10 @@ def _resync_payload(engine) -> dict:
         "cascades": list(store.cascades.values()),
         "twin_fidelity": store.twin_fidelity_payload(),
         "regret": build_regret(engine),
-        "nudges": list(store.nudges.values()),
+        "nudges": [public_nudge(n) for n in store.nudges.values()],
+        "events": engine.event_views(),
+        "disruptions": list(store.disruptions.values()),
+        "operations": engine.operations_summary(),
     }
 
 

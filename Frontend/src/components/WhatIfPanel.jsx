@@ -6,6 +6,7 @@
  * build a scenario by hand on stage.
  */
 import { useEffect, useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
 import {
   GitBranch,
   Play,
@@ -28,12 +29,16 @@ const TIMEOUT_MS = 15000;
 
 const PRESETS = [
   {
-    id: 'blue_line',
-    label: 'Blue Line −15%',
+    id: 'gate_5',
+    label: 'Gate 5 Closure',
+    icon: DoorClosed,
+    scenarios: [{ scenario_type: 'gate_closure', params: { entity_id: 'gate_5' } }],
+  },
+  {
+    id: 'metro_c',
+    label: 'Metro C Outage',
     icon: Train,
-    scenarios: [
-      { scenario_type: 'metro_capacity_delta', params: { entity_id: 'line_blue', delta_pct: -15 } },
-    ],
+    scenarios: [{ scenario_type: 'transport_outage', params: { entity_id: 'metro_c' } }],
   },
   {
     id: 'heavy_rain',
@@ -42,19 +47,10 @@ const PRESETS = [
     scenarios: [{ scenario_type: 'weather_rain', params: { intensity: 'heavy' } }],
   },
   {
-    id: 'gate_3',
-    label: 'Gate 3 Closure',
-    icon: DoorClosed,
-    scenarios: [{ scenario_type: 'gate_closure', params: { entity_id: 'gate_3' } }],
-  },
-  {
-    id: 'combined',
-    label: 'Combined Stress',
+    id: 'surge',
+    label: '+20% Attendance',
     icon: Layers,
-    scenarios: [
-      { scenario_type: 'metro_capacity_delta', params: { entity_id: 'line_blue', delta_pct: -15 } },
-      { scenario_type: 'weather_rain', params: { intensity: 'heavy' } },
-    ],
+    scenarios: [{ scenario_type: 'attendance_delta', params: { delta_pct: 20 } }],
   },
 ];
 
@@ -150,7 +146,7 @@ function Comparison({ result }) {
 }
 
 export default function WhatIfPanel() {
-  const { whatIf, setWhatIf, toast, setWhatIfOverlay, clearWhatIfOverlay } = useStore();
+  const { whatIf, setWhatIf, toast, setWhatIfOverlay, clearWhatIfOverlay, mockMode } = useStore();
   const timers = useRef({ poll: null, timeout: null });
   const [lastRun, setLastRun] = useState(null);
 
@@ -218,6 +214,7 @@ export default function WhatIfPanel() {
           </div>
         </div>
 
+        <Link to="/whatif" className="text-[10px] font-semibold text-teal-700 hover:underline">Open lab</Link>
         {whatIf.status === 'complete' && (
           <button
             type="button"
@@ -247,7 +244,8 @@ export default function WhatIfPanel() {
               <button
                 key={preset.label}
                 type="button"
-                disabled={isRunning}
+                disabled={isRunning || (mockMode && preset.id !== 'gate_5')}
+                title={mockMode && preset.id !== 'gate_5' ? 'Only the recorded Gate 5 scenario is available in replay' : undefined}
                 onClick={() => run(preset)}
                 className={`flex items-center gap-2 rounded-md border p-1.5 text-left transition-all disabled:opacity-40 select-none ${
                   isSelected

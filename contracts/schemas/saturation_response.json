@@ -1,0 +1,260 @@
+{
+  "$defs": {
+    "HotelProperty": {
+      "additionalProperties": false,
+      "properties": {
+        "property_id": {
+          "title": "Property Id",
+          "type": "string"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "cluster_entity_id": {
+          "title": "Cluster Entity Id",
+          "type": "string"
+        },
+        "zone": {
+          "title": "Zone",
+          "type": "string"
+        },
+        "lat": {
+          "title": "Lat",
+          "type": "number"
+        },
+        "lon": {
+          "title": "Lon",
+          "type": "number"
+        },
+        "tier": {
+          "enum": [
+            "budget",
+            "midscale",
+            "upscale",
+            "luxury"
+          ],
+          "title": "Tier",
+          "type": "string"
+        },
+        "accessible": {
+          "title": "Accessible",
+          "type": "boolean"
+        },
+        "price_per_night_paise": {
+          "title": "Price Per Night Paise",
+          "type": "integer"
+        },
+        "rooms_total": {
+          "title": "Rooms Total",
+          "type": "integer"
+        },
+        "rooms_in_service": {
+          "title": "Rooms In Service",
+          "type": "integer"
+        },
+        "rooms_occupied": {
+          "title": "Rooms Occupied",
+          "type": "integer"
+        },
+        "rooms_available": {
+          "title": "Rooms Available",
+          "type": "integer"
+        },
+        "occupancy": {
+          "title": "Occupancy",
+          "type": "number"
+        },
+        "status": {
+          "enum": [
+            "available",
+            "limited",
+            "saturated"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "transport_entity_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Transport Entity Id"
+        },
+        "transport_name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Transport Name"
+        },
+        "walk_to_transport_sec": {
+          "title": "Walk To Transport Sec",
+          "type": "integer"
+        },
+        "transport_utilisation": {
+          "title": "Transport Utilisation",
+          "type": "number"
+        },
+        "transport_closed": {
+          "default": false,
+          "title": "Transport Closed",
+          "type": "boolean"
+        },
+        "transport_forecast_utilisation": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Transport Forecast Utilisation"
+        },
+        "venue_entity_id": {
+          "title": "Venue Entity Id",
+          "type": "string"
+        },
+        "travel_time_to_venue_sec": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Travel Time To Venue Sec"
+        }
+      },
+      "required": [
+        "property_id",
+        "name",
+        "cluster_entity_id",
+        "zone",
+        "lat",
+        "lon",
+        "tier",
+        "accessible",
+        "price_per_night_paise",
+        "rooms_total",
+        "rooms_in_service",
+        "rooms_occupied",
+        "rooms_available",
+        "occupancy",
+        "status",
+        "walk_to_transport_sec",
+        "transport_utilisation",
+        "venue_entity_id"
+      ],
+      "title": "HotelProperty",
+      "type": "object"
+    },
+    "SaturatedProperty": {
+      "additionalProperties": false,
+      "properties": {
+        "property": {
+          "$ref": "#/$defs/HotelProperty"
+        },
+        "alternatives": {
+          "items": {
+            "$ref": "#/$defs/StayOption"
+          },
+          "title": "Alternatives",
+          "type": "array"
+        },
+        "explanation": {
+          "title": "Explanation",
+          "type": "string"
+        }
+      },
+      "required": [
+        "property",
+        "alternatives",
+        "explanation"
+      ],
+      "title": "SaturatedProperty",
+      "type": "object"
+    },
+    "StayOption": {
+      "additionalProperties": false,
+      "properties": {
+        "property": {
+          "$ref": "#/$defs/HotelProperty"
+        },
+        "score": {
+          "title": "Score",
+          "type": "number"
+        },
+        "factors": {
+          "additionalProperties": {
+            "type": "number"
+          },
+          "title": "Factors",
+          "type": "object"
+        },
+        "travel_time_sec": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Travel Time Sec"
+        },
+        "reasons": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Reasons",
+          "type": "array"
+        }
+      },
+      "required": [
+        "property",
+        "score",
+        "factors",
+        "reasons"
+      ],
+      "title": "StayOption",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "sim_time": {
+      "title": "Sim Time",
+      "type": "string"
+    },
+    "saturated": {
+      "items": {
+        "$ref": "#/$defs/SaturatedProperty"
+      },
+      "title": "Saturated",
+      "type": "array"
+    }
+  },
+  "required": [
+    "sim_time",
+    "saturated"
+  ],
+  "title": "saturation_response",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

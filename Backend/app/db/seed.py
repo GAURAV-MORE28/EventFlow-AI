@@ -42,6 +42,16 @@ def seed_topology(store: Any) -> None:
                 ]
             )
 
+            existing_props = set(session.scalars(select(models.HotelProperty.property_id)).all())
+            session.add_all([
+                models.HotelProperty(**{k: p[k] for k in (
+                    "property_id", "name", "cluster_entity_id", "zone", "lat", "lon", "rooms_total",
+                    "price_per_night_paise", "tier", "accessible", "transport_entity_id",
+                    "walk_to_transport_sec", "base_occupancy",
+                )})
+                for p in getattr(store, "properties", []) if p["property_id"] not in existing_props
+            ])
+
             existing_segments = set(session.scalars(select(models.Segment.segment_id)).all())
             session.add_all(
                 [
@@ -83,3 +93,30 @@ def clear_run_tables() -> None:
         log.info("cleared entity_state/risk_state/forecast for a fresh run")
     except Exception:
         log.exception("clearing run tables failed; continuing with in-memory topology")
+
+
+def persist_events(events: list[dict]) -> None:
+    """Write the current schedule (called at startup, on reset and on change)."""
+    from datetime import datetime, timezone
+
+    from ..simtime import parse
+
+    try:
+        with SessionLocal() as session:
+            keep = {ev["event_id"] for ev in events if ev.get("status") != "deleted"}
+            session.query(models.EventSchedule).filter(~models.EventSchedule.event_id.in_(keep)).delete(
+                synchronize_session=False)
+            for ev in events:
+                if ev.get("status") == "deleted":
+                    continue
+                session.merge(models.EventSchedule(
+                    event_id=ev["event_id"], name=ev["name"], category=ev.get("category", "event"),
+                    venue_entity_id=ev["venue_entity_id"], start_time=parse(ev["start_time"]),
+                    end_time=parse(ev["end_time"]),
+                    original_start_time=parse(ev.get("original_start_time", ev["start_time"])),
+                    expected_attendance=int(ev["expected_attendance"]), status=ev.get("status", "scheduled"),
+                    updated_at=datetime.now(timezone.utc),
+                ))
+            session.commit()
+    except Exception:
+        log.exception("event schedule persistence failed")

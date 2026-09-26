@@ -1,5 +1,67 @@
 {
   "$defs": {
+    "DepartureOption": {
+      "additionalProperties": false,
+      "properties": {
+        "offset_sec": {
+          "title": "Offset Sec",
+          "type": "integer"
+        },
+        "depart_at": {
+          "title": "Depart At",
+          "type": "string"
+        },
+        "arrive_at": {
+          "title": "Arrive At",
+          "type": "string"
+        },
+        "travel_time_sec": {
+          "title": "Travel Time Sec",
+          "type": "integer"
+        },
+        "peak_utilisation": {
+          "title": "Peak Utilisation",
+          "type": "number"
+        },
+        "crowding_band": {
+          "enum": [
+            "low",
+            "moderate",
+            "high",
+            "critical"
+          ],
+          "title": "Crowding Band",
+          "type": "string"
+        },
+        "meets_event_start": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Meets Event Start"
+        },
+        "recommended": {
+          "default": false,
+          "title": "Recommended",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "offset_sec",
+        "depart_at",
+        "arrive_at",
+        "travel_time_sec",
+        "peak_utilisation",
+        "crowding_band"
+      ],
+      "title": "DepartureOption",
+      "type": "object"
+    },
     "Route": {
       "additionalProperties": false,
       "properties": {
@@ -23,6 +85,47 @@
           ],
           "title": "Predicted Crowding Band",
           "type": "string"
+        },
+        "label": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Label"
+        },
+        "peak_utilisation": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Peak Utilisation"
+        },
+        "congestion_delay_sec": {
+          "default": 0,
+          "title": "Congestion Delay Sec",
+          "type": "integer"
+        },
+        "depart_at": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Depart At"
         }
       },
       "required": [
@@ -94,6 +197,115 @@
     "advice": {
       "title": "Advice",
       "type": "string"
+    },
+    "priority": {
+      "anyOf": [
+        {
+          "enum": [
+            "fastest",
+            "balanced",
+            "least_crowded"
+          ],
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Priority"
+    },
+    "alternatives": {
+      "items": {
+        "$ref": "#/$defs/Route"
+      },
+      "title": "Alternatives",
+      "type": "array"
+    },
+    "departure_options": {
+      "items": {
+        "$ref": "#/$defs/DepartureOption"
+      },
+      "title": "Departure Options",
+      "type": "array"
+    },
+    "recommended_departure_offset_sec": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Recommended Departure Offset Sec"
+    },
+    "departure_advice": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Departure Advice"
+    },
+    "return_route": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Route"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "event": {
+      "anyOf": [
+        {
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Event"
+    },
+    "avoided_entity_ids": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Avoided Entity Ids",
+      "type": "array"
+    },
+    "transport_preference": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Transport Preference"
+    },
+    "preference_met": {
+      "anyOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Preference Met"
     }
   },
   "required": [

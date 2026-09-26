@@ -1,141 +1,92 @@
 /**
- * Attendee PWA — 02_FRONTEND_CONTRACT.md §5.11. Mobile viewport, max 420px.
+ * Attendee PWA — 02_FRONTEND_CONTRACT.md §5.11. Mobile viewport.
  *
- * Four cards: journey risk, smart route, zone recommendation, nudge.
- *
- * The design point: **the shortest route must be visibly labelled as the worse
- * option.** That contrast is the attendee-side equivalent of the certificate
- * badge, and it is why the API returns both routes rather than just the good one.
+ * Everything here is planned by the backend against the live simulation:
+ * routes are costed with the crowding the look-ahead projection expects when
+ * the attendee would reach each point; departure options compare now / +15 /
+ * +30 / +45 minutes; the return trip is planned for after the event ends; hotel
+ * suggestions come from the accommodation recommender. Nudges arrive only when
+ * an approved intervention touches this attendee's own route or hotel, and
+ * accepting one changes their plan.
  */
-import { useEffect, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Navigation,
   Clock,
   Coins,
   Gift,
-  AlertTriangle,
   CheckCircle2,
   ArrowRight,
-  Shield,
-  ArrowLeft,
   Sparkles,
   MapPin,
-  Accessibility,
+  BedDouble,
+  CornerDownLeft,
+  Timer,
 } from 'lucide-react';
 
 import { api } from '../lib/api.js';
 import { riskColor } from '../lib/colors.js';
-import { humanise, minutes, rupees } from '../lib/format.js';
+import { clock, humanise, minutes, percent, rupees } from '../lib/format.js';
+import { useLiveQuery } from '../lib/useLiveQuery.js';
 import { useStore } from '../store/useStore.js';
 
-const ATTENDEE_ID = 'att_demo_1';
+const SEGMENTS = [
+  ['price_sensitive', 'Budget-conscious'],
+  ['time_sensitive', 'In a hurry'],
+  ['accessibility_constrained', 'Step-free access'],
+  ['group', 'Travelling as a group'],
+  ['premium', 'Premium'],
+];
+const PRIORITIES = [
+  ['balanced', 'Balanced'],
+  ['least_crowded', 'Least crowded'],
+  ['fastest', 'Fastest'],
+];
 
-function TrafficLight({ score, band }) {
+function RiskScore({ score, band }) {
   const color = riskColor(band);
   return (
-    <div className="flex items-center gap-3.5">
-      <div className="flex flex-col gap-1.5 rounded-full bg-surface-950 p-2 border border-surface-700/60 shadow-inner">
-        {['critical', 'moderate', 'low'].map((level) => {
-          const isActive =
-            (level === 'critical' && (band === 'critical' || band === 'high')) ||
-            (level === 'moderate' && band === 'moderate') ||
-            (level === 'low' && band === 'low');
-          const lvlColor = riskColor(level);
-          return (
-            <span
-              key={level}
-              className={`h-3 w-3 rounded-full transition-all duration-300 ${
-                isActive ? 'scale-110 shadow-sm' : 'opacity-20'
-              }`}
-              style={{
-                backgroundColor: lvlColor.hex,
-                boxShadow: isActive ? `0 0 8px ${lvlColor.hex}80` : 'none',
-              }}
-            />
-          );
-        })}
-      </div>
-      <div>
-        <div className="flex items-baseline gap-1.5">
-          <span className="text-4xl font-extrabold font-mono tabular-nums tracking-tight" style={{ color: color.hex }}>
-            {score}
-          </span>
-          <span className="text-xs text-slate-400 font-mono">/ 100</span>
-        </div>
-        <div
-          className="mt-0.5 inline-flex items-center gap-1 rounded px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider"
-          style={{ backgroundColor: `${color.hex}20`, color: color.hex, border: `1px solid ${color.hex}40` }}
-        >
-          {band} Congestion Risk
-        </div>
-      </div>
+    <div className="flex items-baseline gap-2">
+      <span className="text-4xl font-extrabold font-mono tabular-nums" style={{ color: color.hex }}>{score}</span>
+      <span className="text-xs text-slate-400">/ 100</span>
+      <span
+        className="rounded px-2 py-0.5 text-[10px] font-bold uppercase"
+        style={{ backgroundColor: `${color.hex}20`, color: color.hex, border: `1px solid ${color.hex}40` }}
+      >
+        {band} crowding
+      </span>
     </div>
   );
 }
 
-function RouteColumn({ title, route, nodesById, worse }) {
+function RouteCard({ route, nodesById, highlight = false }) {
   const band = riskColor(route.predicted_crowding_band);
   return (
-    <div
-      className={`flex-1 rounded-md border p-3 flex flex-col justify-between transition-all ${
-        worse
-          ? 'border-rose-500/40 bg-rose-950/15'
-          : 'border-emerald-500/40 bg-emerald-950/15 shadow-sm'
-      }`}
-    >
-      <div>
-        <div className="flex items-center justify-between gap-1">
-          <div className="flex items-center gap-1.5">
-            {worse ? (
-              <AlertTriangle className="h-3.5 w-3.5 text-rose-400 shrink-0" />
-            ) : (
-              <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
-            )}
-            <span className="text-xs font-bold text-white tracking-tight">{title}</span>
-          </div>
-          <span className="text-xs font-mono font-bold tabular-nums text-slate-200">
-            {minutes(route.total_duration_sec)}
-          </span>
+    <div className={`rounded-md border p-2.5 ${highlight ? 'border-emerald-500/50 bg-emerald-500/[0.06]' : 'border-surface-700/60 bg-surface-850'}`}>
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-1.5">
+          {highlight ? <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" /> : <Navigation className="h-3.5 w-3.5 text-slate-400" />}
+          <span className="text-xs font-bold text-slate-100">{route.label}</span>
         </div>
-
-        <div className="mt-2">
-          <span
-            className="inline-block rounded px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider font-mono"
-            style={{ backgroundColor: `${band.hex}22`, color: band.hex, border: `1px solid ${band.hex}30` }}
-          >
-            {route.predicted_crowding_band}
-          </span>
-        </div>
-
-        <ol className="mt-2.5 space-y-1">
-          {route.legs.map((leg, index) => (
-            <li key={index} className="flex items-center gap-1.5 text-[10px] text-slate-300">
-              <span className="rounded bg-surface-800/80 px-1 py-0.2 text-[8px] font-mono uppercase text-slate-400">
-                {leg.mode}
-              </span>
-              <span className="truncate">
-                {nodesById[leg.to_entity_id]?.display_name || humanise(leg.to_entity_id)}
-              </span>
-            </li>
-          ))}
-        </ol>
+        <span className="font-mono text-xs font-bold tabular-nums text-slate-200">{minutes(route.total_duration_sec)}</span>
       </div>
-
-      {worse && (
-        <div className="mt-2.5 pt-2 border-t border-rose-500/20">
-          <p className="text-[10px] font-medium leading-tight text-rose-300">
-            Fastest on paper — routes you through heavy crowd pinch points.
-          </p>
-        </div>
-      )}
-      {!worse && (
-        <div className="mt-2.5 pt-2 border-t border-emerald-500/20">
-          <p className="text-[10px] font-medium leading-tight text-emerald-300">
-            Optimised for smooth throughput and minimal waiting.
-          </p>
-        </div>
-      )}
+      <div className="mt-1 flex flex-wrap items-center gap-1.5 text-[10px]">
+        <span className="rounded px-1.5 py-0.5 font-bold uppercase" style={{ backgroundColor: `${band.hex}22`, color: band.hex }}>
+          {route.predicted_crowding_band}
+        </span>
+        <span className="text-slate-400">peak {percent(route.peak_utilisation)} on the way</span>
+        {route.congestion_delay_sec > 0 && <span className="text-amber-600">incl. {minutes(route.congestion_delay_sec)} queueing</span>}
+      </div>
+      <ol className="mt-1.5 flex flex-wrap items-center gap-1 text-[10px] text-slate-300">
+        {route.legs.map((leg, i) => (
+          <li key={i} className="flex items-center gap-1">
+            {i > 0 && <ArrowRight className="h-2.5 w-2.5 text-slate-400" />}
+            <span className="rounded bg-surface-800 px-1 font-mono text-[8px] uppercase text-slate-400">{leg.mode}</span>
+            <span>{nodesById[leg.to_entity_id]?.display_name || humanise(leg.to_entity_id)}</span>
+          </li>
+        ))}
+      </ol>
     </div>
   );
 }
@@ -143,267 +94,297 @@ function RouteColumn({ title, route, nodesById, worse }) {
 function NudgeCard({ nudge, nodesById, onRespond, busy }) {
   const target = nodesById[nudge.target_entity_id];
   const resolved = nudge.status !== 'pending';
-
   return (
-    <div className="panel p-3.5 border-sky-500/40 bg-surface-900/90 shadow-lg">
+    <div className="panel border-sky-500/40 p-3">
       <div className="flex items-start justify-between gap-2">
         <div className="flex items-center gap-1.5">
-          <Sparkles className="h-4 w-4 text-sky-400 shrink-0" />
-          <h3 className="text-xs font-bold text-white tracking-tight">{nudge.headline}</h3>
+          <Sparkles className="h-4 w-4 shrink-0 text-sky-500" />
+          <h3 className="text-xs font-bold text-slate-100">{nudge.headline}</h3>
         </div>
-        {resolved && (
-          <span className="chip bg-surface-800 text-slate-400 font-mono text-[9px] uppercase border border-surface-700/60">
-            {nudge.status}
-          </span>
-        )}
+        {resolved && <span className="chip border border-surface-700/60 bg-surface-800 font-mono text-[9px] uppercase text-slate-400">{nudge.status}</span>}
       </div>
-
       <p className="mt-1.5 text-[11px] leading-relaxed text-slate-300">{nudge.body}</p>
-
-      {/* Trade-off capsule */}
-      <dl className="mt-3 grid grid-cols-3 gap-1.5 rounded border border-surface-700/50 bg-surface-950/70 p-2 text-center">
+      <dl className="mt-2 grid grid-cols-3 gap-1.5 rounded border border-surface-700/50 bg-surface-900 p-2 text-center">
         <div>
-          <dt className="flex items-center justify-center gap-1 text-[9px] uppercase tracking-wider text-slate-400">
-            <Clock className="h-2.5 w-2.5 text-slate-400" />
-            <span>Time</span>
-          </dt>
-          <dd className="mt-0.5 text-xs font-bold font-mono tabular-nums text-amber-300">
-            +{minutes(nudge.tradeoff.extra_travel_sec)}
-          </dd>
+          <dt className="flex items-center justify-center gap-1 text-[9px] uppercase text-slate-400"><Clock className="h-2.5 w-2.5" />Time</dt>
+          <dd className="mt-0.5 font-mono text-xs font-bold text-amber-600">+{minutes(nudge.tradeoff.extra_travel_sec)}</dd>
         </div>
         <div>
-          <dt className="flex items-center justify-center gap-1 text-[9px] uppercase tracking-wider text-slate-400">
-            <Coins className="h-2.5 w-2.5 text-emerald-400" />
-            <span>Reward</span>
-          </dt>
-          <dd className="mt-0.5 text-xs font-bold font-mono tabular-nums text-emerald-300">
-            {rupees(nudge.tradeoff.credit_paise)}
-          </dd>
+          <dt className="flex items-center justify-center gap-1 text-[9px] uppercase text-slate-400"><Coins className="h-2.5 w-2.5" />Reward</dt>
+          <dd className="mt-0.5 font-mono text-xs font-bold text-emerald-700">{rupees(nudge.tradeoff.credit_paise)}</dd>
         </div>
         <div>
-          <dt className="flex items-center justify-center gap-1 text-[9px] uppercase tracking-wider text-slate-400">
-            <Gift className="h-2.5 w-2.5 text-sky-400" />
-            <span>Perk</span>
-          </dt>
-          <dd className="mt-0.5 text-xs font-bold text-sky-300 truncate">
-            {nudge.tradeoff.perk ? nudge.tradeoff.perk.replace(/_/g, ' ') : '—'}
-          </dd>
+          <dt className="flex items-center justify-center gap-1 text-[9px] uppercase text-slate-400"><Gift className="h-2.5 w-2.5" />Perk</dt>
+          <dd className="mt-0.5 truncate text-xs font-bold text-sky-700">{nudge.tradeoff.perk ? nudge.tradeoff.perk.replace(/_/g, ' ') : '—'}</dd>
         </div>
       </dl>
-
       {target && (
-        <div className="mt-2.5 flex items-center gap-1.5 text-[10px] text-slate-400">
-          <MapPin className="h-3 w-3 text-slate-400 shrink-0" />
-          <span>Destination: <strong className="text-slate-200">{target.display_name}</strong></span>
+        <div className="mt-2 flex items-center gap-1.5 text-[10px] text-slate-400">
+          <MapPin className="h-3 w-3" /> Suggested: <strong className="text-slate-200">{target.display_name}</strong>
         </div>
       )}
-
       {!resolved && (
-        <div className="mt-3 flex gap-2">
-          <button
-            type="button"
-            className="btn-secondary flex-1 h-8 text-xs font-semibold"
-            disabled={busy}
-            onClick={() => onRespond(nudge, false)}
-          >
-            Decline
-          </button>
-          <button
-            type="button"
-            className="btn-primary flex-1 h-8 text-xs font-semibold shadow-md shadow-sky-950/40"
-            disabled={busy}
-            onClick={() => onRespond(nudge, true)}
-          >
-            Accept
-          </button>
+        <div className="mt-2.5 flex gap-2">
+          <button type="button" className="btn-secondary h-8 flex-1" disabled={busy} onClick={() => onRespond(nudge, false)}>Decline</button>
+          <button type="button" className="btn-primary h-8 flex-1" disabled={busy} onClick={() => onRespond(nudge, true)}>Accept</button>
         </div>
       )}
     </div>
   );
 }
 
-export default function Attendee() {
-  const { nodesById, journey, setJourney, nudges, setNudges, updateNudgeStatus, toast } =
-    useStore();
-  const [accessible, setAccessible] = useState(false);
-  const [busy, setBusy] = useState(false);
-  const [loading, setLoading] = useState(true);
+function HotelCard({ propertyId, eventId, segment }) {
+  const { data } = useLiveQuery(
+    () => api.recommendStay({ event_id: eventId, segment_id: segment, current_property_id: propertyId || null, limit: 3 }),
+    [propertyId, eventId, segment],
+    { everyCycles: 10 },
+  );
+  if (!data) return null;
+  const current = data.current;
+  const needsAlternative = !current || current.status !== 'available';
+  return (
+    <section className="panel p-3">
+      <div className="flex items-center gap-1.5">
+        <BedDouble className="h-4 w-4 text-teal-600" />
+        <h2 className="panel-title">{current ? 'Your hotel' : 'Where to stay'}</h2>
+      </div>
+      {current && (
+        <div className="mt-1.5 text-xs text-slate-300">
+          <b className="text-slate-100">{current.name}</b> · {percent(current.occupancy)} occupied ·{' '}
+          <span className={current.status === 'saturated' ? 'text-red-600' : current.status === 'limited' ? 'text-amber-600' : 'text-emerald-700'}>
+            {current.status}
+          </span>
+        </div>
+      )}
+      {needsAlternative && data.options.length > 0 && (
+        <>
+          <p className="mt-1.5 text-[11px] text-slate-400">{data.explanation}</p>
+          <ul className="mt-1.5 space-y-1">
+            {data.options.map((o) => (
+              <li key={o.property.property_id} className="rounded border border-surface-700/60 bg-surface-850 px-2 py-1 text-[11px]">
+                <div className="font-semibold text-slate-100">{o.property.name} <span className="font-normal text-slate-400">· {o.property.zone}</span></div>
+                <div className="text-slate-400">{o.reasons.slice(0, 3).join(' · ')}</div>
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+      {!needsAlternative && <p className="mt-1 text-[11px] text-slate-400">Your hotel has rooms and normal load; no change needed.</p>}
+    </section>
+  );
+}
 
-  useEffect(() => {
-    let cancelled = false;
-    async function load() {
-      setLoading(true);
-      try {
-        const [journeyResult, nudgeResult] = await Promise.all([
-          api.journey({
-            attendee_id: ATTENDEE_ID,
-            segment_id: accessible ? 'accessibility_constrained' : 'price_sensitive',
-            origin_entity_id: 'hotel_core_cluster',
-            destination_entity_id: 'stadium_main',
-          }),
-          api.nudges(ATTENDEE_ID),
-        ]);
-        if (cancelled) return;
-        setJourney(journeyResult);
-        setNudges(nudgeResult.nudges);
-      } catch (error) {
-        if (!cancelled && !error.isWarmingUp) toast(error.message, 'error');
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    }
-    load();
-    return () => {
-      cancelled = true;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [accessible]);
+export default function Attendee() {
+  const { nodesById, graph, events, toast, mockMode } = useStore();
+  const [plan, setPlan] = useState({
+    attendee_id: 'att_demo_1',
+    segment_id: 'price_sensitive',
+    origin: 'htl_central_budget',
+    destination: 'stadium_main',
+    priority: 'balanced',
+    mode: 'any',
+  });
+  const [busy, setBusy] = useState(false);
+  const hotels = useLiveQuery(() => api.hotels({ sort: 'availability' }), [], { everyCycles: 20 });
+
+  const originIsHotel = plan.origin.startsWith('htl_');
+  const request = useMemo(() => ({
+    attendee_id: plan.attendee_id,
+    segment_id: plan.segment_id,
+    origin_entity_id: plan.origin,
+    destination_entity_id: plan.destination,
+    priority: plan.priority,
+    transport_preference: plan.mode,
+    include_return: true,
+  }), [plan]);
+  const journey = useLiveQuery(() => api.journey(request), [JSON.stringify(request)], { everyCycles: 10 });
+  const nudges = useLiveQuery(() => api.nudges(plan.attendee_id), [plan.attendee_id], { everyCycles: 2 });
+
+  const destinations = useMemo(() => {
+    const venues = events.filter((e) => e.status !== 'cancelled').map((e) => ({ id: e.venue_entity_id, label: `${e.name} · ${e.venue_name}` }));
+    const seen = new Set(venues.map((v) => v.id));
+    return venues.filter((v, i) => venues.findIndex((x) => x.id === v.id) === i).concat(
+      graph.nodes.filter((n) => ['venue', 'zone'].includes(n.entity_type) && !seen.has(n.entity_id)).map((n) => ({ id: n.entity_id, label: n.display_name })),
+    );
+  }, [events, graph.nodes]);
+  const origins = useMemo(() => graph.nodes.filter((n) => ['transport_node', 'parking', 'zone'].includes(n.entity_type)), [graph.nodes]);
+  const eventId = events.find((e) => e.venue_entity_id === plan.destination)?.event_id;
 
   async function respond(nudge, accepted) {
     setBusy(true);
-    updateNudgeStatus(nudge.nudge_id, accepted ? 'accepted' : 'declined');
     try {
-      await api.respondToNudge(nudge.nudge_id, accepted);
-      toast(accepted ? 'Thanks — your route is updated.' : 'Noted.', 'success');
+      const result = await api.respondToNudge(nudge.nudge_id, accepted);
+      const change = result?.plan_change || {};
+      if (change.new_origin_property_id) {
+        setPlan((p) => ({ ...p, origin: change.new_origin_property_id }));
+        toast(`Accepted — you are now staying at ${change.new_origin_name}; journey re-planned`, 'success');
+      } else {
+        toast(accepted ? 'Accepted — your plan is updated' : 'Noted — keeping your plan', 'success');
+      }
+      nudges.reload();
+      journey.reload();
     } catch (error) {
-      updateNudgeStatus(nudge.nudge_id, 'pending');
       toast(error.message, 'error');
     } finally {
       setBusy(false);
     }
   }
 
-  const activeNudge = nudges.find((n) => n.status === 'pending') || nudges[0];
-  const zoneTarget = activeNudge ? nodesById[activeNudge.target_entity_id] : null;
+  const j = journey.data;
+  const pending = (nudges.data?.nudges || []).filter((n) => n.status === 'pending');
+  const answered = (nudges.data?.nudges || []).filter((n) => n.status !== 'pending').slice(0, 2);
+  const select = 'w-full rounded border border-surface-700 bg-surface-850 px-1.5 py-1 text-xs';
 
   return (
     <div className="min-h-screen bg-surface-950 py-4 font-sans text-slate-100">
-      <div className="mx-auto w-full max-w-[420px] space-y-3 px-3">
-        {/* Mobile Header Bar */}
+      <div className="mx-auto w-full max-w-[480px] space-y-3 px-3">
         <header className="flex items-center justify-between border-b border-surface-700/60 pb-3">
-          <div className="flex items-center gap-2">
-            <span className="flex h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
-            <div>
-              <h1 className="text-sm font-bold text-white tracking-tight">Your Match Day Journey</h1>
-              <p className="text-[10px] font-mono text-slate-400">ID: {ATTENDEE_ID}</p>
-            </div>
+          <div>
+            <h1 className="text-sm font-bold tracking-tight text-slate-100">Your event journey</h1>
+            <p className="font-mono text-[10px] text-slate-400">ID: {plan.attendee_id}</p>
           </div>
-          <Link
-            to="/"
-            className="flex items-center gap-1 rounded bg-surface-850 px-2 py-1 text-[11px] font-medium text-slate-300 hover:text-white border border-surface-700/60 transition-colors"
-          >
-            <span>Command</span>
-            <ArrowRight className="h-3 w-3" />
+          <Link to="/" className="flex items-center gap-1 rounded border border-surface-700/60 bg-surface-850 px-2 py-1 text-[11px] text-slate-300">
+            Operators <ArrowRight className="h-3 w-3" />
           </Link>
         </header>
 
-        {/* Step-free Accessibility Toggle */}
-        <div className="flex items-center justify-between rounded-md border border-surface-700/60 bg-surface-900/80 px-3 py-2">
-          <div className="flex items-center gap-2">
-            <Accessibility className="h-4 w-4 text-sky-400" />
-            <span className="text-xs font-medium text-slate-200">Step-free routing (accessible)</span>
+        {mockMode && (
+          <div className="rounded border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-[11px] text-amber-800">
+            <b>Recorded replay:</b> this is one journey recorded from a real run. Changing the trip or answering
+            a nudge needs the live backend (<code>npm run dev:live</code>).
           </div>
-          <label className="relative inline-flex cursor-pointer items-center">
-            <input
-              type="checkbox"
-              checked={accessible}
-              onChange={(event) => setAccessible(event.target.checked)}
-              className="peer sr-only"
-            />
-            <div className="h-5 w-9 rounded-full bg-surface-700 peer-checked:bg-sky-500 peer-focus:outline-none transition-colors after:absolute after:left-[2px] after:top-[2px] after:h-4 after:w-4 after:rounded-full after:bg-white after:transition-all after:content-[''] peer-checked:after:translate-x-full"></div>
+        )}
+        <fieldset disabled={mockMode} className="panel grid grid-cols-2 gap-2 p-3 disabled:opacity-70">
+          <label className="col-span-2 flex flex-col gap-0.5">
+            <span className="text-[10px] text-slate-400">Starting from</span>
+            <select id="att-origin" className={select} value={plan.origin} onChange={(e) => setPlan({ ...plan, origin: e.target.value })}>
+              <optgroup label="Hotels">
+                {(hotels.data?.hotels || []).map((h) => (
+                  <option key={h.property_id} value={h.property_id}>{h.name} ({h.zone})</option>
+                ))}
+                {!hotels.data && <option value="htl_central_budget">Central Budget Stay</option>}
+              </optgroup>
+              <optgroup label="Stations, hubs, parking, zones">
+                {origins.map((n) => <option key={n.entity_id} value={n.entity_id}>{n.display_name}</option>)}
+              </optgroup>
+            </select>
           </label>
-        </div>
+          <label className="col-span-2 flex flex-col gap-0.5">
+            <span className="text-[10px] text-slate-400">Going to</span>
+            <select id="att-dest" className={select} value={plan.destination} onChange={(e) => setPlan({ ...plan, destination: e.target.value })}>
+              {destinations.map((d) => <option key={d.id} value={d.id}>{d.label}</option>)}
+            </select>
+          </label>
+          <label className="flex flex-col gap-0.5">
+            <span className="text-[10px] text-slate-400">About you</span>
+            <select id="att-segment" className={select} value={plan.segment_id} onChange={(e) => setPlan({ ...plan, segment_id: e.target.value })}>
+              {SEGMENTS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+            </select>
+          </label>
+          <label className="flex flex-col gap-0.5">
+            <span className="text-[10px] text-slate-400">Prefer</span>
+            <select id="att-priority" className={select} value={plan.priority} onChange={(e) => setPlan({ ...plan, priority: e.target.value })}>
+              {PRIORITIES.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+            </select>
+          </label>
+          <label className="flex flex-col gap-0.5">
+            <span className="text-[10px] text-slate-400">Travel by</span>
+            <select id="att-mode" className={select} value={plan.mode} onChange={(e) => setPlan({ ...plan, mode: e.target.value })}>
+              {[['any', 'Any mode'], ['metro', 'Metro'], ['bus', 'Bus / shuttle'], ['car', 'Car'], ['walk', 'Walk only']].map(([v, l]) => (
+                <option key={v} value={v}>{l}</option>
+              ))}
+            </select>
+          </label>
+        </fieldset>
 
-        {loading && !journey ? (
-          <div className="space-y-3">
-            <div className="skeleton h-28" />
-            <div className="skeleton h-36" />
-            <div className="skeleton h-28" />
-          </div>
-        ) : (
-          journey && (
-            <>
-              {/* Journey Risk Card */}
-              <section className="panel p-3.5">
-                <div className="flex items-center justify-between">
-                  <h2 className="panel-title">Real-Time Transit Risk</h2>
-                  <span className="text-[9px] font-mono text-slate-400">UPDATED JUST NOW</span>
-                </div>
-                <div className="mt-3">
-                  <TrafficLight
-                    score={journey.journey_risk_score}
-                    band={journey.journey_risk_band}
-                  />
-                </div>
-                <div className="mt-3 rounded border border-surface-700/40 bg-surface-950/60 p-2.5">
-                  <p className="text-[11px] leading-relaxed text-slate-300">{journey.advice}</p>
-                </div>
-              </section>
+        {pending.map((n) => (
+          <NudgeCard key={n.nudge_id} nudge={n} nodesById={nodesById} onRespond={respond} busy={busy || mockMode} />
+        ))}
 
-              {/* Smart Route Comparison */}
-              <section className="panel p-3.5">
-                <div className="flex items-center justify-between mb-2">
-                  <h2 className="panel-title">Smart Route Intelligence</h2>
-                  <span className="text-[9px] font-mono text-sky-400">AI BALANCED</span>
+        {journey.error && <div className="panel p-3 text-xs text-amber-700">{journey.error.message}</div>}
+        {!j && !journey.error && <div className="skeleton h-40" />}
+        {j && (
+          <>
+            <section className="panel p-3">
+              <div className="flex items-center justify-between">
+                <h2 className="panel-title">Journey crowding</h2>
+                {j.event && <span className="text-[10px] text-slate-400">{j.event.name} starts {clock(j.event.start_time)}</span>}
+              </div>
+              <div className="mt-2"><RiskScore score={j.journey_risk_score} band={j.journey_risk_band} /></div>
+              <p className="mt-2 text-[11px] leading-relaxed text-slate-300">{j.advice}</p>
+              {j.preference_met === false && (
+                <p className="mt-1 text-[11px] text-amber-700">
+                  No reasonable {j.transport_preference === 'walk' ? 'walking-only' : j.transport_preference} route right now; this is the best available.
+                </p>
+              )}
+              {j.avoided_entity_ids?.length > 0 && (
+                <p className="mt-1 text-[10px] text-sky-700">
+                  Avoiding {j.avoided_entity_ids.map((id) => nodesById[id]?.display_name || id).join(', ')} as you accepted.
+                </p>
+              )}
+            </section>
+
+            <section className="panel space-y-2 p-3">
+              <h2 className="panel-title">Routes</h2>
+              <RouteCard route={j.recommended_route} nodesById={nodesById} highlight />
+              {j.alternatives.map((r) => <RouteCard key={r.label + r.total_duration_sec} route={r} nodesById={nodesById} />)}
+            </section>
+
+            {j.departure_options.length > 0 && (
+              <section className="panel p-3">
+                <div className="flex items-center gap-1.5">
+                  <Timer className="h-4 w-4 text-teal-600" />
+                  <h2 className="panel-title">When to leave</h2>
                 </div>
-                <div className="flex flex-col sm:flex-row gap-2">
-                  <RouteColumn
-                    title="Recommended"
-                    route={journey.recommended_route}
-                    nodesById={nodesById}
-                    worse={false}
-                  />
-                  <RouteColumn
-                    title="Shortest"
-                    route={journey.shortest_route}
-                    nodesById={nodesById}
-                    worse
-                  />
-                </div>
+                {j.departure_advice && <p className="mt-1.5 text-[11px] text-slate-300">{j.departure_advice}</p>}
+                <table className="mt-2 w-full text-left text-[11px]">
+                  <thead className="text-[9px] uppercase text-slate-400">
+                    <tr><th>Leave</th><th>Arrive</th><th>Trip</th><th>Peak crowding</th><th /></tr>
+                  </thead>
+                  <tbody>
+                    {j.departure_options.map((o) => (
+                      <tr key={o.offset_sec} className={`border-t border-surface-700/40 ${o.recommended ? 'font-semibold text-emerald-700' : 'text-slate-300'}`}>
+                        <td className="py-1 font-mono">{clock(o.depart_at)}</td>
+                        <td className="font-mono">{clock(o.arrive_at)}</td>
+                        <td>{minutes(o.travel_time_sec)}</td>
+                        <td>{percent(o.peak_utilisation)} ({o.crowding_band})</td>
+                        <td>{o.recommended ? 'best' : o.meets_event_start === false ? <span className="text-red-600">late</span> : ''}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </section>
-            </>
-          )
+            )}
+
+            {j.return_route && (
+              <section className="panel p-3">
+                <div className="mb-1.5 flex items-center gap-1.5">
+                  <CornerDownLeft className="h-4 w-4 text-teal-600" />
+                  <h2 className="panel-title">Getting back</h2>
+                  <span className="text-[10px] text-slate-400">leave {clock(j.return_route.depart_at)}</span>
+                </div>
+                <RouteCard route={j.return_route} nodesById={nodesById} />
+              </section>
+            )}
+          </>
         )}
 
-        {/* Zone recommendation */}
-        {zoneTarget && (
-          <section className="panel p-3.5 border-emerald-500/30 bg-surface-900/80">
-            <div className="flex items-center justify-between">
-              <h2 className="panel-title">Zone Recommendation</h2>
-              <span className="chip bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 text-[9px] font-mono">
-                LOW DENSITY
-              </span>
-            </div>
-            <div className="mt-2 flex items-center gap-1.5">
-              <MapPin className="h-4 w-4 text-emerald-400 shrink-0" />
-              <p className="text-sm font-bold text-white">{zoneTarget.display_name}</p>
-            </div>
-            <p className="mt-1 text-[11px] text-slate-300 leading-relaxed">
-              Quieter right now, and the organiser is offering{' '}
-              <strong className="text-emerald-300 font-mono">{rupees(activeNudge.tradeoff.credit_paise)}</strong> to spread the load.
-              It costs you <strong className="text-amber-300 font-mono">+{minutes(activeNudge.tradeoff.extra_travel_sec)}</strong> extra travel time.
-            </p>
-          </section>
-        )}
+        <HotelCard propertyId={originIsHotel ? plan.origin : null} eventId={eventId} segment={plan.segment_id} />
 
-        {/* Nudge Card or Alerts */}
-        {activeNudge ? (
-          <NudgeCard
-            nudge={activeNudge}
-            nodesById={nodesById}
-            onRespond={respond}
-            busy={busy}
-          />
-        ) : (
-          <section className="panel p-3.5">
-            <h2 className="panel-title">Operational Alerts</h2>
-            <p className="mt-2 text-xs text-slate-400">
-              Nothing needs your attention. Enjoy the match.
+        {!pending.length && (
+          <section className="panel p-3">
+            <h2 className="panel-title">Alerts</h2>
+            <p className="mt-1.5 text-xs text-slate-400">
+              Nothing needs your attention. You will be notified here if an operator action affects your route or hotel.
             </p>
+            {answered.map((n) => (
+              <p key={n.nudge_id} className="mt-1 text-[10px] text-slate-400">
+                {n.headline} — <span className="uppercase">{n.status}</span>
+              </p>
+            ))}
           </section>
         )}
       </div>
     </div>
   );
 }
-

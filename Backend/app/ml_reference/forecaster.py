@@ -19,6 +19,8 @@ from __future__ import annotations
 import logging
 from typing import Any
 
+import math
+
 from .common import clamp
 
 log = logging.getLogger("eventflow.ml.forecaster")
@@ -32,6 +34,8 @@ class Forecaster:
         self.config = config or {}
         self.horizons: list[int] = list(self.config.get("horizons_sec", [900, 1800, 3600]))
         self.critical = float(self.config.get("critical_utilisation", 0.90))
+        # Per-entity critical line (venues/hotels run near full by design).
+        self.critical_by_entity: dict[str, float] = dict(self.config.get("critical_by_entity") or {})
         self.warm_start_after = int(self.config.get("warm_start_after_points", 40))
         self.step_sec = int(self.config.get("step_sec", 30))
         self._tsfm = self._try_load_tsfm() if self.config.get("tsfm_enabled", True) else None
@@ -65,13 +69,24 @@ class Forecaster:
         capacities: dict[str, float],
         horizons_sec: list[int] | None = None,
         sim_time: str | None = None,
+        model_prior: dict[str, dict] | None = None,
     ) -> dict[str, dict]:
+        """`model_prior` (optional): per entity `{"now": u, "points": {h: u}}`, the
+        digital twin's process-model projection under the announced plan. When
+        given, the forecast is that projection corrected by the gap between the
+        latest reading and the model's own "now" (the correction decays with
+        horizon: an unexplained deviation is assumed to fade, not to persist
+        forever). Without it the local trend model is used."""
         horizons = list(horizons_sec or self.horizons)
         try:
-            return {
-                eid: self._forecast_one(eid, hist, horizons, sim_time)
-                for eid, hist in series.items()
-            }
+            out = {}
+            for eid, hist in series.items():
+                prior = (model_prior or {}).get(eid)
+                if prior and len(hist) >= 2:
+                    out[eid] = self._forecast_model(eid, hist, prior, horizons, sim_time)
+                else:
+                    out[eid] = self._forecast_one(eid, hist, horizons, sim_time)
+            return out
         except Exception:  # 03 §0 rule 6 — no exception escapes
             log.exception("forecast failed; using persistence fallback")
             return self.fallback(series, capacities, horizons, sim_time)
@@ -102,12 +117,41 @@ class Forecaster:
                 "generated_at": sim_time,
                 "baseline_value": round(last, 4),
                 "points": points,
-                "time_to_critical_sec": self._time_to_critical(last, points),
+                "time_to_critical_sec": self._time_to_critical(last, points, eid),
                 "baseline_comparison": None,
             }
         return out
 
     # --- internals ---------------------------------------------------------
+    BIAS_DECAY_SEC = 1800.0
+
+    def _forecast_model(self, entity_id: str, history: list[float], prior: dict,
+                        horizons: list[int], sim_time: str | None) -> dict:
+        last = float(history[-1])
+        gap = last - float(prior.get("now", last))
+        # Spread from how well the model tracked this entity recently (the gap
+        # itself), floored so a perfect run still carries honest uncertainty.
+        spread = max(0.02, abs(gap) * 0.5)
+        points = []
+        for h in horizons:
+            base = float(prior["points"].get(h, prior["points"].get(str(h), last)))
+            value = clamp(base + gap * math.exp(-h / self.BIAS_DECAY_SEC), 0.0, 1.8)
+            widen = spread * (1.0 + h / 3600.0)
+            points.append({
+                "horizon_sec": h,
+                "predicted_utilisation": round(value, 4),
+                "lower_90": round(max(0.0, value - widen), 4),
+                "upper_90": round(value + widen, 4),
+            })
+        return {
+            "source": "twin_model",
+            "generated_at": sim_time,
+            "baseline_value": round(last, 4),
+            "points": points,
+            "time_to_critical_sec": self._time_to_critical(last, points, entity_id),
+            "baseline_comparison": self._baseline_comparison(history),
+        }
+
     def _forecast_one(
         self, entity_id: str, history: list[float], horizons: list[int], sim_time: str | None
     ) -> dict:
@@ -155,7 +199,7 @@ class Forecaster:
             "generated_at": sim_time,
             "baseline_value": round(last, 4),
             "points": points,
-            "time_to_critical_sec": self._time_to_critical(last, points),
+            "time_to_critical_sec": self._time_to_critical(last, points, entity_id),
             "baseline_comparison": self._baseline_comparison(history),
         }
 
@@ -220,20 +264,21 @@ class Forecaster:
         spread = 1.645 * (sum(r * r for r in resid) / n) ** 0.5
         return slope, accel, max(spread, 0.015)
 
-    def _time_to_critical(self, current: float, points: list[dict]) -> int | None:
+    def _time_to_critical(self, current: float, points: list[dict], entity_id: str | None = None) -> int | None:
         """03 §2.4 — linear interpolation to the first crossing of the critical threshold.
 
         This field matters more than MAE: it is the number on the screen.
         """
-        if current >= self.critical:
+        critical = self.critical_by_entity.get(entity_id or "", self.critical)
+        if current >= critical:
             return 0
         prev_h, prev_v = 0, current
         for p in points:
             h, v = p["horizon_sec"], p["predicted_utilisation"]
-            if v >= self.critical:
+            if v >= critical:
                 if v == prev_v:
                     return int(h)
-                frac = (self.critical - prev_v) / (v - prev_v)
+                frac = (critical - prev_v) / (v - prev_v)
                 return int(round(prev_h + frac * (h - prev_h)))
             prev_h, prev_v = h, v
         return None

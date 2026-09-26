@@ -12,7 +12,8 @@ from collections import deque
 from typing import Any, Iterable
 
 from ..simtime import parse, shift
-from ..topology import build_topology, verify
+from ..catalog import verify_catalogue
+from ..topology import verify
 
 HISTORY_LIMIT = 240          # ~2 hours of sim at 30s steps
 TWIN_HISTORY_LIMIT = 20      # 00 §2.8 — last 20 cycles, oldest first
@@ -23,12 +24,17 @@ class StateStore:
     def __init__(self, sim_start: str) -> None:
         self._lock = threading.RLock()
 
-        topology = build_topology()
+        from ..providers.data import get_data_provider
+
+        provider = get_data_provider()
+        topology = provider.topology()
         verify(topology)
         self.nodes: dict[str, dict] = {n["entity_id"]: n for n in topology["nodes"]}
         self.edges: list[dict] = topology["edges"]
         self.segments: list[dict] = topology["segments"]
         self.bounds: dict[str, float] = topology["bounds"]
+        self.properties: list[dict] = provider.properties(topology["nodes"], topology["edges"])
+        verify_catalogue(self.properties, topology["nodes"])
 
         self.edges_by_src: dict[str, list[dict]] = {}
         self.edges_by_dst: dict[str, list[dict]] = {}
@@ -119,6 +125,24 @@ class StateStore:
         self.cascade_lead_times: list[float] = []
         self.observed_compliance: list[bool] = []
 
+        # Consecutive cycles each entity has spent at/above the critical line
+        # (feeds the risk scorer's persistence escalation).
+        self.cycles_over_critical: dict[str, int] = {}
+        # Registered attendee plans (journey requests) — nudges target the
+        # attendees whose routes actually pass through an intervention's source.
+        self.attendees: dict[str, dict] = {}
+        # Root -> cycle a proposal for it last lapsed; avoids re-proposing the
+        # same thing every cycle when nobody acted on it.
+        self.root_cooldown: dict[str, int] = {}
+        # Settled interventions: realised effect vs the do-nothing world.
+        self.settlements: list[dict] = []
+        self.twin_layers: dict[str, dict] = {}
+        self.band_hold: dict[str, int] = {}
+        self.cascade_signature: tuple = ()
+        # Live disruptions: disruption_id -> record.
+        self.disruptions: dict[str, dict] = {}
+        self.operations: dict = {}
+
     # --- helpers ------------------------------------------------------------
     def lock(self) -> threading.RLock:
         return self._lock
@@ -154,6 +178,7 @@ class StateStore:
                 "forecast_1800": points.get(1800),
                 "forecast_3600": points.get(3600),
                 "time_to_critical_sec": fc.get("time_to_critical_sec"),
+                "cycles_over_critical": int(self.cycles_over_critical.get(eid, 0)),
                 "degree": len(self.edges_by_src.get(eid, [])) + len(self.edges_by_dst.get(eid, [])),
             }
         return out
@@ -174,6 +199,8 @@ class StateStore:
                 or old["risk_band"] != st["risk_band"]
                 or old["risk_score"] != st["risk_score"]
                 or old["is_observed"] != st["is_observed"]
+                or abs((old.get("queue_people") or 0.0) - (st.get("queue_people") or 0.0)) > 0.5
+                or abs((old.get("inflow_per_min") or 0.0) - (st.get("inflow_per_min") or 0.0)) > 0.5
             ):
                 out.append(st)
         return out
@@ -222,6 +249,13 @@ class StateStore:
 
     def clear_live(self) -> None:
         """Used by `POST /demo/control {action: reset}`."""
+        self.summary = {
+            "overall_risk_score": 0,
+            "overall_risk_band": "low",
+            "critical_count": 0,
+            "high_count": 0,
+            "load_variance": 0.0,
+        }
         self.entity_states.clear()
         for h in self.history.values():
             h.clear()
@@ -255,3 +289,13 @@ class StateStore:
         self.commander_ungrounded = 0
         self.commander_tool_calls_ok = 0
         self.commander_tool_calls_total = 0
+        self.cycles_over_critical.clear()
+        self.attendees.clear()
+        self.root_cooldown.clear()
+        self.settlements.clear()
+        self.twin_layers.clear()
+        self.band_hold.clear()
+        self.no_hold_until = -1
+        self.cascade_signature = ()
+        self.disruptions.clear()
+        self.operations = {}

@@ -60,6 +60,7 @@ async function request(path, options = {}) {
 }
 
 const get = (path) => request(path);
+const del = (path) => request(path, { method: 'DELETE' });
 const post = (path, body) =>
   request(path, { method: 'POST', body: JSON.stringify(body ?? {}) });
 
@@ -112,4 +113,29 @@ export const api = {
       ? mocks.respondToNudge(nudgeId, accepted)
       : post(`/attendee/nudges/${nudgeId}/respond`, { accepted }),
   demoControl: (body) => (MOCK_MODE ? mocks.demoControl(body) : post('/demo/control', body)),
+
+  // --- operations: live city by domain, schedule, hotels, disruptions -----
+  overview: () => (MOCK_MODE ? mocks.overview() : get('/overview')),
+  events: () => (MOCK_MODE ? mocks.events() : get('/events')),
+  updateEvent: (eventId, body) =>
+    MOCK_MODE ? mocks.liveOnly() : post(`/events/${eventId}`, { operator_id: 'op_demo', ...body }),
+  createEvent: (body) => (MOCK_MODE ? mocks.liveOnly() : post('/events', { operator_id: 'op_demo', ...body })),
+  deleteEvent: (eventId) => (MOCK_MODE ? mocks.liveOnly() : del(`/events/${eventId}?operator_id=op_demo`)),
+  eventVenues: () => (MOCK_MODE ? Promise.resolve({ venues: [] }) : get('/events/venues')),
+  hotels: (params = {}) =>
+    MOCK_MODE ? mocks.hotels(params) : get(`/accommodation/hotels${query(params)}`),
+  recommendStay: (body) =>
+    MOCK_MODE ? mocks.recommendStay(body) : post('/accommodation/recommend', body),
+  saturation: () => (MOCK_MODE ? mocks.saturation() : get('/accommodation/saturation')),
+  disruptions: () => (MOCK_MODE ? mocks.disruptions() : get('/disruptions')),
+  createDisruption: (body) =>
+    MOCK_MODE ? mocks.liveOnly() : post('/disruptions', { operator_id: 'op_demo', ...body }),
+  clearDisruption: (id) => (MOCK_MODE ? mocks.liveOnly() : del(`/disruptions/${id}`)),
 };
+
+/** `{a: 1, b: null}` -> `?a=1` (null/undefined/'' dropped). */
+function query(params) {
+  const entries = Object.entries(params).filter(([, v]) => v !== null && v !== undefined && v !== '');
+  if (!entries.length) return '';
+  return `?${new URLSearchParams(entries.map(([k, v]) => [k, String(v)])).toString()}`;
+}

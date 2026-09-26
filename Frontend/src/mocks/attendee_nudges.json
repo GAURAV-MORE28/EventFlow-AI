@@ -1,52 +1,20 @@
 {
   "nudges": [
     {
-      "nudge_id": "ndg_e738",
+      "nudge_id": "ndg_27df9",
       "attendee_id": "att_demo_1",
-      "intervention_id": "int_d781e",
-      "headline": "Switch to Arterial 13",
-      "body": "1 minutes further, Rs 0 credit, and priority shuttle access.",
+      "intervention_id": "int_deebf",
+      "headline": "Use Metro D Station instead of Metro C Station",
+      "body": "Metro C Station is congested. Metro D Station is quieter. Rs 50 credit.",
       "tradeoff": {
-        "extra_travel_sec": 0,
-        "credit_paise": 0,
+        "extra_travel_sec": 480,
+        "credit_paise": 5000,
         "perk": "priority_shuttle"
       },
-      "target_entity_id": "road_13",
+      "target_entity_id": "metro_d",
       "status": "pending",
-      "issued_at": "2026-09-04T14:45:00Z",
-      "expires_at": "2026-09-04T15:00:00Z"
-    },
-    {
-      "nudge_id": "ndg_b484",
-      "attendee_id": "att_demo_2",
-      "intervention_id": "int_d781e",
-      "headline": "Switch to Arterial 13",
-      "body": "1 minutes further, Rs 0 credit, and priority shuttle access.",
-      "tradeoff": {
-        "extra_travel_sec": 0,
-        "credit_paise": 0,
-        "perk": "priority_shuttle"
-      },
-      "target_entity_id": "road_13",
-      "status": "pending",
-      "issued_at": "2026-09-04T14:45:00Z",
-      "expires_at": "2026-09-04T15:00:00Z"
-    },
-    {
-      "nudge_id": "ndg_8097",
-      "attendee_id": "att_demo_3",
-      "intervention_id": "int_d781e",
-      "headline": "Switch to Arterial 13",
-      "body": "1 minutes further, Rs 0 credit, and priority shuttle access.",
-      "tradeoff": {
-        "extra_travel_sec": 0,
-        "credit_paise": 0,
-        "perk": "priority_shuttle"
-      },
-      "target_entity_id": "road_13",
-      "status": "pending",
-      "issued_at": "2026-09-04T14:45:00Z",
-      "expires_at": "2026-09-04T15:00:00Z"
+      "issued_at": "2026-09-04T15:20:00Z",
+      "expires_at": "2026-09-04T15:35:00Z"
     }
   ]
 }

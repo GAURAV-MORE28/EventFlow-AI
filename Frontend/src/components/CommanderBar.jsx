@@ -24,11 +24,20 @@ import {
 import { api } from '../lib/api.js';
 import { useStore } from '../store/useStore.js';
 
-const SCRIPTED = [
+export const SCRIPTED = [
   'What is the biggest problem right now?',
-  'Why is Metro B becoming critical?',
-  'What happens if we do nothing?',
+  'Which hotels are nearing capacity?',
+  'What happens if Gate 5 closes?',
+  'When should visitors arrive?',
+];
+
+export const ALL_QUESTIONS = [
+  ...SCRIPTED,
+  'Which transport nodes are under pressure?',
+  'Which area will become critical next?',
+  'How will delaying the Fan Festival by 30 minutes affect congestion?',
   'Which action gives the largest safety improvement?',
+  'What happens if we do nothing?',
 ];
 
 function SourcesTray({ toolCalls }) {
@@ -136,7 +145,7 @@ function Message({ message }) {
   );
 }
 
-export default function CommanderBar() {
+export default function CommanderBar({ questions = SCRIPTED }) {
   const { commanderMessages, pushCommanderMessage, replaceLastCommanderMessage, toast } =
     useStore();
   const [input, setInput] = useState('');
@@ -241,7 +250,7 @@ export default function CommanderBar() {
           Suggested Queries
         </div>
         <div className="flex flex-wrap items-center gap-1">
-          {SCRIPTED.map((question) => (
+          {questions.map((question) => (
             <button
               key={question}
               type="button"
@@ -265,6 +274,8 @@ export default function CommanderBar() {
       >
         <div className="relative flex-1">
           <input
+            id="commander-input"
+            aria-label="Ask the commander"
             value={input}
             onChange={(event) => setInput(event.target.value)}
             placeholder="Ask commander…"

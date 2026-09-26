@@ -85,13 +85,22 @@ class MLRegistry:
         seed = cfg.demo_seed
         thresholds = raw["thresholds"]
 
+        from .providers.data import get_data_provider
+
+        critical_by_entity = {
+            n["entity_id"]: cfg.thresholds_for(n["entity_type"])[1] for n in get_data_provider().topology()["nodes"]
+        }
+
         # Each module gets its own config block plus the shared thresholds it needs.
         # ML modules receive plain dicts only — never a Config object, never a session.
         def block(name: str, **extra: Any) -> dict:
             out = dict(raw.get(name, {}))
             out["seed"] = seed
             out["critical_utilisation"] = thresholds["critical_utilisation"]
+            out["warning_utilisation"] = thresholds.get("warning_utilisation", 0.75)
             out["risk_bands"] = thresholds["risk_bands"]
+            out["thresholds_by_type"] = thresholds.get("by_type", {})
+            out["critical_by_entity"] = critical_by_entity
             out.update(extra)
             return out
 
@@ -110,9 +119,23 @@ class MLRegistry:
         self.risk = self._classes["risk"](block("risk"))
         self.anomaly = self._classes["anomaly"](block("anomaly"))
         self._generator_cls = self._classes["generator"]
-        self._generator_config = block("generator", cycle_sec=cfg.cycle_sec)
+        self._generator_config = block(
+            "generator",
+            cycle_sec=cfg.cycle_sec,
+            demand=raw.get("demand", {}),
+            hospitality=raw.get("hospitality", {}),
+            sim_start_time=raw["event"]["sim_start_time"],
+        )
 
     def build_generator(self, topology: dict, seed: int) -> Any:
+        """Build the city model (`city_model` in config.yaml).
+
+        `flow` is the production SyntheticGenerator; an `ML/generator.py`
+        drop-in overrides it through the normal resolution order above.
+        """
+        choice = str(get_config().raw.get("city_model", "flow"))
+        if choice != "flow":
+            raise ValueError(f"unknown city_model '{choice}' (supported: flow)")
         return self._generator_cls(self._generator_config, topology, seed)
 
     def as_dict(self) -> dict[str, Any]:

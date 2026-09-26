@@ -21,7 +21,9 @@
             "zone_incentive",
             "accommodation_rebalance",
             "emergency_corridor",
-            "notify_only"
+            "notify_only",
+            "event_delay",
+            "transport_redistribution"
           ],
           "title": "Intervention Type",
           "type": "string"

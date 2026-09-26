@@ -1,24 +1,43 @@
 # 01_BACKEND_CONTRACT.md §7 — authoritative runtime configuration.
 cycle_sec: 30
 demo_seed: 42
-speed_multiplier: 60
+# City simulator implementation (see app/ml_reference/city_model.py).
+city_model: flow
+
+# 10x: one 30-sim-second cycle every 3 wall seconds. Operators need time to
+# read, review and act on a recommendation (see `interventions` below).
+speed_multiplier: 10
 
 thresholds:
   critical_utilisation: 0.90
+  warning_utilisation: 0.75
   risk_bands: { low: 30, moderate: 60, high: 80 }
+  band_hold_cycles: 3   # a lower severity band must hold this many cycles before it is shown (no flicker)
+  post_change_no_hold_cycles: 10   # after an operator change, bands follow the model directly for this long
+  # Entity types whose normal operating point is near full: a sold-out venue
+  # or a well-booked hotel is the plan, not an emergency.
+  by_type:
+    venue: { warning: 0.97, critical: 1.02 }
+    hotel: { warning: 0.92, critical: 0.98 }
 
 forecaster:
   horizons_sec: [900, 1800, 3600]
   tsfm_model: "amazon/chronos-bolt-small"
   tsfm_enabled: true
   warm_start_after_points: 40
+  model_refresh_cycles: 4       # how often the twin-model projection behind forecasts is recomputed
   device: "cpu"
 
 cascade:
   use_gnn: true
   max_depth: 4
   propagation_threshold: 0.15
-  gnn_checkpoint: "ML/hx_cascade.pt"
+  gnn_checkpoint: "ML/hx_cascade_v2.pt"   # retrained on flow-sim data with forecast features; see ML/cascade_eval_v2.json
+  # Output hygiene: a cascade is only useful if an operator can read it.
+  max_roots: 5              # most severe roots per cycle
+  max_steps: 8              # downstream steps kept per cascade (highest probability first)
+  gnn_min_probability: 0.6  # GNN steps below this are not reported as failures
+  exclude_root_types: ["hotel"]  # room occupancy does not propagate as crowd flow
 
 twin:
   ensemble_size: 20
@@ -43,6 +62,11 @@ optimiser:
 
 risk:
   weights: { base: 0.5, growth: 0.3, cascade: 0.2 }
+  # Additive escalations on top of the utilisation-derived floor (points of 100).
+  max_growth_points: 15
+  max_cascade_points: 10
+  max_persistence_points: 5
+  persistence_cycles_for_max: 20
 
 anomaly:
   z_threshold: 3.0
@@ -63,9 +87,106 @@ budgets_ms:
   forecast: 300
   cascade: 150
   optimise: 200
+  evaluate: 1500
   certify: 400
   broadcast: 50
   total_cap: 2000
+
+# Operator-facing intervention lifecycle. A proposal must stay visible long
+# enough to be read and acted on: its lifetime is the larger of `ttl_sec` of
+# sim time and `min_wall_visible_sec` of wall time at the current speed, capped
+# at `max_ttl_sec` so a stale proposal never lingers for hours of sim time.
+interventions:
+  ttl_sec: 1200
+  min_wall_visible_sec: 120
+  max_ttl_sec: 3600
+  effect_duration_sec: 2700     # how long an approved action keeps acting on the city
+  settle_delay_sec: 900         # when its realised effect is measured
+  evaluation_horizon_sec: 1800  # what-if horizon used to estimate each candidate's relief
+  evaluation_step_sec: 60
+  max_live_proposals: 8
+  min_relief_pct: 1.0           # candidates simulated below this relief are not proposed
+  default_compliance: 0.6       # before any attendee has answered a nudge
+
+# Visitor demand and movement (SyntheticGenerator flow model).
+demand:
+  arrival_lead_min: 40          # arrival peak this long before an event starts
+  arrival_sd_min: 28
+  egress_lag_min: 15            # egress peak this long after an event ends
+  egress_sd_min: 10
+  local_mode_split: { metro: 0.50, bus: 0.15, shuttle: 0.10, car: 0.25 }
+  route_sensitivity: 1.5        # how strongly visitors avoid congested gates/stations
+  persons_per_vehicle: 2.4
+  rush_peak_elapsed_min: 240    # evening city rush (sim_start + 4h = 18:00)
+  rush_sd_min: 70
+  rush_amplitude: 0.45
+  observed_fraction: 0.75       # share of roads/zones/parking/emergency posts with sensors
+  sensor_dropout_rate: 0.03     # per-cycle probability an observed sensor misses a reading
+
+hospitality:
+  saturation_threshold: 0.95    # property occupancy at/above which it is saturated
+  limited_threshold: 0.85
+  guests_per_room: 2.2
+  room_need_share: 0.34         # out-of-town attendees who need a room (others are day trips)
+  prebooked_share: 0.55         # share of room demand already booked at sim start
+  booking_window_min: 180       # remaining bookings arrive over this window
+
+projection:
+  horizon_sec: 5400
+  step_sec: 60
+  sample_sec: 300
+
+attendee:
+  departure_offsets_sec: [0, 900, 1800, 2700]
+  arrival_buffer_sec: 600       # aim to arrive this long before an event starts
+  min_crowding_gain: 0.05       # a later departure is advised only if it cuts peak crowding by this much
+  # Travel time through a crowded road/zone/train: base x (1 + alpha x load^beta)
+  # (the standard BPR volume-delay function), at the load projected for arrival time.
+  congestion_alpha: 0.15
+  congestion_beta: 4.0
+
+# Geography provider for door-to-door travel times (app/providers/geo.py).
+# synthetic = great-circle distance x street detour factor, per-mode speeds.
+# osrm / google need OSRM_URL / GOOGLE_MAPS_API_KEY in the environment
+# (EVENTFLOW_GEO_PROVIDER overrides `provider`); any failure falls back to synthetic.
+geo:
+  provider: synthetic
+  timeout_sec: 2.0
+  retries: 1
+  cache_ttl_sec: 3600
+
+# Static city data (app/providers/data.py). `file` reads events.json /
+# hotels.json / topology.json from `dir` (each optional) and normalises them.
+data:
+  provider: synthetic
+  dir: data
+
+# The event schedule. `event` below stays the primary event (GET /event).
+events:
+  - event_id: "evt_demo"
+    name: "National Cup Final"
+    category: "sport"
+    venue_entity_id: "stadium_main"
+    start_time: "2026-09-04T16:00:00Z"
+    end_time: "2026-09-04T18:30:00Z"
+    expected_attendance: 70000
+    out_of_town_share: 0.30
+  - event_id: "evt_fanfest"
+    name: "Fan Festival"
+    category: "festival"
+    venue_entity_id: "zone_fanpark"
+    start_time: "2026-09-04T15:00:00Z"
+    end_time: "2026-09-04T19:30:00Z"
+    expected_attendance: 5500
+    out_of_town_share: 0.10
+  - event_id: "evt_expo"
+    name: "Tech Expo Day 2"
+    category: "conference"
+    venue_entity_id: "convention_centre"
+    start_time: "2026-09-04T12:00:00Z"
+    end_time: "2026-09-04T17:00:00Z"
+    expected_attendance: 14000
+    out_of_town_share: 0.40
 
 event:
   event_id: "evt_demo"

@@ -27,7 +27,7 @@ CertificateVerdict = Literal["STABLE", "CONDITIONAL", "UNSTABLE"]
 InterventionType = Literal[
     "reroute_transport", "deploy_shuttle", "stagger_entry", "gate_redistribution",
     "parking_redistribution", "zone_incentive", "accommodation_rebalance",
-    "emergency_corridor", "notify_only",
+    "emergency_corridor", "notify_only", "event_delay", "transport_redistribution",
 ]
 InterventionStatus = Literal[
     "proposed", "approved", "rejected", "executing", "completed", "expired",
@@ -35,12 +35,13 @@ InterventionStatus = Literal[
 SegmentId = Literal[
     "price_sensitive", "time_sensitive", "accessibility_constrained", "group", "premium",
 ]
-ForecastSource = Literal["persistence", "tsfm", "local_model"]
+ForecastSource = Literal["persistence", "tsfm", "local_model", "twin_model"]
 CascadeSource = Literal["deterministic", "gnn"]
 ScenarioType = Literal[
     "attendance_delta", "metro_capacity_delta", "road_capacity_delta",
     "weather_rain", "gate_closure", "transport_outage", "parking_loss",
-    "hotel_shortage", "concurrent_event", "combined",
+    "hotel_shortage", "concurrent_event", "combined", "event_delay",
+    "event_cancellation", "road_closure", "station_closure", "capacity_reduction",
 ]
 NudgeStatus = Literal["pending", "accepted", "declined", "expired"]
 
@@ -118,6 +119,11 @@ class EntityState(Base):
     risk_score: int
     risk_band: RiskBand
     is_observed: bool
+    # Simulation flows (people/min) and people waiting outside the entity.
+    # null = not modelled for this entity type (e.g. hotels).
+    inflow_per_min: Optional[float] = None
+    outflow_per_min: Optional[float] = None
+    queue_people: Optional[float] = None
 
 
 class StateSummary(Base):
@@ -203,12 +209,32 @@ class PressureTimelineFrame(Base):
     items: list[PressureTimelineItem]
 
 
+class TwinCounterfactual(Base):
+    intervention_id: str
+    utilisation: float
+
+
+class TwinView(Base):
+    """The digital twin's layers for one entity: what the sensor said, what the
+    twin estimates (and how sure it is), what the announced plan implies, what
+    it forecasts, and what the do-nothing worlds of executing actions show."""
+    observed_utilisation: Optional[float] = None
+    estimated_utilisation: Optional[float] = None
+    estimate_std: Optional[float] = None
+    plan_utilisation: Optional[float] = None
+    forecast_1800: Optional[float] = None
+    over_capacity: bool = False
+    over_capacity_pct: float = 0.0
+    counterfactuals: list[TwinCounterfactual] = []
+
+
 class EntityDetailResponse(Base):
     state: EntityState
     forecast: Optional[Forecast] = None
     edges_in: list[GraphEdge]
     edges_out: list[GraphEdge]
     risk_breakdown: list[RiskBreakdownItem]
+    twin: Optional[TwinView] = None
 
 
 # --- 00 §2.5 -------------------------------------------------------------
@@ -220,6 +246,14 @@ class CascadeStep(Base):
     failure_probability: float
     via_edge_id: Optional[str] = None
     depth: int
+    # Why this step exists (deterministic flow cascade): which entity passes
+    # load along `via_edge_id`, how many people, and the load before/after.
+    source_entity_id: Optional[str] = None
+    utilisation_before: Optional[float] = None
+    utilisation_after: Optional[float] = None
+    flow_change_people: Optional[float] = None
+    reason: Optional[str] = None
+    confidence: Optional[float] = None  # ML failure probability, when a model produced one
 
 
 class CascadeResult(Base):
@@ -229,6 +263,7 @@ class CascadeResult(Base):
     total_downstream_failures: int
     max_depth: int
     steps: list[CascadeStep]
+    ml_enhanced: bool = False
 
 
 class ActiveCascadesResponse(Base):
@@ -261,6 +296,32 @@ class Certificate(Base):
 
 
 # --- 00 §2.7 -------------------------------------------------------------
+class InterventionEvaluation(Base):
+    """What simulating the candidate on a clone of the live city showed."""
+
+    horizon_sec: int
+    compliance: float
+    root_entity_id: Optional[str] = None
+    root_peak_before: float
+    root_peak_after: float
+    network_peak_before: float
+    network_peak_after: float
+    critical_before: int
+    critical_after: int
+    new_critical_entities: list[str] = Field(default_factory=list)
+    people_redirected: int = 0
+    travel_time_delta_sec: float = 0.0
+    rooms_unmet_delta: float = 0.0
+
+
+class InterventionEffect(Base):
+    """Live consequence of an executing action: the live city vs its do-nothing copy."""
+    entity_id: str
+    utilisation: float
+    counterfactual_utilisation: float
+    delta: float
+
+
 class Intervention(Base):
     intervention_id: str
     intervention_type: InterventionType
@@ -277,6 +338,8 @@ class Intervention(Base):
     certificate: Optional[Certificate] = None
     created_at: str
     expires_at: str
+    evaluation: Optional[InterventionEvaluation] = None
+    live_effect: Optional[list[InterventionEffect]] = None
 
 
 class InterventionListResponse(Base):
@@ -388,6 +451,7 @@ class NudgeRespondResponse(Base):
     nudge_id: str
     status: NudgeStatus
     compliance_recorded: bool
+    plan_change: dict[str, Any] = Field(default_factory=dict)
 
 
 # --- 01 §3.1 health ------------------------------------------------------
@@ -428,12 +492,38 @@ class SimulationSide(Base):
     peak_entity_id: Optional[str] = None
     load_variance: float
     critical_count: int
+    avg_utilisation: Optional[float] = None
+    transport_pressure: Optional[float] = None
+    road_pressure: Optional[float] = None
+    venue_pressure: Optional[float] = None
+    hotel_pressure: Optional[float] = None
+    queued_people: Optional[float] = None
+    late_entries: Optional[float] = None
+    rooms_unmet: Optional[float] = None
+    unmet_demand: Optional[float] = None
+    avg_travel_time_sec: Optional[float] = None
 
 
 class SimulationDelta(Base):
     peak_utilisation_pct: float
     load_variance_pct: float
     new_critical_entities: list[str]
+    resolved_critical_entities: list[str] = Field(default_factory=list)
+    metrics: dict[str, float] = Field(default_factory=dict)
+
+
+class SimulationChange(Base):
+    entity_id: str
+    display_name: str
+    entity_type: EntityType
+    baseline_peak: float
+    scenario_peak: float
+
+
+class SimulationTimelinePoint(Base):
+    offset_sec: int
+    baseline_peak: float
+    scenario_peak: float
 
 
 class SimulationResult(Base):
@@ -445,6 +535,10 @@ class SimulationResult(Base):
     delta: Optional[SimulationDelta] = None
     cascade: Optional[CascadeResult] = None
     candidate_interventions: list[Intervention] = Field(default_factory=list)
+    top_changes: list[SimulationChange] = Field(default_factory=list)
+    timeline: list[SimulationTimelinePoint] = Field(default_factory=list)
+    horizon_sec: Optional[int] = None
+    scenarios: list[ScenarioSpec] = Field(default_factory=list)
 
 
 # --- 01 §3.10 metrics ----------------------------------------------------
@@ -455,6 +549,7 @@ class MetricValue(Base):
     improvement_pct: Optional[float] = None
     target: Optional[float] = None
     target_range: Optional[list[float]] = None
+    sample_size: Optional[int] = None
 
 
 class MetricsResponse(Base):
@@ -463,6 +558,7 @@ class MetricsResponse(Base):
     twin: dict[str, MetricValue]
     decision: dict[str, MetricValue]
     system: dict[str, MetricValue]
+    operations: dict[str, MetricValue] = Field(default_factory=dict)
 
 
 # --- 01 §3.11 commander --------------------------------------------------
@@ -493,12 +589,29 @@ class CommanderResponse(Base):
 
 
 # --- 01 §3.12 attendee ---------------------------------------------------
+RoutePriority = Literal["fastest", "balanced", "least_crowded"]
+
+
+class GeoTravelResponse(Base):
+    from_entity_id: str
+    to_entity_id: str
+    mode: str
+    provider: str
+    source: str
+    duration_sec: int
+    distance_m: int
+
+
 class JourneyRequest(Base):
     attendee_id: str
     segment_id: SegmentId
     origin_entity_id: str
     destination_entity_id: str
     planned_departure: Optional[str] = None
+    priority: RoutePriority = "balanced"
+    include_return: bool = True
+    hotel_property_id: Optional[str] = None
+    transport_preference: Optional[Literal["any", "metro", "bus", "car", "walk"]] = None
 
 
 class RouteLeg(Base):
@@ -512,6 +625,21 @@ class Route(Base):
     legs: list[RouteLeg]
     total_duration_sec: int
     predicted_crowding_band: RiskBand
+    label: Optional[str] = None
+    peak_utilisation: Optional[float] = None
+    congestion_delay_sec: int = 0
+    depart_at: Optional[str] = None
+
+
+class DepartureOption(Base):
+    offset_sec: int
+    depart_at: str
+    arrive_at: str
+    travel_time_sec: int
+    peak_utilisation: float
+    crowding_band: RiskBand
+    meets_event_start: Optional[bool] = None
+    recommended: bool = False
 
 
 class JourneyResponse(Base):
@@ -520,6 +648,16 @@ class JourneyResponse(Base):
     recommended_route: Route
     shortest_route: Route
     advice: str
+    priority: Optional[RoutePriority] = None
+    alternatives: list[Route] = Field(default_factory=list)
+    departure_options: list[DepartureOption] = Field(default_factory=list)
+    recommended_departure_offset_sec: Optional[int] = None
+    departure_advice: Optional[str] = None
+    return_route: Optional[Route] = None
+    event: Optional[dict[str, Any]] = None
+    avoided_entity_ids: list[str] = Field(default_factory=list)
+    transport_preference: Optional[str] = None
+    preference_met: Optional[bool] = None
 
 
 # --- 01 §3.13 demo control ----------------------------------------------
@@ -536,6 +674,236 @@ class DemoControlResponse(Base):
     sim_time: str
     seed: int
     speed_multiplier: float
+    cycle_sec: Optional[int] = None
+
+
+# --- events (schedule) --------------------------------------------------
+EventStatus = Literal["scheduled", "arriving", "live", "egress", "ended", "cancelled"]
+
+
+class EventView(Base):
+    event_id: str
+    name: str
+    category: str
+    venue_entity_id: str
+    venue_name: str
+    start_time: str
+    end_time: str
+    original_start_time: str
+    original_end_time: str
+    delay_sec: int
+    expected_attendance: int
+    out_of_town_share: float
+    status: EventStatus
+    arrived: int
+    inside: int
+    description: Optional[str] = None
+    # Exact windows the simulator uses (explicit, or the configured default curve).
+    arrival_window_start: Optional[str] = None
+    arrival_window_end: Optional[str] = None
+    departure_window_start: Optional[str] = None
+    departure_window_end: Optional[str] = None
+    custom_windows: bool = False
+    remaining_demand: int = 0     # visitors still to come (0 once cancelled)
+
+
+class EventListResponse(Base):
+    sim_time: str
+    primary_event_id: str
+    events: list[EventView]
+
+
+class EventUpdateRequest(Base):
+    operator_id: str
+    delay_sec: Optional[int] = Field(default=None, ge=-7200, le=14400)
+    start_time: Optional[str] = None
+    expected_attendance: Optional[int] = Field(default=None, ge=0, le=500000)
+    status: Optional[Literal["scheduled", "cancelled"]] = None
+    note: Optional[str] = None
+    end_time: Optional[str] = None
+    name: Optional[str] = Field(default=None, max_length=120)
+    venue_entity_id: Optional[str] = None
+    category: Optional[str] = Field(default=None, max_length=40)
+    description: Optional[str] = Field(default=None, max_length=500)
+    arrival_window_start: Optional[str] = None     # "" clears an explicit window
+    arrival_window_end: Optional[str] = None
+    departure_window_start: Optional[str] = None
+    departure_window_end: Optional[str] = None
+
+
+class EventCreateRequest(Base):
+    operator_id: str
+    name: str = Field(min_length=1, max_length=120)
+    venue_entity_id: str
+    start_time: str                 # exact datetime; no zone = UTC (the simulation clock)
+    end_time: str
+    expected_attendance: int = Field(ge=0, le=500000)
+    category: str = Field(default="event", max_length=40)
+    description: Optional[str] = Field(default=None, max_length=500)
+    out_of_town_share: float = Field(default=0.25, ge=0.0, le=1.0)
+    status: Literal["scheduled", "cancelled"] = "scheduled"
+    arrival_window_start: Optional[str] = None
+    arrival_window_end: Optional[str] = None
+    departure_window_start: Optional[str] = None
+    departure_window_end: Optional[str] = None
+
+
+class EventVenue(Base):
+    entity_id: str
+    display_name: str
+    entity_type: EntityType
+    nominal_capacity: float
+
+
+class EventVenueList(Base):
+    venues: list[EventVenue]
+
+
+class EventDeleteResponse(Base):
+    event_id: str
+    name: str
+    status: Literal["deleted"]
+    arrived: int     # visitors the event already brought; they leave normally
+    inside: int
+
+
+# --- accommodation ------------------------------------------------------
+PropertyStatus = Literal["available", "limited", "saturated"]
+Tier = Literal["budget", "midscale", "upscale", "luxury"]
+
+
+class HotelProperty(Base):
+    property_id: str
+    name: str
+    cluster_entity_id: str
+    zone: str
+    lat: float
+    lon: float
+    tier: Tier
+    accessible: bool
+    price_per_night_paise: int
+    rooms_total: int
+    rooms_in_service: int
+    rooms_occupied: int
+    rooms_available: int
+    occupancy: float
+    status: PropertyStatus
+    transport_entity_id: Optional[str] = None
+    transport_name: Optional[str] = None
+    walk_to_transport_sec: int
+    transport_utilisation: float
+    transport_closed: bool = False
+    transport_forecast_utilisation: Optional[float] = None
+    venue_entity_id: str
+    travel_time_to_venue_sec: Optional[int] = None
+
+
+class HotelSummary(Base):
+    properties: int
+    rooms_in_service: int
+    rooms_occupied: int
+    rooms_available: int
+    occupancy: float
+    saturated: int
+    limited: int
+    unmet_room_requests: int
+
+
+class HotelListResponse(Base):
+    sim_time: str
+    summary: HotelSummary
+    hotels: list[HotelProperty]
+
+
+class StayRecommendationRequest(Base):
+    destination_entity_id: Optional[str] = None
+    event_id: Optional[str] = None
+    segment_id: Optional[SegmentId] = None
+    max_price_paise: Optional[int] = Field(default=None, ge=0)
+    accessible_only: bool = False
+    rooms: int = Field(default=1, ge=1, le=50)
+    current_property_id: Optional[str] = None
+    limit: int = Field(default=5, ge=1, le=20)
+
+
+class StayOption(Base):
+    property: HotelProperty
+    score: float
+    factors: dict[str, float]
+    travel_time_sec: Optional[int] = None
+    reasons: list[str]
+
+
+class StayRecommendationResponse(Base):
+    sim_time: str
+    destination_entity_id: str
+    options: list[StayOption]
+    explanation: str
+    current: Optional[HotelProperty] = None
+
+
+class SaturatedProperty(Base):
+    property: HotelProperty
+    alternatives: list[StayOption]
+    explanation: str
+
+
+class SaturationResponse(Base):
+    sim_time: str
+    saturated: list[SaturatedProperty]
+
+
+# --- live disruptions -----------------------------------------------------
+class DisruptionCreateRequest(Base):
+    scenario_type: ScenarioType
+    params: dict[str, Any] = Field(default_factory=dict)
+    label: Optional[str] = None
+    operator_id: str = "op_demo"
+
+
+class Disruption(Base):
+    disruption_id: str
+    scenario_type: ScenarioType
+    params: dict[str, Any]
+    label: Optional[str] = None
+    started_at: str
+
+
+class DisruptionListResponse(Base):
+    sim_time: str
+    disruptions: list[Disruption]
+
+
+# --- operations overview (live city by domain) ------------------------------
+class DomainEntity(Base):
+    entity_id: str
+    display_name: str
+    entity_type: EntityType
+    nominal_capacity: float
+    current_count: float
+    utilisation: float
+    risk_score: int
+    risk_band: RiskBand
+    is_observed: bool
+    closed: bool = False
+    forecast_1800: Optional[float] = None
+    time_to_critical_sec: Optional[int] = None
+    queue_delay_sec: int = 0
+    inflow_per_min: Optional[float] = None
+    outflow_per_min: Optional[float] = None
+    queue_people: Optional[float] = None       # waiting outside; never part of current_count
+    available_capacity: Optional[float] = None
+    event_ids: list[str] = Field(default_factory=list)
+
+
+class OverviewResponse(Base):
+    sim_time: str
+    cycle_number: int
+    speed_multiplier: float
+    paused: bool
+    summary: StateSummary
+    operations: dict[str, Any]
+    domains: dict[str, list[DomainEntity]]
 
 
 # --- 00 §3 error envelope ------------------------------------------------

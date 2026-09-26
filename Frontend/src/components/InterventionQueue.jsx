@@ -26,6 +26,7 @@ export default function InterventionQueue() {
     beginExecutedAction,
     noteRejectedAction,
     setActiveCascadeRoot,
+    nodesById,
   } = useStore();
   const [busyId, setBusyId] = useState(null);
 
@@ -61,7 +62,12 @@ export default function InterventionQueue() {
         // and the resulting entity-state changes will be visible as updated
         // node colours once the next state_update WS event arrives.
         setActiveCascadeRoot(null);
-        toast(`Approved — ${result.nudges_issued} nudges issued`, 'success');
+        toast(
+          result.nudges_issued
+            ? `Approved and applied — ${result.nudges_issued} affected attendees nudged`
+            : 'Approved and applied to the live city',
+          'success',
+        );
       } else {
         await api.reject(id, 'op_demo', 'Rejected by operator');
         noteRejectedAction(intervention);
@@ -125,6 +131,7 @@ export default function InterventionQueue() {
               key={intervention.intervention_id}
               intervention={intervention}
               busy={busyId === intervention.intervention_id}
+              nodesById={nodesById}
               onApprove={(i) => resolve(i, 'approve')}
               onReject={(i) => resolve(i, 'reject')}
             />

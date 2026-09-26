@@ -69,6 +69,18 @@
           ],
           "default": null,
           "title": "Target Range"
+        },
+        "sample_size": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Sample Size"
         }
       },
       "required": [
@@ -110,6 +122,13 @@
         "$ref": "#/$defs/MetricValue"
       },
       "title": "System",
+      "type": "object"
+    },
+    "operations": {
+      "additionalProperties": {
+        "$ref": "#/$defs/MetricValue"
+      },
+      "title": "Operations",
       "type": "object"
     }
   },

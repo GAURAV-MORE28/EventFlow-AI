@@ -54,7 +54,7 @@ npm run validate:mocks   # AJV-validates every mock against contracts/schemas/*.
 cd Backend
 pip install -r requirements.txt
 python run.py                       # http://localhost:8000, OpenAPI docs at /docs
-python -m pytest tests/ -q          # 31 tests
+python -m pytest tests/ -q          # 126 tests (temp DB via tests/conftest.py)
 python -m pytest tests/test_contract.py::test_name -q     # single test
 ```
 No DB/Redis setup required — SQLite (`Backend/eventflow.db`) and an in-process cache are the
@@ -66,7 +66,7 @@ value there is optional.
 # terminal 1
 cd Backend && python run.py
 # terminal 2
-cd Frontend && echo "VITE_MOCK=0" > .env && npm run dev   # Vite proxies /api and /ws to :8000
+cd Frontend && npm run dev:live   # proxies /api and /ws to :8000 (BACKEND_URL overrides)
 ```
 `Frontend/.env` is gitignored; a fresh clone has none, and `lib/api.js` treats anything but an
 explicit `VITE_MOCK=0` as mock mode, so the zero-setup path always works.
@@ -75,7 +75,7 @@ explicit `VITE_MOCK=0` as mock mode, so the zero-setup path always works.
 ```bash
 cd Backend
 python -m scripts.export_schemas --out ../contracts/schemas
-python -m scripts.export_mocks   --out ../Frontend/src/mocks --cycles 90
+python -m scripts.export_mocks   --out ../Frontend/src/mocks --cycles 160
 cd ../Frontend && npm run validate:mocks
 ```
 CI (`.github/workflows/ci.yml`) runs the backend suite, exports schemas as an artifact, then
@@ -92,6 +92,16 @@ REST handlers and WS broadcasts read from the store / cache; they never mutate s
 → twin assimilate (EnKF) → forecast → risk score → anomaly detect → cascade predict → if any
 entity is predicted critical within 3600s: optimise + certify + queue interventions → persist →
 broadcast WS events → write cycle metrics. Wall-clock pacing is `cycle_sec / speed_multiplier`.
+
+**Three simulated worlds** (all `SyntheticGenerator`, a deterministic flow model: event schedule →
+arrivals/hotel bookings → stations/hubs/parking → gates (queues, road spill) → venue → egress):
+`engine.generator` is the live city; `engine.nominal` is the twin's process model (announced
+schedule + approved interventions, *not* unannounced disruptions); `engine.counterfactuals[iid]`
+are do-nothing forks taken at approval, used to measure realised relief. Every mutation or clone
+happens under `engine.world_lock`. What-If (`services/simulation.py`), candidate evaluation
+(`services/evaluation.py`) and the look-ahead projection (`services/projection.py`) all run clones
+through the same `run_forward`. Other services: `events.py` (schedule), `accommodation.py`
+(hotels/recommendation), `attendee.py` (time-dependent routing, departure options, nudges).
 
 **Backpressure rule (`§2`, enforced in `_maybe_shed_load`):** when a cycle blows the total
 latency cap, shed the *forecast* refresh, never assimilation — drift compounds, a stale forecast
@@ -152,5 +162,12 @@ units, casing) or Pydantic rejects the output in `app/schemas.py` before it hits
 
 Per `RUNNING.md`, `RiskScorer`, `AnomalyDetector`, `EquilibriumSolver.certify()`,
 `InterventionOptimiser`, and `SyntheticGenerator` are contractually *arithmetic, not ML* and are
-"real" in `ml_reference/`. `Forecaster` there is a persistence/trend reference; `CascadePredictor`
-is the real GNN with the deterministic propagator wired as its `.fallback()`.
+"real" in `ml_reference/`. `Forecaster` there is the twin-model forecast (the nominal world's projection plus a decaying
+live-gap correction; trend reference without it); `CascadePredictor` is the real R-GCN
+(`ML/hx_cascade_v2.pt`, retrained on flow-simulator scenarios with forecast features by
+`Backend/scripts/train_cascade.py`; held-out results in `ML/cascade_eval_v2.json`) with the
+deterministic propagator wired as its `.fallback()`.
+
+Pluggable sources live in `Backend/app/providers/`: `geo.py` (travel times; synthetic by default,
+OSRM/Google via env vars, cached with timeout/retry/fallback) and `data.py` (topology/hotels/events;
+synthetic by default, `data.provider: file` reads and normalises JSON).

@@ -291,7 +291,7 @@ URLS AND PORTS
 RUNNING TESTS
 --------------------------------------------------------------------------------
 
-Backend (31 tests):
+Backend (76 tests):
   cd Backend
   python -m pytest tests/ -q
 
@@ -338,7 +338,7 @@ TROUBLESHOOTING
   schemas. Regenerate them:
     cd Backend
     python -m scripts.export_schemas --out ../contracts/schemas
-    python -m scripts.export_mocks   --out ../Frontend/src/mocks --cycles 90
+    python -m scripts.export_mocks   --out ../Frontend/src/mocks --cycles 160
     cd ../Frontend && npm run validate:mocks
 
 "I want to use a local LLM for the Commander"

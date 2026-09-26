@@ -40,6 +40,12 @@ export const useStore = create((set, get) => ({
   twinFidelity: null,
   regret: { entries: [], summary: null },
   anomalies: [],
+  operations: null,
+  events: [],
+  disruptions: [],
+  // Bumped whenever the city changes outside the regular cycle (schedule
+  // change, disruption, approval) so pages holding REST snapshots refetch.
+  worldVersion: 0,
 
   // --- attendee -------------------------------------------------------
   journey: null,
@@ -51,6 +57,8 @@ export const useStore = create((set, get) => ({
   driftModeEnabled: false,
   commanderMessages: [],
   wsStatus: 'connecting',
+  speed: null,
+  paused: false,
   mockMode: false,
   toasts: [],
   whatIf: { status: 'idle', result: null, label: null },
@@ -73,14 +81,33 @@ export const useStore = create((set, get) => ({
       nodesById: Object.fromEntries((graph.nodes || []).map((n) => [n.entity_id, n])),
     }),
   setMockMode: (mockMode) => set({ mockMode }),
+  setSimControl: ({ speed, paused }) =>
+    set((s) => ({ speed: speed ?? s.speed, paused: paused ?? s.paused })),
   setWsStatus: (wsStatus) => set({ wsStatus }),
 
   // --- WS handlers (02 §6) ----------------------------------------------
-  setSummary: (summary, simTime, cycleNumber) =>
+  setSummary: (summary, simTime, cycleNumber, operations) =>
     set((s) => {
       const history = [...s.loadVarianceHistory, summary.load_variance].slice(-LOAD_VARIANCE_BUFFER);
-      return { summary, simTime, cycleNumber, loadVarianceHistory: history };
+      return {
+        summary, simTime, cycleNumber, loadVarianceHistory: history,
+        operations: operations || s.operations,
+      };
     }),
+
+  setEvents: (events) => set((s) => ({ events: events || [], worldVersion: s.worldVersion + 1 })),
+  upsertEvent: (event) =>
+    set((s) => ({
+      events: s.events.some((e) => e.event_id === event.event_id)
+        ? s.events.map((e) => (e.event_id === event.event_id ? event : e))
+        : [...s.events, event],
+      worldVersion: s.worldVersion + 1,
+    })),
+  removeEvent: (eventId) =>
+    set((s) => ({ events: s.events.filter((e) => e.event_id !== eventId), worldVersion: s.worldVersion + 1 })),
+  setDisruptions: (disruptions) =>
+    set((s) => ({ disruptions: disruptions || [], worldVersion: s.worldVersion + 1 })),
+  bumpWorld: () => set((s) => ({ worldVersion: s.worldVersion + 1 })),
 
   /** MERGE, never replace. This is the rule that keeps the map from blanking. */
   mergeEntities: (list) =>
@@ -124,6 +151,16 @@ export const useStore = create((set, get) => ({
     }),
 
   setInterventions: (interventions) => set({ interventions: interventions || [] }),
+
+  setInterventionEffects: (effects) =>
+    set((s) => {
+      const byId = Object.fromEntries((effects || []).map((e) => [e.intervention_id, e.live_effect]));
+      return {
+        interventions: s.interventions.map((i) =>
+          byId[i.intervention_id] ? { ...i, status: 'executing', live_effect: byId[i.intervention_id] } : i,
+        ),
+      };
+    }),
 
   updateInterventionStatus: (interventionId, status) =>
     set((s) => ({
@@ -266,6 +303,23 @@ export const useStore = create((set, get) => ({
   replaceAll: (payload) =>
     set((s) => {
       const state = payload.state || {};
+      // A clock that went backwards is a new run (reset/seek): drop the old
+      // run's transient UI state, not just the server-owned collections.
+      const newRun = (state.cycle_number ?? s.cycleNumber) < s.cycleNumber;
+      const runReset = newRun
+        ? {
+            trackedActions: [],
+            actionHudExpanded: false,
+            whatIfOverlay: null,
+            whatIf: { status: 'idle', result: null, label: null },
+            loadVarianceHistory: [],
+            anomalies: [],
+            activeCascadeRootId: null,
+            selectedEntityId: null,
+            entityDetail: null,
+            journey: null,
+          }
+        : {};
       const entities = Object.fromEntries(
         (state.entities || []).map((e) => [e.entity_id, e]),
       );
@@ -283,6 +337,11 @@ export const useStore = create((set, get) => ({
         twinFidelity: payload.twin_fidelity || s.twinFidelity,
         regret: payload.regret || s.regret,
         nudges: payload.nudges || s.nudges,
+        events: payload.events || s.events,
+        disruptions: payload.disruptions || s.disruptions,
+        operations: payload.operations || s.operations,
+        worldVersion: s.worldVersion + 1,
+        ...runReset,
       };
     }),
 

@@ -78,7 +78,8 @@
       "enum": [
         "persistence",
         "tsfm",
-        "local_model"
+        "local_model",
+        "twin_model"
       ],
       "title": "Source",
       "type": "string"

@@ -1,0 +1,192 @@
+{
+  "$defs": {
+    "EventView": {
+      "additionalProperties": false,
+      "properties": {
+        "event_id": {
+          "title": "Event Id",
+          "type": "string"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "category": {
+          "title": "Category",
+          "type": "string"
+        },
+        "venue_entity_id": {
+          "title": "Venue Entity Id",
+          "type": "string"
+        },
+        "venue_name": {
+          "title": "Venue Name",
+          "type": "string"
+        },
+        "start_time": {
+          "title": "Start Time",
+          "type": "string"
+        },
+        "end_time": {
+          "title": "End Time",
+          "type": "string"
+        },
+        "original_start_time": {
+          "title": "Original Start Time",
+          "type": "string"
+        },
+        "original_end_time": {
+          "title": "Original End Time",
+          "type": "string"
+        },
+        "delay_sec": {
+          "title": "Delay Sec",
+          "type": "integer"
+        },
+        "expected_attendance": {
+          "title": "Expected Attendance",
+          "type": "integer"
+        },
+        "out_of_town_share": {
+          "title": "Out Of Town Share",
+          "type": "number"
+        },
+        "status": {
+          "enum": [
+            "scheduled",
+            "arriving",
+            "live",
+            "egress",
+            "ended",
+            "cancelled"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "arrived": {
+          "title": "Arrived",
+          "type": "integer"
+        },
+        "inside": {
+          "title": "Inside",
+          "type": "integer"
+        },
+        "description": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Description"
+        },
+        "arrival_window_start": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Arrival Window Start"
+        },
+        "arrival_window_end": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Arrival Window End"
+        },
+        "departure_window_start": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Departure Window Start"
+        },
+        "departure_window_end": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Departure Window End"
+        },
+        "custom_windows": {
+          "default": false,
+          "title": "Custom Windows",
+          "type": "boolean"
+        },
+        "remaining_demand": {
+          "default": 0,
+          "title": "Remaining Demand",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "event_id",
+        "name",
+        "category",
+        "venue_entity_id",
+        "venue_name",
+        "start_time",
+        "end_time",
+        "original_start_time",
+        "original_end_time",
+        "delay_sec",
+        "expected_attendance",
+        "out_of_town_share",
+        "status",
+        "arrived",
+        "inside"
+      ],
+      "title": "EventView",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "sim_time": {
+      "title": "Sim Time",
+      "type": "string"
+    },
+    "primary_event_id": {
+      "title": "Primary Event Id",
+      "type": "string"
+    },
+    "events": {
+      "items": {
+        "$ref": "#/$defs/EventView"
+      },
+      "title": "Events",
+      "type": "array"
+    }
+  },
+  "required": [
+    "sim_time",
+    "primary_event_id",
+    "events"
+  ],
+  "title": "event_list_response",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

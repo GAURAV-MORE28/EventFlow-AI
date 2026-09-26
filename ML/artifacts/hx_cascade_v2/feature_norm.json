@@ -1,0 +1,55 @@
+{
+  "capacity_norm_const": 70000.0,
+  "max_degree_seen_in_training": 6.0,
+  "entity_type_order": [
+    "venue",
+    "zone",
+    "transport_node",
+    "transport_route",
+    "road",
+    "hotel",
+    "parking",
+    "gate",
+    "emergency_facility"
+  ],
+  "edge_type_order": [
+    "feeds",
+    "adjacent_to",
+    "serves",
+    "last_mile_to",
+    "substitutes_for",
+    "evacuates_to"
+  ],
+  "util_clip": 3.0,
+  "node_feature_order": [
+    "util_at_injection_clipped",
+    "capacity_norm",
+    "entity_type_venue",
+    "entity_type_zone",
+    "entity_type_transport_node",
+    "entity_type_transport_route",
+    "entity_type_road",
+    "entity_type_hotel",
+    "entity_type_parking",
+    "entity_type_gate",
+    "entity_type_emergency_facility",
+    "degree_norm",
+    "forecast_900",
+    "forecast_1800",
+    "forecast_3600"
+  ],
+  "node_feat_dim": 15,
+  "cascade_relevant_types": [
+    "emergency_facility",
+    "gate",
+    "road",
+    "transport_node"
+  ],
+  "pos_weight_by_horizon": {
+    "900": 35.93,
+    "1800": 26.21,
+    "3600": 19.57
+  },
+  "forecast_features": true,
+  "training_source": "flow_simulator_v2"
+}
