@@ -241,6 +241,13 @@ class StateStore:
 
     def clear_live(self) -> None:
         """Used by `POST /demo/control {action: reset}`."""
+        self.summary = {
+            "overall_risk_score": 0,
+            "overall_risk_band": "low",
+            "critical_count": 0,
+            "high_count": 0,
+            "load_variance": 0.0,
+        }
         self.entity_states.clear()
         for h in self.history.values():
             h.clear()

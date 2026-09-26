@@ -291,6 +291,23 @@ export const useStore = create((set, get) => ({
   replaceAll: (payload) =>
     set((s) => {
       const state = payload.state || {};
+      // A clock that went backwards is a new run (reset/seek): drop the old
+      // run's transient UI state, not just the server-owned collections.
+      const newRun = (state.cycle_number ?? s.cycleNumber) < s.cycleNumber;
+      const runReset = newRun
+        ? {
+            trackedActions: [],
+            actionHudExpanded: false,
+            whatIfOverlay: null,
+            whatIf: { status: 'idle', result: null, label: null },
+            loadVarianceHistory: [],
+            anomalies: [],
+            activeCascadeRootId: null,
+            selectedEntityId: null,
+            entityDetail: null,
+            journey: null,
+          }
+        : {};
       const entities = Object.fromEntries(
         (state.entities || []).map((e) => [e.entity_id, e]),
       );
@@ -312,6 +329,7 @@ export const useStore = create((set, get) => ({
         disruptions: payload.disruptions || s.disruptions,
         operations: payload.operations || s.operations,
         worldVersion: s.worldVersion + 1,
+        ...runReset,
       };
     }),
 

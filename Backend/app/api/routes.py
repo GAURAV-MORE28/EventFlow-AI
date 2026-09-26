@@ -418,6 +418,12 @@ async def demo_control(body: S.DemoControlRequest) -> S.DemoControlResponse:
     if body.inject:
         await MANAGER.broadcast("disruption_update", {"disruptions": list(engine.store.disruptions.values())},
                                 engine.store.sim_time)
+    if body.action in ("reset", "seek"):
+        # The clock moved backwards: every client must replace its state
+        # wholesale (01 §4 resync) or it keeps showing the previous run.
+        from .ws_routes import _resync_payload
+
+        await MANAGER.broadcast("resync", _resync_payload(engine), engine.store.sim_time)
     return S.DemoControlResponse(**result, cycle_sec=engine.sim_dt)
 
 

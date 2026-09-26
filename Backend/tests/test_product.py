@@ -442,3 +442,20 @@ def test_flow_model_satisfies_the_city_model_interface():
     assert "gate_5" in g.gates_of_venue("stadium_main")
     g.inject("gate_closure", {"entity_id": "gate_5"})
     assert g.closed_entities() == {"gate_5"}
+
+
+def test_reset_returns_the_initial_city_even_when_paused(client):
+    engine = get_engine()
+    _run(engine, 20)
+    before_reset = dict(engine.store.summary)
+    engine.paused = True
+    r = client.post(f"{API}/demo/control", json={"action": "reset"})
+    assert r.status_code == 200
+    state = client.get(f"{API}/state").json()
+    assert state["cycle_number"] == 0 and state["sim_time"].endswith("14:00:00Z")
+    assert len(state["entities"]) == len(engine.store.nodes), "a reset city must not be blank"
+    assert client.get(f"{API}/interventions?status=all").json()["interventions"] == []
+    # The summary describes the fresh 14:00 city, not the run that was reset.
+    assert state["summary"]["critical_count"] <= before_reset["critical_count"]
+    assert engine.paused, "reset keeps the paused/playing choice"
+    _run(engine, 170)  # restore the module's arrival-wave state for later tests

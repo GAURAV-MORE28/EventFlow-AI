@@ -35,6 +35,9 @@ async def lifespan(app: FastAPI):
     seed_topology(engine.store)
     persist_events(engine.events.to_generator())
     set_engine(engine)
+    engine.prime_state()
+    for h in engine.store.history.values():
+        h.clear()
     await engine.start()
     log.info("EventFlow AI backend ready on /api/v1")
     try:

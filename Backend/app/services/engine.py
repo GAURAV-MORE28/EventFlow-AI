@@ -1060,6 +1060,21 @@ class Engine:
             "speed_multiplier": self.speed_multiplier,
         }
 
+    def prime_state(self) -> None:
+        """Populate entity states and the summary from the city model's current
+        instant without advancing the clock, so a freshly started or reset run
+        (possibly paused) shows the real initial city, not an empty map or the
+        previous run's risk summary."""
+        store = self.store
+        with self.world_lock:
+            truth = self.generator.ground_truth()
+        observations = {e: v["current_count"] for e, v in truth.items() if v.get("is_observed")}
+        estimates = {e: {"current_count": v["current_count"]} for e, v in truth.items()}
+        self._merge_states(observations, estimates, truth, store.sim_time)
+        scores = self.registry.risk.score(store.node_state_for_ml(), store.forecasts, {})
+        self._apply_risk(scores or {})
+        self._recompute_summary()
+
     async def _reset(self) -> None:
         """Full reproducible reset — the rehearsal depends on this being exact."""
         self.store.clear_live()
@@ -1067,6 +1082,9 @@ class Engine:
         self.events.reset()
         with self.world_lock:
             self._build_worlds()
+        self.prime_state()
+        for h in self.store.history.values():
+            h.clear()  # the primed t=0 reading is not a forecasting observation
         self.store.drift_mode_enabled = False
         CACHE.clear()
         self.world_changed()
