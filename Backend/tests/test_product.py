@@ -611,20 +611,23 @@ def test_gnn_uses_forecast_features_when_the_checkpoint_has_them():
     import json
     from pathlib import Path
 
-    import torch
+    torch = pytest.importorskip("torch")   # optional: requirements-ml.txt
+    pytest.importorskip("torch_geometric")
 
     ml = Path(__file__).resolve().parents[2] / "ML"
-    if not (ml / "hx_cascade_v2.pt").exists():
-        pytest.skip("v2 checkpoint not trained")
+    bundle = ml / "artifacts" / "hx_cascade_v2"
+    if not (bundle / "model.pt").exists():
+        pytest.skip("v2 bundle not present")
     import sys
 
     sys.path.insert(0, str(ml.parent))
     from ML.cascade import CascadePredictor
 
-    norm = json.loads((ml / "feature_norm_v2.json").read_text())
+    norm = json.loads((bundle / "feature_norm.json").read_text())
     assert norm["forecast_features"] and norm["node_feat_dim"] == 15
     topo = build_topology()
-    cp = CascadePredictor({"use_gnn": True, "gnn_checkpoint": "ML/hx_cascade_v2.pt", "critical_utilisation": 0.9})
+    cp = CascadePredictor({"use_gnn": True, "gnn_artifact": "ML/artifacts/hx_cascade_v2", "critical_utilisation": 0.9})
+    assert cp.ready()
     assert cp._norm and cp._norm.get("forecast_features")
     state = {n["entity_id"]: {"entity_id": n["entity_id"], "entity_type": n["entity_type"],
                               "nominal_capacity": n["nominal_capacity"], "utilisation": 0.5,

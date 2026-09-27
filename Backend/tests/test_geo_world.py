@@ -354,7 +354,11 @@ def test_legacy_synthetic_world_still_works(client):
     info = client.post(f"{API}/world/synthetic-demo").json()
     get_engine().paused = True
     assert info["source"] == "synthetic_demo" and info["node_count"] == 67
-    assert client.get(f"{API}/health").json()["modules"]["cascade"]["active_source"] == "gnn"
+    # The published cascade's structure is always the deterministic flow cascade
+    # (00 §2.5); the loaded GNN's involvement is `gnn_mode` / `model_version`.
+    cascade = client.get(f"{API}/health").json()["modules"]["cascade"]
+    assert cascade["active_source"] == "deterministic"
+    assert cascade["gnn_mode"] in ("shadow", "annotate")
     assert "stadium_main" in {n["entity_id"] for n in client.get(f"{API}/graph").json()["nodes"]}
 
 

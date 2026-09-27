@@ -151,7 +151,8 @@ class SimulationRegistry:
 
             closed = set(scen_start.closed_entities()) if hasattr(scen_start, "closed_entities") else set()
             cascade = cascade_for(worst, end_state, store.edges, engine.config.thresholds_for,
-                                  engine.config.raw.get("cascade", {}), store.sim_time, closed)
+                                  engine.config.raw.get("cascade", {}), store.sim_time, closed,
+                                  **engine.cascade_annotation(end_state))
             raw = engine.registry.optimiser.generate(
                 {"root_entity_id": worst, "cascade": cascade, "node_state": end_state, "edges": store.edges,
                  "sim_time": store.sim_time, **engine.optimiser_context()},

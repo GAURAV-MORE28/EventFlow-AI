@@ -88,7 +88,20 @@ class HeadlessEngine(Engine):
 
     def __init__(self, provider: Any, scenario_seed: int) -> None:
         self._scenario_seed = scenario_seed
-        super().__init__(provider=provider, demo_checks=False)
+        raw = get_config().raw
+        event_cfg = raw["event"]
+        topology = provider.topology()
+        topology["properties"] = provider.properties(topology["nodes"], topology["edges"])
+        world = {
+            "world_id": "generated_dataset", "source": "file", "data_source": "synthetic",
+            "blueprint_id": None, "graph_hash": None, "topology": topology,
+            "events": provider.events(raw.get("events") or [Engine._primary_from_event_cfg(event_cfg)]),
+            "primary_event_id": event_cfg["event_id"], "venue_entity_id": event_cfg.get("venue_entity_id"),
+            "footprint": None, "venue_geometry": None,
+            # Randomised maps are not the trained topology; never annotated (00 §2.5).
+            "gnn_supported": False, "attribution": None,
+        }
+        super().__init__(world=world)
 
     def _build_worlds(self) -> None:
         self.seed = self._scenario_seed   # sensor sampling and noise differ per scenario

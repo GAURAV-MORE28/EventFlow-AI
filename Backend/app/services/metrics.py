@@ -38,6 +38,15 @@ def _settlement_reduction(store: Any, actual_key: str, cf_key: str) -> float:
     return round(sum(vals) / len(vals), 1) if vals else 0.0
 
 
+def _predictor_metrics(prefix: str, summary: dict[str, Any], lead_baseline: str) -> dict[str, dict]:
+    return {
+        f"{prefix}_lead_time_sec": {"value": summary["lead_time_sec"], "baseline": 0.0,
+                                    "baseline_name": lead_baseline, "sample_size": summary["lead_time_n"]},
+        f"{prefix}_precision": {"value": summary["precision"], "sample_size": summary["precision_n"]},
+        f"{prefix}_recall": {"value": summary["recall"], "sample_size": summary["recall_n"]},
+    }
+
+
 def build_metrics(engine: Any) -> dict[str, Any]:
     store = engine.store
     twin = store.twin_fidelity or {}
@@ -45,17 +54,14 @@ def build_metrics(engine: Any) -> dict[str, Any]:
     model_mae = round(_mean(store.forecast_errors["model"][-200:]), 4)
     persistence_mae = round(_mean(store.forecast_errors["persistence"][-200:]), 4)
 
-    lead_time = round(_mean(store.cascade_lead_times[-50:]), 0)
-    # Measured online (engine.py `_resolve_cascade_predictions` /
-    # `_track_cascade_recall`), never a formula over `cascade_count`. Precision
-    # is over alerts (did each prediction come true by its own eta); recall is
-    # over events (did each real high/critical transition have a prior alert)
-    # — the standard split for streaming-alert evaluation, so the two
-    # denominators are not the same count by design. In-simulation only, never
-    # presented as field validity (03 §8.4).
-    ev = store.cascade_eval
-    precision = _rate(ev["alerts_confirmed"], ev["alerts_confirmed"] + ev["alerts_false"])
-    recall = _rate(ev["events_caught"], ev["events_caught"] + ev["events_missed"])
+    # Measured online by `prediction_eval.OnlineEvaluator`, one definition for
+    # every predictor: each cycle's flag is a claim "this gate/road/station/
+    # emergency post will cross its critical line within 3600s"; precision is
+    # over resolved claims, recall over actual crossings. `cascade_*` is the published (deterministic)
+    # cascade; `gnn_*` the cascade model, including in shadow mode. In-simulation
+    # only, never presented as field validity (03 §8.4).
+    det = store.online_eval.summary("deterministic_cascade")
+    gnn = store.online_eval.summary("gnn")
 
     assimilated = float(twin.get("assimilated_rmse") or 0.0)
     uncorrected = twin.get("uncorrected_rmse")
@@ -116,8 +122,14 @@ def build_metrics(engine: Any) -> dict[str, Any]:
         },
         "attendee_compliance": {"value": engine.current_compliance(),
                                 "baseline": float(engine.icfg.get("default_compliance", 0.6)),
-                                "baseline_name": "configured_prior"},
+                                "baseline_name": "configured_prior",
+                                "sample_size": len(store.observed_compliance)},
     }
+    # Per segment: the posterior the equilibrium solver certifies with, against
+    # the segment's stated prior (00 §2.10 `compliance_base_rate`).
+    for sid, post in engine.compliance.by_segment(store.observed_compliance).items():
+        operations[f"compliance_{sid}"] = {"value": post["mean"], "baseline": post["prior"],
+                                           "baseline_name": "segment_prior", "sample_size": post["answers"]}
 
     return {
         "sim_time": store.sim_time,
@@ -128,16 +140,8 @@ def build_metrics(engine: Any) -> dict[str, Any]:
                 "baseline_name": "persistence",
                 "improvement_pct": _improvement(model_mae, persistence_mae),
             },
-            "cascade_lead_time_sec": {
-                "value": lead_time, "baseline": 0.0, "baseline_name": "threshold_rule",
-                "sample_size": len(store.cascade_lead_times[-50:]),
-            },
-            "cascade_precision": {
-                "value": precision, "sample_size": ev["alerts_confirmed"] + ev["alerts_false"],
-            },
-            "cascade_recall": {
-                "value": recall, "sample_size": ev["events_caught"] + ev["events_missed"],
-            },
+            **_predictor_metrics("cascade", det, "threshold_rule"),
+            **_predictor_metrics("gnn", gnn, "threshold_rule"),
         },
         "twin": {
             "rmse": {

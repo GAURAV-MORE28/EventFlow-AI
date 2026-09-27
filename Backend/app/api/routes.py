@@ -61,7 +61,9 @@ async def health() -> S.HealthResponse:
         cycle_number=store.cycle_number,
         modules={
             "forecaster": S.ModuleHealth(
-                ready=registry.forecaster.ready(), active_source=store.active_forecast_source
+                ready=registry.forecaster.ready(), active_source=store.active_forecast_source,
+                model_version=(registry.forecaster.model_info().get("model_version")
+                              if hasattr(registry.forecaster, "model_info") else None),
             ),
             "cascade": S.ModuleHealth(
                 ready=registry.cascade.ready(),
@@ -69,6 +71,10 @@ async def health() -> S.HealthResponse:
                 # topology it was trained on, otherwise the deterministic flow cascade.
                 active_source=engine.world_info()["cascade_source"],
                 detail=engine.world_info()["cascade_note"],
+                gnn_mode=engine.cascade_ml_mode(),
+                model_version=engine.cascade_model_info().get("model_version"),
+                model_ready=engine.cascade_model_info().get("model_ready"),
+                fallback_reason=engine.cascade_model_info().get("fallback_reason"),
             ),
             "twin": S.ModuleHealth(
                 ready=twin_ready,
@@ -262,8 +268,10 @@ async def cascade(entity_id: str) -> S.CascadeResult:
 
     with engine.world_lock:
         closed = set(engine.generator.closed_entities()) if hasattr(engine.generator, "closed_entities") else set()
-    result = cascade_for(entity_id, store.node_state_for_ml(), store.edges, engine.config.thresholds_for,
-                         engine.config.raw.get("cascade", {}), store.sim_time, closed)
+    node_state = store.node_state_for_ml()
+    result = cascade_for(entity_id, node_state, store.edges, engine.config.thresholds_for,
+                         engine.config.raw.get("cascade", {}), store.sim_time, closed,
+                         **engine.cascade_annotation(node_state))
     return S.CascadeResult(**result)
 
 

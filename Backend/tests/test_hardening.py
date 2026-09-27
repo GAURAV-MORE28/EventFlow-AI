@@ -230,16 +230,20 @@ def test_cascade_follows_every_outbound_path_and_multiple_levels():
 
 def test_live_cascades_use_real_edges_and_work_without_ml(client):
     engine = get_engine()
-    orig = engine.registry.cascade.predict_all
+    cascade = engine.registry.cascade
+    names = [n for n in ("predict_all", "node_risk") if hasattr(cascade, n)]   # node_risk: what the cycle calls
+    orig = {n: getattr(cascade, n) for n in names}
 
     def broken(*a, **k):
         raise RuntimeError("model unavailable")
 
-    engine.registry.cascade.predict_all = broken
+    for n in names:
+        setattr(cascade, n, broken)
     try:
         _run(engine, 3)
     finally:
-        engine.registry.cascade.predict_all = orig
+        for n, f in orig.items():
+            setattr(cascade, n, f)
     store = engine.store
     assert store.cascades, "cascades must not depend on the ML model"
     edges = {e["edge_id"]: e for e in store.edges}
