@@ -1,0 +1,90 @@
+{
+  "model_name": "forecast_correction",
+  "model_version": "forecast_correction_v2",
+  "trained_on": "60 simulated runs on random maps (train); 15 validation runs (early stopping); test maps and the live map held out",
+  "training": {
+    "seconds": 535.7,
+    "seed": 42,
+    "boosters": {
+      "h900_q05.txt": {
+        "best_iteration": 577,
+        "val_quantile_loss": 0.000743
+      },
+      "h900_q50.txt": {
+        "best_iteration": 3000,
+        "val_quantile_loss": 0.002765
+      },
+      "h900_q95.txt": {
+        "best_iteration": 877,
+        "val_quantile_loss": 0.002354
+      },
+      "h1800_q05.txt": {
+        "best_iteration": 173,
+        "val_quantile_loss": 0.001008
+      },
+      "h1800_q50.txt": {
+        "best_iteration": 1611,
+        "val_quantile_loss": 0.003726
+      },
+      "h1800_q95.txt": {
+        "best_iteration": 845,
+        "val_quantile_loss": 0.003213
+      },
+      "h3600_q05.txt": {
+        "best_iteration": 50,
+        "val_quantile_loss": 0.001937
+      },
+      "h3600_q50.txt": {
+        "best_iteration": 1665,
+        "val_quantile_loss": 0.005001
+      },
+      "h3600_q95.txt": {
+        "best_iteration": 587,
+        "val_quantile_loss": 0.004417
+      }
+    }
+  },
+  "dataset": {
+    "path": "C:\\Users\\gmore\\OneDrive\\Desktop\\EventFlow\\EventFlow-AI\\data\\forecast_v2",
+    "source_commit": "5ac3c287277e7c7c42f55ad54a5c037635aeff05",
+    "source_dirty": true
+  },
+  "source_commit": "5ac3c287277e7c7c42f55ad54a5c037635aeff05",
+  "created_by": "Backend/scripts/train_forecast_correction.py",
+  "booster_format": "LightGBM text, gzip (mtime 0)",
+  "files": {
+    "eval.json": {
+      "sha256": "12aca5469517c37de8877b313035be5e9f1e725b115a4daf42d99f7b72a40a27"
+    },
+    "features.json": {
+      "sha256": "e7e82c0704329c2af764c5f49c0f4a2531903af8ab2d01f0caff3821d6089e6f"
+    },
+    "h1800_q05.txt.gz": {
+      "sha256": "36a4fd7b646a12bc84bd619d5764cf093447a4c4fda659dc8ae7a814b5217371"
+    },
+    "h1800_q50.txt.gz": {
+      "sha256": "50822485dd2dea60e1b601d8a5d17c9fee7cbb21e266a72796247f9a69f04374"
+    },
+    "h1800_q95.txt.gz": {
+      "sha256": "2fbdaf564d91610e1dc40a75034c5780563c2bbc606996e266f16fd72671843f"
+    },
+    "h3600_q05.txt.gz": {
+      "sha256": "59d50ca40b042d9c3fa2ce257876a0ffc48820dd8bd08d803e17f67bfbbf5af2"
+    },
+    "h3600_q50.txt.gz": {
+      "sha256": "0a6918ee33386c164654b6759bfe32cf9119a147098c17ac250e0476c370d267"
+    },
+    "h3600_q95.txt.gz": {
+      "sha256": "5612fccf6ce5229c9c11746f5f7a2d4fe6aefc0d29be19901ccd21412ad5c090"
+    },
+    "h900_q05.txt.gz": {
+      "sha256": "93687ffb3908e98dbf189c91ecf61f8a649e6209cecf460e8318ac377cccd202"
+    },
+    "h900_q50.txt.gz": {
+      "sha256": "1726b5cb03d2b46855173a38256b8c538f6b26c899cfa83c4905ea45c376f0b2"
+    },
+    "h900_q95.txt.gz": {
+      "sha256": "c5ff4162724b090746da0937f44991dce9b48c47dc7339b1cbdc26ab0d13904d"
+    }
+  }
+}

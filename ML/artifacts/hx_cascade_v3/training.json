@@ -1,0 +1,314 @@
+{
+  "history": [
+    {
+      "epoch": 1,
+      "train_loss": 0.17746,
+      "val_loss": 0.10242,
+      "seconds": 11.43
+    },
+    {
+      "epoch": 2,
+      "train_loss": 0.0873,
+      "val_loss": 0.09516,
+      "seconds": 11.85
+    },
+    {
+      "epoch": 3,
+      "train_loss": 0.08189,
+      "val_loss": 0.09247,
+      "seconds": 11.17
+    },
+    {
+      "epoch": 4,
+      "train_loss": 0.07774,
+      "val_loss": 0.0954,
+      "seconds": 11.67
+    },
+    {
+      "epoch": 5,
+      "train_loss": 0.07503,
+      "val_loss": 0.09377,
+      "seconds": 12.59
+    },
+    {
+      "epoch": 6,
+      "train_loss": 0.07273,
+      "val_loss": 0.08794,
+      "seconds": 13.46
+    },
+    {
+      "epoch": 7,
+      "train_loss": 0.07166,
+      "val_loss": 0.09266,
+      "seconds": 15.83
+    },
+    {
+      "epoch": 8,
+      "train_loss": 0.069,
+      "val_loss": 0.09086,
+      "seconds": 16.01
+    },
+    {
+      "epoch": 9,
+      "train_loss": 0.06773,
+      "val_loss": 0.08662,
+      "seconds": 16.76
+    },
+    {
+      "epoch": 10,
+      "train_loss": 0.06521,
+      "val_loss": 0.08464,
+      "seconds": 14.75
+    },
+    {
+      "epoch": 11,
+      "train_loss": 0.06304,
+      "val_loss": 0.08765,
+      "seconds": 12.28
+    },
+    {
+      "epoch": 12,
+      "train_loss": 0.0638,
+      "val_loss": 0.09601,
+      "seconds": 11.28
+    },
+    {
+      "epoch": 13,
+      "train_loss": 0.06179,
+      "val_loss": 0.09184,
+      "seconds": 11.34
+    },
+    {
+      "epoch": 14,
+      "train_loss": 0.06029,
+      "val_loss": 0.09028,
+      "seconds": 11.45
+    },
+    {
+      "epoch": 15,
+      "train_loss": 0.05895,
+      "val_loss": 0.09052,
+      "seconds": 11.28
+    }
+  ],
+  "best_val_loss": 0.08463785501903501,
+  "pos_weight": [
+    1.0,
+    1.0,
+    1.0
+  ],
+  "device": "cpu",
+  "config": {
+    "hidden": 64,
+    "layers": 3,
+    "heads": 4,
+    "dropout": 0.1,
+    "lr": 0.002,
+    "batch_size": 64,
+    "pos_weight": "none"
+  },
+  "sweep": [
+    {
+      "config": {
+        "hidden": 64,
+        "layers": 3,
+        "heads": 4,
+        "dropout": 0.1,
+        "lr": 0.002,
+        "batch_size": 64,
+        "pos_weight": "sqrt"
+      },
+      "val_mean_ap": 0.87464,
+      "best_val_loss": 0.1852,
+      "epochs": 10,
+      "seconds": 120.0
+    },
+    {
+      "config": {
+        "hidden": 128,
+        "layers": 3,
+        "heads": 4,
+        "dropout": 0.1,
+        "lr": 0.002,
+        "batch_size": 64,
+        "pos_weight": "sqrt"
+      },
+      "val_mean_ap": 0.88272,
+      "best_val_loss": 0.18508,
+      "epochs": 7,
+      "seconds": 178.1
+    },
+    {
+      "config": {
+        "hidden": 64,
+        "layers": 2,
+        "heads": 4,
+        "dropout": 0.1,
+        "lr": 0.002,
+        "batch_size": 64,
+        "pos_weight": "sqrt"
+      },
+      "val_mean_ap": 0.87073,
+      "best_val_loss": 0.18945,
+      "epochs": 10,
+      "seconds": 82.8
+    },
+    {
+      "config": {
+        "hidden": 64,
+        "layers": 3,
+        "heads": 4,
+        "dropout": 0.1,
+        "lr": 0.002,
+        "batch_size": 64,
+        "pos_weight": "none"
+      },
+      "val_mean_ap": 0.89577,
+      "best_val_loss": 0.08464,
+      "epochs": 15,
+      "seconds": 194.5
+    },
+    {
+      "config": {
+        "hidden": 64,
+        "layers": 3,
+        "heads": 4,
+        "dropout": 0.1,
+        "lr": 0.002,
+        "batch_size": 64,
+        "pos_weight": "linear"
+      },
+      "val_mean_ap": 0.86965,
+      "best_val_loss": 0.41711,
+      "epochs": 7,
+      "seconds": 90.8
+    },
+    {
+      "config": {
+        "hidden": 64,
+        "layers": 3,
+        "heads": 4,
+        "dropout": 0.1,
+        "lr": 0.0005,
+        "batch_size": 64,
+        "pos_weight": "sqrt"
+      },
+      "val_mean_ap": 0.88576,
+      "best_val_loss": 0.18324,
+      "epochs": 15,
+      "seconds": 175.5
+    }
+  ],
+  "selection": "max mean average precision over 900/1800/3600 s on validation maps",
+  "args": {
+    "data": "data\\cascade_v3_small",
+    "out": "ML\\artifacts\\hx_cascade_v3",
+    "version": "hx_cascade_v3",
+    "dataset_version": "local data/cascade_v3_small (40/10/10 maps x 4 scenarios + 8 live, seed 7)",
+    "source_commit": "None",
+    "epochs": "30",
+    "patience": "5",
+    "batch_size": "64",
+    "lr": "0.002",
+    "hidden": "64",
+    "layers": "3",
+    "heads": "4",
+    "dropout": "0.1",
+    "pos_weight": "sqrt",
+    "sweep": "[{}, {\"hidden\": 128}, {\"layers\": 2}, {\"pos_weight\": \"none\"}, {\"pos_weight\": \"linear\"}, {\"lr\": 0.0005}]",
+    "ttc_weight": "0.5",
+    "v2_threshold": "0.6",
+    "bootstrap": "200",
+    "seed": "42",
+    "device": "auto",
+    "force": "False"
+  },
+  "dataset": {
+    "created_by": "Backend/scripts/cascade_dataset.py",
+    "source_commit": "d52c93e85c71230e83d0ac80b8e016e1593b8fdb",
+    "source_dirty": true,
+    "args": {
+      "out": "..\\data\\cascade_v3_small",
+      "maps_train": 40,
+      "maps_val": 10,
+      "maps_test": 10,
+      "scenarios": 4,
+      "live_scenarios": 8,
+      "steps": 720,
+      "snapshot_every": 10,
+      "warmup": 20,
+      "seed": 7,
+      "workers": 3,
+      "time_budget_min": null
+    },
+    "horizons_sec": [
+      900,
+      1800,
+      3600
+    ],
+    "scored_types": [
+      "gate",
+      "road",
+      "transport_node",
+      "emergency_facility"
+    ],
+    "thresholds": {
+      "critical_utilisation": 0.9,
+      "warning_utilisation": 0.75,
+      "risk_bands": {
+        "low": 30,
+        "moderate": 60,
+        "high": 80
+      },
+      "band_hold_cycles": 3,
+      "post_change_no_hold_cycles": 10,
+      "by_type": {
+        "venue": {
+          "warning": 0.97,
+          "critical": 1.02
+        },
+        "hotel": {
+          "warning": 0.92,
+          "critical": 0.98
+        }
+      }
+    },
+    "cycle_sec": 30,
+    "maps": {
+      "train": 40,
+      "val": 10,
+      "test": 10,
+      "live": 1
+    },
+    "maps_rejected_by_simulator": 0,
+    "runs": {
+      "train": 160,
+      "val": 40,
+      "test": 40,
+      "live": 8
+    },
+    "library_versions": {
+      "python": "3.14.3",
+      "numpy": "2.4.3"
+    },
+    "complete": true,
+    "runs_this_invocation": 240,
+    "timing": {
+      "wall_sec": 2761.6,
+      "mean_run_sec": 34.19,
+      "workers": 3
+    }
+  },
+  "timing": {
+    "load_sec": 3.0,
+    "train_sec": 841.6,
+    "evaluate_sec": 64.3,
+    "graphs": {
+      "train": 9280,
+      "val": 2320,
+      "test": 2320,
+      "live": 464
+    }
+  },
+  "seconds": 917.8
+}

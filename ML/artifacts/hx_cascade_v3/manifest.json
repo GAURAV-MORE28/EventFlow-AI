@@ -1,0 +1,92 @@
+{
+  "model_name": "hx_cascade",
+  "model_version": "hx_cascade_v3",
+  "architecture": {
+    "class": "HXCascadeV3",
+    "node_feat_dim": 23,
+    "edge_feat_dim": 10,
+    "hidden": 64,
+    "num_layers": 3,
+    "heads": 4,
+    "dropout": 0.1
+  },
+  "topology_hash": null,
+  "calibrated": true,
+  "evaluated_outputs": [
+    "failure_900",
+    "failure_1800",
+    "failure_3600",
+    "ttc"
+  ],
+  "trained_on": "40 random maps (train), 10 (validation: model selection, early stopping, calibration, thresholds); 10 test maps and the live map held out",
+  "label_thresholds": {
+    "critical_utilisation": 0.9,
+    "warning_utilisation": 0.75,
+    "risk_bands": {
+      "low": 30,
+      "moderate": 60,
+      "high": 80
+    },
+    "band_hold_cycles": 3,
+    "post_change_no_hold_cycles": 10,
+    "by_type": {
+      "venue": {
+        "warning": 0.97,
+        "critical": 1.02
+      },
+      "hotel": {
+        "warning": 0.92,
+        "critical": 0.98
+      }
+    }
+  },
+  "source_commit": "d52c93e85c71230e83d0ac80b8e016e1593b8fdb",
+  "dataset": {
+    "version": "local data/cascade_v3_small (40/10/10 maps x 4 scenarios + 8 live, seed 7)",
+    "source_commit": "d52c93e85c71230e83d0ac80b8e016e1593b8fdb",
+    "seed": 7,
+    "runs": {
+      "train": 160,
+      "val": 40,
+      "test": 40,
+      "live": 8
+    },
+    "maps": {
+      "train": 40,
+      "val": 10,
+      "test": 10,
+      "live": 1
+    }
+  },
+  "seeds": {
+    "train": 42,
+    "dataset": 7
+  },
+  "library_versions": {
+    "python": "3.14.3",
+    "torch": "2.10.0+cpu",
+    "torch_geometric": "2.8.0.post1",
+    "numpy": "2.4.3"
+  },
+  "created_by": "ML/training/train_v3.py",
+  "files": {
+    "calibration.json": {
+      "sha256": "473a4673ec82ccd3ba49166694fa982cf27c6ee2fdc77c9b885789d2ffcd4023"
+    },
+    "eval.json": {
+      "sha256": "63dae4b9f9d73a834b8b68043ee4acccd6d4a711ea0b27f9effcb6f782f267d0"
+    },
+    "feature_norm.json": {
+      "sha256": "0c3126f4713aa7b51fcc16193e1208df0289e726c2e87f27ad598a318010742c"
+    },
+    "model.pt": {
+      "sha256": "1ff98e8764e085dd2e8d385cb169338f37c8b035de806b76a43e1dbf9328e942"
+    },
+    "ood_stats.json": {
+      "sha256": "22536557039aec25f002c5008529b00547c64ab5f3b3d46b0893d47d1cdf1a44"
+    },
+    "training.json": {
+      "sha256": "41cde2dcbb173d659bf9de79c65a0816be256df7df47d28b0b5465aaec1b10bb"
+    }
+  }
+}
