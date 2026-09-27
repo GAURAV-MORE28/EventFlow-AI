@@ -1,0 +1,18 @@
+{
+  "temperature": {
+    "900": 1.1703,
+    "1800": 1.1999,
+    "3600": 1.1301
+  },
+  "alert_threshold": {
+    "900": 0.49,
+    "1800": 0.32,
+    "3600": 0.54
+  },
+  "at_search_bound": {
+    "900": false,
+    "1800": false,
+    "3600": false
+  },
+  "fitted_on": "validation maps"
+}

@@ -76,17 +76,40 @@ If your module's return dict doesn't match the shared schema, Pydantic
 rejects it in `app/schemas.py` before it reaches the wire — that's the CI gate
 described in `00_SHARED_CONTRACT.md`, "Schema validation in CI".
 
-## Training data
+## Training data and the v3 pipeline
 
-`SyntheticGenerator.generate_cascade_dataset(n_scenarios, randomise_topology=True)`
-is the GNN's training source (03 §8.1, §8.4). `randomise_topology=True` is
-required — training on one fixed map teaches the model that map's geometry,
-not propagation mechanics. The reference generator (`Backend/app/ml_reference/generator.py`)
-raises `NotImplementedError` on this method by design; it drives the live demo
-only. Implement `generate_cascade_dataset` here, run it standalone (e.g. in the
-Kaggle notebook), and bring back only the trained checkpoint plus the
-`CascadePredictor` class that loads it — the generator itself never needs to be
-imported by the backend.
+The GNN is trained on **random maps simulated by the live engine**, so the
+features at training time are exactly what serving sees (sensor noise and
+dropout, the EnKF twin's estimates, the twin-model forecast), while the labels
+come from the simulator's ground truth. `generate_cascade_dataset` on the
+reference generator stays unimplemented: the dataset needs the whole engine,
+not the generator alone, so it lives in `Backend/scripts/` (the dependency
+arrow still points one way — `ML/` imports nothing from `Backend/`).
+
+| Step | Code |
+|---|---|
+| random maps (add/remove gates, roads, zones; rescale capacities, coefficients, travel times; move events and attendance; validated and hashed) | `ML/data/topology_randomiser.py` |
+| dataset: each map simulated headless, snapshots of the published state, ground-truth labels at 900/1800/3600 s, the three baselines recorded beside them | `Backend/scripts/cascade_dataset.py` |
+| one feature builder, imported by training and by serving | `ML/features/graph_features.py` |
+| networks (v2 kept for its bundle; v3 edge-attributed, monotone hazards, time-to-critical head) | `ML/models/hx_cascade.py` |
+| train, calibrate (temperature per horizon on validation maps), OOD stats, evaluate, write the bundle | `ML/training/train_v3.py` |
+| metrics with cluster-bootstrap 95% intervals; baselines; 03 §4.3 swap criterion | `ML/evaluation/cascade_eval.py` |
+| Kaggle, parameters in the first cell: the dataset on a CPU session (time-budgeted, resumable), then the sweep + calibration + evaluation on a GPU session | `ML/kaggle/cascade_v3_dataset.ipynb`, `ML/kaggle/hx_cascade_v3.ipynb` |
+
+Splits are by map (train / val / test are distinct random maps). The unmodified
+live map is never randomised into any split and is reported on its own. v2 was
+trained on the live map, so its `live` numbers are in-sample.
+
+```bash
+# smoke run (about 2 minutes on 8 cores)
+cd Backend
+python -m scripts.cascade_dataset --out ../data/smoke --maps-train 1 --maps-val 1 --maps-test 1     --scenarios 2 --live-scenarios 2 --workers 8
+cd ..
+python -m ML.training.train_v3 --data data/smoke --out data/smoke_bundle --epochs 2
+```
+
+A bundle is served only by pointing `cascade.gnn_artifact` at it; that is a
+separate decision made on its `eval.json`.
 
 Report generalisation on held-out topologies separately from in-sample results,
 and never claim field validity — every metric is framed as "in simulation, on

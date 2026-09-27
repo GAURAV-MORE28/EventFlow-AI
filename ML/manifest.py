@@ -8,6 +8,7 @@ and the training scripts can use it without importing anything backend-shaped).
         feature_norm.json    feature layout the inference code reads
         eval.json            held-out evaluation behind this version (optional)
         calibration.json     per-horizon temperatures (optional; absent = uncalibrated)
+        ood_stats.json       v3: train-map feature ranges and embedding distribution
 
 manifest.json:
     {
@@ -19,7 +20,9 @@ manifest.json:
       "topology_hash": "..." | null,     # topology the model was trained on
       "calibrated": false,
       "evaluated_outputs": [...],        # which heads the eval report covers
-      "trained_on": "...", "created_by": "...", "source_commit": "..."
+      "trained_on": "...", "created_by": "...", "source_commit": "...",
+      # v3 (ML/training/train_v3.py) adds: "dataset" {version, source_commit, seed, maps},
+      # "seeds", "library_versions"; its bundle also ships ood_stats.json and training.json
     }
 
 A bundle whose files do not match their hashes is not loaded (the caller falls

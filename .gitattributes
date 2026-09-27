@@ -1,0 +1,2 @@
+# Model bundles are bound by SHA-256 (ML/manifest.py): never rewrite their bytes.
+ML/artifacts/** -text
