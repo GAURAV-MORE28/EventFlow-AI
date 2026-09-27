@@ -41,6 +41,9 @@ const MAPPING = {
   'stay_recommendation.json': 'stay_recommendation_response',
   'saturation.json': 'saturation_response',
   'disruptions.json': 'disruption_list_response',
+  'weather.json': 'weather_response',
+  'social_signals.json': 'social_signals_response',
+  'weather_simulation.json': 'simulation_result',
 };
 
 // These are arrays of per-cycle frames; each frame validates against a schema

@@ -22,6 +22,7 @@ import {
 import { riskColor } from '../lib/colors.js';
 import { clock, countdown, decimals, secondsBetween } from '../lib/format.js';
 import { loadVarianceDelta, useStore } from '../store/useStore.js';
+import MenuToggle from './MenuToggle.jsx';
 
 function WsChip({ status }) {
   if (status === 'connected') return null;
@@ -70,11 +71,12 @@ export default function TopBar() {
   const deltaGlyph = delta === null || Math.abs(delta) < 0.0005 ? '·' : delta < 0 ? '▼' : '▲';
 
   return (
-    <header className="flex h-12 w-full items-center justify-between border-b border-surface-700/60 bg-surface-950 px-3.5 py-1 text-slate-200 select-none">
+    <header className="flex h-12 w-full items-center justify-between border-b border-surface-700/60 bg-surface-950 px-3.5 py-1 text-slate-200 select-none transition-all">
       {/* ── Brand zone & Live Status ───────────────────────────────────────── */}
       <div className="flex items-center gap-3">
         <div className="flex items-center gap-2">
-          <div className="flex h-6 w-6 items-center justify-center rounded border border-teal-500/40 bg-teal-500/10 shadow-sm">
+          <MenuToggle />
+          <div className="flex h-6 w-6 items-center justify-center rounded border border-teal-500/40 bg-teal-500/10 shadow-sm ml-1">
             <Radio className="h-3.5 w-3.5 text-teal-400" />
           </div>
           <div>

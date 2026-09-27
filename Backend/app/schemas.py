@@ -44,7 +44,23 @@ ScenarioType = Literal[
     "weather_rain", "gate_closure", "transport_outage", "parking_loss",
     "hotel_shortage", "concurrent_event", "combined", "event_delay",
     "event_cancellation", "road_closure", "station_closure", "capacity_reduction",
+    # additive: environmental conditions, with continuous parameters
+    # (rain_mm_per_hr, temp_c, wind_kph, storm_duration_min, flood_severity).
+    # `weather_rain` above is the original coarse form and still works.
+    "weather_scenario",
 ]
+
+# --- weather (additive) --------------------------------------------------
+#: Where a weather reading came from and how much to trust it. `live` = just
+#: fetched from the real provider; `cached` = the provider is failing and this is
+#: the last good reading; `synthetic` = a deterministic offline model, never an
+#: observation; `scenario` = an operator's what-if input; `unavailable` = no data.
+WeatherAvailability = Literal["live", "cached", "synthetic", "scenario", "unavailable"]
+WeatherSeverity = Literal["calm", "moderate", "severe", "extreme"]
+#: How a stated relationship was produced. Only `rule_based` is implemented;
+#: the others exist so a learned model can be reported honestly when one lands.
+ModelKind = Literal["rule_based", "estimated", "learned", "simulated"]
+SignalScope = Literal["local", "global"]
 NudgeStatus = Literal["pending", "accepted", "declined", "expired"]
 
 
@@ -596,6 +612,8 @@ class SimulationResult(Base):
     timeline: list[SimulationTimelinePoint] = Field(default_factory=list)
     horizon_sec: Optional[int] = None
     scenarios: list[ScenarioSpec] = Field(default_factory=list)
+    # additive: present only for a what-if that varied the weather.
+    weather: Optional["SimulationWeather"] = None
 
 
 # --- 01 §3.10 metrics ----------------------------------------------------
@@ -983,6 +1001,234 @@ class WsMessage(Base):
     sim_time: str
     seq: int
     payload: dict[str, Any]
+
+
+# --- weather-driven digital twin (additive) ------------------------------------------
+class WeatherConditions(Base):
+    """One weather reading. A value the provider did not supply is `null`
+    ("unknown", 00 §0) — never 0 and never a sentinel. `temp_c` is degrees
+    Celsius, `precipitation_mm_per_hr` millimetres per hour, `wind_kph`
+    kilometres per hour; `humidity` and `precipitation_probability` are
+    fractions 0.0–1.0."""
+    valid_at: str
+    horizon_sec: int = 0
+    temp_c: Optional[float] = None
+    apparent_temp_c: Optional[float] = None
+    precipitation_mm_per_hr: Optional[float] = None
+    wind_kph: Optional[float] = None
+    humidity: Optional[float] = None
+    precipitation_probability: Optional[float] = None
+    condition_code: Optional[int] = None
+    condition: Optional[str] = None
+    severity: WeatherSeverity = "calm"
+
+
+class WeatherLocation(Base):
+    lat: float
+    lon: float
+    label: Optional[str] = None
+    entity_id: Optional[str] = None
+
+
+class ImpactRule(Base):
+    """One rule that contributed to an impact scalar, with its basis stated."""
+    rule: str
+    driver: float
+    coefficient: float
+    basis: str
+    kind: ModelKind
+
+
+class ImpactBand(Base):
+    """A scalar with the range it could plausibly take. `lower`/`upper` come from
+    the rule coefficients' configured range, widened by the forecast horizon —
+    never from an invented confidence figure.
+
+    `mild` / `severe` are the k_min and k_max variants of this scalar. They are
+    NOT lower/upper: for a shrinking multiplier (service rate, capacity,
+    attendance) the k_max variant is the smaller number. A coherent scenario
+    variant mixes by coefficient extreme, which is what these two are for."""
+    value: float
+    lower: float
+    upper: float
+    mild: Optional[float] = None
+    severe: Optional[float] = None
+    rules: list[ImpactRule] = Field(default_factory=list)
+    uncertainty_basis: str
+
+
+class CausalLink(Base):
+    stage: str
+    label: str
+    detail: str
+    fields: list[str] = Field(default_factory=list)
+
+
+class WeatherDrivers(Base):
+    """Each weather input normalised to a 0.0–1.0 intensity."""
+    rain: float
+    heat: float
+    wind: float
+    flood: float
+
+
+class WeatherImpact(Base):
+    """The impact vector the city model applies. Multipliers are dimensionless
+    and 1.0 means "no effect"; `applied: false` means nothing was applied at
+    all (calm weather, or no reading)."""
+    model: str
+    model_kind: ModelKind
+    applied: bool
+    availability: WeatherAvailability
+    severity: WeatherSeverity
+    drivers: WeatherDrivers
+    horizon_sec: int = 0
+    duration_sec: Optional[int] = None
+    confidence: Confidence
+    travel_time_mult: float
+    dwell_mult: float
+    service_rate_mult: float
+    attendance_mult: float
+    arrival_shift_min: float
+    #: <1.0 narrows the arrival window (delayed arrivals bunch together).
+    arrival_spread_mult: float = 1.0
+    emergency_gain_mult: float
+    type_capacity_mult: dict[str, float] = Field(default_factory=dict)
+    closed_entity_ids: list[str] = Field(default_factory=list)
+    bands: dict[str, ImpactBand] = Field(default_factory=dict)
+    causal_chain: list[CausalLink] = Field(default_factory=list)
+    note: Optional[str] = None
+    band_edge: Optional[str] = None
+
+
+class WeatherForecastImpact(Base):
+    """One forecast hour with the pressure it is expected to put on the network."""
+    valid_at: Optional[str] = None
+    horizon_sec: int
+    severity: Optional[WeatherSeverity] = None
+    conditions: WeatherConditions
+    travel_time_mult: float
+    service_rate_mult: float
+    attendance_mult: float
+    confidence: Confidence
+    bands: dict[str, ImpactBand] = Field(default_factory=dict)
+
+
+class WeatherResponse(Base):
+    """`GET /weather`. `availability` and `driving_live` are the two fields that
+    keep this honest: the first says whether the reading is real, the second
+    whether any of it is reaching the live simulation."""
+    server_time: str
+    sim_time: str
+    world_id: str
+    provider: str
+    availability: WeatherAvailability
+    source: str
+    observed_at: Optional[str] = None
+    fetched_at: Optional[str] = None
+    observation_age_sec: Optional[int] = None
+    refreshed_age_sec: Optional[int] = None
+    refresh_interval_sec: int
+    stale: bool
+    location: WeatherLocation
+    current: Optional[WeatherConditions] = None
+    forecast: list[WeatherConditions] = Field(default_factory=list)
+    impact: WeatherImpact
+    forecast_impacts: list[WeatherForecastImpact] = Field(default_factory=list)
+    driving_live: bool
+    applied_to_live: bool
+    detail: Optional[str] = None
+
+
+class WeatherApplyRequest(Base):
+    """Switch live weather on or off as a modifier on the simulated city."""
+    enabled: bool
+    operator_id: Optional[str] = None
+
+
+class WeatherUncertaintyMetric(Base):
+    value: float
+    lower: float
+    upper: float
+
+
+class WeatherUncertainty(Base):
+    """Outcome uncertainty from three runs of the same scenario (lower, central
+    and upper rule coefficients), not a multiplier on a guess."""
+    method: str
+    kind: ModelKind
+    confidence: Confidence
+    metrics: dict[str, WeatherUncertaintyMetric] = Field(default_factory=dict)
+
+
+class WeatherLiveReading(Base):
+    availability: WeatherAvailability
+    source: str
+    observed_at: Optional[str] = None
+    current: Optional[WeatherConditions] = None
+
+
+class SimulationWeather(Base):
+    """The weather half of a what-if result: what was simulated, what the impact
+    model made of it, the live reading it was layered on, and the outcome band."""
+    scenario_conditions: WeatherConditions
+    impact: WeatherImpact
+    live_reading: WeatherLiveReading
+    uncertainty: Optional[WeatherUncertainty] = None
+
+
+# --- public social signals (additive) ------------------------------------------------
+class PublicSignal(Base):
+    """One publicly posted signal. `text` / `author` / `url` / `posted_at` are
+    the platform's own data (`observation_kind: "user_report"`); `signal_type`,
+    `scope`, `matched_terms` and `relevance` are our keyword classification
+    (`classification_kind: "derived"`). `is_real_post` is false for offline
+    fixture data, which is never presented as anyone's words."""
+    signal_id: str
+    source: str
+    source_detail: str
+    is_real_post: bool
+    posted_at: str
+    author: Optional[str] = None
+    url: Optional[str] = None
+    text: str
+    location_topic: Optional[str] = None
+    signal_type: str
+    observation_kind: str
+    classification_kind: str
+    matched_terms: list[str] = Field(default_factory=list)
+    scope: SignalScope = "global"
+    relevance: float
+
+
+class PublicSignalSummary(Base):
+    count: int
+    local_count: int = 0
+    global_count: int = 0
+    by_type: dict[str, int] = Field(default_factory=dict)
+    max_relevance: Optional[float] = None
+
+
+class PublicSignalError(Base):
+    tag: str
+    reason: str
+
+
+class SocialSignalsResponse(Base):
+    """`GET /social/signals`. An empty `signals` list with
+    `availability: "live"` is a real answer: nobody posted."""
+    provider: str
+    availability: Literal["live", "cached", "fixture", "unavailable"]
+    fetched_at: str
+    queried_tags: list[str] = Field(default_factory=list)
+    window_sec: int
+    signals: list[PublicSignal] = Field(default_factory=list)
+    summary: PublicSignalSummary
+    detail: Optional[str] = None
+    classifier: str
+    errors: list[PublicSignalError] = Field(default_factory=list)
+    age_sec: Optional[int] = None
+    topics: list[str] = Field(default_factory=list)
 
 
 # --- venue → radius → footprint → blueprint → event graph (additive) ----------------

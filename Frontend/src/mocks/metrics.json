@@ -2,7 +2,7 @@
   "sim_time": "2026-09-04T15:20:00Z",
   "operations": {
     "capacity_utilisation": {
-      "value": 0.4212
+      "value": 0.4213
     },
     "peak_congestion": {
       "value": 1.1427,
@@ -72,10 +72,10 @@
   },
   "twin": {
     "rmse": {
-      "value": 29.4,
+      "value": 31.3,
       "baseline": 2479.32,
       "baseline_name": "uncorrected_abm",
-      "improvement_pct": 98.8
+      "improvement_pct": 98.7
     },
     "ensemble_coverage": {
       "value": 1.0,
@@ -110,7 +110,7 @@
   },
   "system": {
     "cycle_latency_ms": {
-      "value": 118.0,
+      "value": 26.0,
       "target": 2000.0
     },
     "commander_ungrounded_rate": {

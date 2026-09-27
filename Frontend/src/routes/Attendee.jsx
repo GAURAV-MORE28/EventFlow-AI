@@ -30,6 +30,7 @@ import { riskColor } from '../lib/colors.js';
 import { clock, humanise, minutes, percent, rupees } from '../lib/format.js';
 import { useLiveQuery } from '../lib/useLiveQuery.js';
 import { useStore } from '../store/useStore.js';
+import MenuToggle from '../components/MenuToggle.jsx';
 
 const SEGMENTS = [
   ['price_sensitive', 'Budget-conscious'],
@@ -254,10 +255,13 @@ export default function Attendee() {
   return (
     <div className="min-h-screen bg-surface-950 py-4 font-sans text-slate-100">
       <div className="mx-auto w-full max-w-[480px] space-y-3 px-3">
-        <header className="flex items-center justify-between border-b border-surface-700/60 pb-3">
-          <div>
-            <h1 className="text-sm font-bold tracking-tight text-slate-100">Your event journey</h1>
-            <p className="font-mono text-[10px] text-slate-400">ID: {plan.attendee_id}</p>
+        <header className="flex items-center justify-between border-b border-surface-700/60 pb-3 transition-all">
+          <div className="flex items-center gap-3">
+            <MenuToggle />
+            <div>
+              <h1 className="text-sm font-bold tracking-tight text-slate-100">Your event journey</h1>
+              <p className="font-mono text-[10px] text-slate-400">ID: {plan.attendee_id}</p>
+            </div>
           </div>
           <Link to="/" className="flex items-center gap-1 rounded border border-surface-700/60 bg-surface-850 px-2 py-1 text-[11px] text-slate-300">
             Operators <ArrowRight className="h-3 w-3" />

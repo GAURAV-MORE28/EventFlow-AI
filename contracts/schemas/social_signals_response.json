@@ -1,0 +1,274 @@
+{
+  "$defs": {
+    "PublicSignal": {
+      "additionalProperties": false,
+      "description": "One publicly posted signal. `text` / `author` / `url` / `posted_at` are\nthe platform's own data (`observation_kind: \"user_report\"`); `signal_type`,\n`scope`, `matched_terms` and `relevance` are our keyword classification\n(`classification_kind: \"derived\"`). `is_real_post` is false for offline\nfixture data, which is never presented as anyone's words.",
+      "properties": {
+        "signal_id": {
+          "title": "Signal Id",
+          "type": "string"
+        },
+        "source": {
+          "title": "Source",
+          "type": "string"
+        },
+        "source_detail": {
+          "title": "Source Detail",
+          "type": "string"
+        },
+        "is_real_post": {
+          "title": "Is Real Post",
+          "type": "boolean"
+        },
+        "posted_at": {
+          "title": "Posted At",
+          "type": "string"
+        },
+        "author": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Author"
+        },
+        "url": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Url"
+        },
+        "text": {
+          "title": "Text",
+          "type": "string"
+        },
+        "location_topic": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Location Topic"
+        },
+        "signal_type": {
+          "title": "Signal Type",
+          "type": "string"
+        },
+        "observation_kind": {
+          "title": "Observation Kind",
+          "type": "string"
+        },
+        "classification_kind": {
+          "title": "Classification Kind",
+          "type": "string"
+        },
+        "matched_terms": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Matched Terms",
+          "type": "array"
+        },
+        "scope": {
+          "default": "global",
+          "enum": [
+            "local",
+            "global"
+          ],
+          "title": "Scope",
+          "type": "string"
+        },
+        "relevance": {
+          "title": "Relevance",
+          "type": "number"
+        }
+      },
+      "required": [
+        "signal_id",
+        "source",
+        "source_detail",
+        "is_real_post",
+        "posted_at",
+        "text",
+        "signal_type",
+        "observation_kind",
+        "classification_kind",
+        "relevance"
+      ],
+      "title": "PublicSignal",
+      "type": "object"
+    },
+    "PublicSignalError": {
+      "additionalProperties": false,
+      "properties": {
+        "tag": {
+          "title": "Tag",
+          "type": "string"
+        },
+        "reason": {
+          "title": "Reason",
+          "type": "string"
+        }
+      },
+      "required": [
+        "tag",
+        "reason"
+      ],
+      "title": "PublicSignalError",
+      "type": "object"
+    },
+    "PublicSignalSummary": {
+      "additionalProperties": false,
+      "properties": {
+        "count": {
+          "title": "Count",
+          "type": "integer"
+        },
+        "local_count": {
+          "default": 0,
+          "title": "Local Count",
+          "type": "integer"
+        },
+        "global_count": {
+          "default": 0,
+          "title": "Global Count",
+          "type": "integer"
+        },
+        "by_type": {
+          "additionalProperties": {
+            "type": "integer"
+          },
+          "title": "By Type",
+          "type": "object"
+        },
+        "max_relevance": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Max Relevance"
+        }
+      },
+      "required": [
+        "count"
+      ],
+      "title": "PublicSignalSummary",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "`GET /social/signals`. An empty `signals` list with\n`availability: \"live\"` is a real answer: nobody posted.",
+  "properties": {
+    "provider": {
+      "title": "Provider",
+      "type": "string"
+    },
+    "availability": {
+      "enum": [
+        "live",
+        "cached",
+        "fixture",
+        "unavailable"
+      ],
+      "title": "Availability",
+      "type": "string"
+    },
+    "fetched_at": {
+      "title": "Fetched At",
+      "type": "string"
+    },
+    "queried_tags": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Queried Tags",
+      "type": "array"
+    },
+    "window_sec": {
+      "title": "Window Sec",
+      "type": "integer"
+    },
+    "signals": {
+      "items": {
+        "$ref": "#/$defs/PublicSignal"
+      },
+      "title": "Signals",
+      "type": "array"
+    },
+    "summary": {
+      "$ref": "#/$defs/PublicSignalSummary"
+    },
+    "detail": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Detail"
+    },
+    "classifier": {
+      "title": "Classifier",
+      "type": "string"
+    },
+    "errors": {
+      "items": {
+        "$ref": "#/$defs/PublicSignalError"
+      },
+      "title": "Errors",
+      "type": "array"
+    },
+    "age_sec": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Age Sec"
+    },
+    "topics": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Topics",
+      "type": "array"
+    }
+  },
+  "required": [
+    "provider",
+    "availability",
+    "fetched_at",
+    "window_sec",
+    "summary",
+    "classifier"
+  ],
+  "title": "social_signals_response",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

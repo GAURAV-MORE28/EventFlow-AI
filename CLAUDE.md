@@ -161,8 +161,8 @@ blueprint, `world_from_blueprint`).
 Vite + React 18 + React Router + Zustand + Tailwind; deck.gl for the map (OSM raster basemap via
 `lib/basemap.js` for generated worlds, attribution always visible), Recharts for KPI charts.
 Routes (`App.jsx`): `/` Command Centre, `/venue` Venue & Network setup, operator pages
-(`/events`, `/accommodation`, `/transport`, `/crowd`, `/interventions`, `/whatif`, `/commander`),
-`/attendee` PWA, `/metrics` judging panel.
+(`/events`, `/accommodation`, `/transport`, `/crowd`, `/interventions`, `/whatif`, `/twin`,
+`/commander`), `/attendee` PWA, `/metrics` judging panel.
 
 - **`App.jsx` bootstraps once:** fetch static topology (`/event`, `/graph`), then either
   `startMockDriver(store)` or seed from REST + `connectWebSocket(store)`. It refetches the topology
@@ -201,5 +201,59 @@ live-gap correction; trend reference without it); `CascadePredictor` is the real
 deterministic propagator wired as its `.fallback()`.
 
 Pluggable sources live in `Backend/app/providers/`: `geo.py` (travel times; synthetic by default,
-OSRM/Google via env vars, cached with timeout/retry/fallback) and `data.py` (topology/hotels/events;
-synthetic by default, `data.provider: file` reads and normalises JSON).
+OSRM/Google via env vars, cached with timeout/retry/fallback), `data.py` (topology/hotels/events;
+synthetic by default, `data.provider: file` reads and normalises JSON), `weather.py` and `social.py`
+(below).
+
+## Weather-driven digital twin
+
+Weather is an **input to the existing twin**, not a second twin. There is one world, one cycle, one
+what-if engine; weather enters as a modifier on the city model and the ordinary cycle does the rest.
+
+```
+providers/weather.py   Open-Meteo (no API key) → WeatherConditions
+services/weather_impact.py   rule-based coefficients → an impact vector (pure, no state, no I/O)
+services/weather.py          WeatherService: refresh loop, live-drive switch, scenario translation
+generator.py                 inject("weather", {"impact": …}) → one modifier kind
+   ↓ the normal flow model propagates it
+travel time · dwell · service rate · type capacity · attendance · arrival timing & bunching ·
+incident-load gain → queues → gate spill → roads → `evacuates_to` → cascades → risk
+```
+
+- **Provenance is a field, not a claim.** Every reading carries `availability`:
+  `live` | `cached` | `synthetic` | `unavailable`. A fallback is never relabelled as live, and an
+  unavailable reading applies *nothing* (the identity vector) rather than guessing a calm day.
+- **Advisory by default** (`weather.drive_live: false`). Weather is always fetched, always shown and
+  always usable in What-If, but it only modifies the live city when an operator calls
+  `POST /weather/apply` — so `sim_time` stays fully determined by the seed and the demo run does not
+  depend on today's actual weather. `driving_live` / `applied_to_live` are on every payload.
+- When it *is* driving the live city the same vector goes to `engine.nominal` too: a forecast is
+  announced information, so the twin's process model knows it (hence `weather` in the nominal
+  clone's `sources`). A do-nothing counterfactual keeps the conditions it was forked under.
+- **Rule-based, and it says so.** Every coefficient in `config.yaml`'s `weather:` block has a
+  `k_min`/`k_max` range and a `basis` string; `model_kind` is `rule_based`. Nothing here is fitted or
+  learned. Impact scalars are keyed by **`entity_type`**, never by entity id, so a generated OSM
+  world behaves exactly like the demo city. Flooding closes only entities the operator named.
+- **Uncertainty comes from runs, not from a guess.** `bands` on each scalar span the configured
+  coefficient range, widened by forecast horizon. A weather what-if runs the scenario three times —
+  at the model's `mild`, central and `severe` coefficients — and reports the outcome span. A variant
+  must mix by coefficient extreme (`mild`/`severe` on each band), not by band edge: for a shrinking
+  multiplier the band's lower edge is the *worse* case, and selecting by edge yields an outcome
+  outside its own band.
+- What-If: `scenario_type: "weather_scenario"` with continuous params (`rain_mm_per_hr`, `temp_c`,
+  `wind_kph`, `flood_severity`, `storm_duration_min`, `flooded_entity_ids`), validated against
+  physical ranges — an out-of-range value is rejected, never silently clamped. It runs through the
+  **existing** clone path, so the "never mutates the live city" guarantee is the same one
+  `test_hardening.py` already pinned. The coarse `weather_rain` scenario still works unchanged.
+- `providers/social.py` reads **public Mastodon hashtag timelines** (keyless) for topics derived
+  from the active world's venue. A post's text/author/url are the platform's
+  (`observation_kind: "user_report"`); `signal_type` / `scope` / `relevance` are our keyword
+  classification (`classification_kind: "derived"`, `classifier: keyword_match_v1`). `scope` is
+  `local` only when the post named this world's venue — a `#rain` post from elsewhere is kept and
+  labelled `global`. An empty result is a real answer. The offline provider reads
+  `app/data/social_fixture.json` and every signal it returns is `is_real_post: false` — it is **not**
+  social media content and is never shown as anyone's words. **Nothing in the simulation reads post
+  text**; the twin is driven by the weather provider alone.
+- Frontend: `/twin` (`routes/DigitalTwin.jsx`) renders the same store the Command Centre uses and
+  computes no impact number of its own. `MapCanvas` gains a conditions disc and affected-entity
+  rings, both keyed off the backend's `severity` string and `type_capacity_mult`.

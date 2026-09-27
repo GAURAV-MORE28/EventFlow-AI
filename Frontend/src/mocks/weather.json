@@ -1,0 +1,910 @@
+{
+  "server_time": "2026-09-27T03:48:16Z",
+  "sim_time": "2026-09-04T15:20:00Z",
+  "world_id": "synthetic_demo",
+  "provider": "synthetic",
+  "availability": "synthetic",
+  "source": "synthetic",
+  "observed_at": "2026-09-27T03:48:16Z",
+  "fetched_at": "2026-09-27T03:48:16Z",
+  "observation_age_sec": 0,
+  "refreshed_age_sec": 0,
+  "refresh_interval_sec": 900,
+  "stale": false,
+  "location": {
+    "lat": 19.076,
+    "lon": 72.8777,
+    "label": "Main Stadium",
+    "entity_id": "stadium_main"
+  },
+  "current": {
+    "valid_at": "2026-09-27T03:48:16Z",
+    "horizon_sec": 0,
+    "temp_c": 26.25,
+    "apparent_temp_c": 27.75,
+    "precipitation_mm_per_hr": 0.071,
+    "wind_kph": 6.09,
+    "humidity": 0.4398,
+    "precipitation_probability": 0.0071,
+    "condition_code": 2,
+    "condition": "partly cloudy",
+    "severity": "calm"
+  },
+  "forecast": [
+    {
+      "valid_at": "2026-09-27T04:00:00Z",
+      "horizon_sec": 3600,
+      "temp_c": 25.26,
+      "apparent_temp_c": 26.76,
+      "precipitation_mm_per_hr": 0.0,
+      "wind_kph": 6.26,
+      "humidity": 0.4004,
+      "precipitation_probability": 0.0,
+      "condition_code": 2,
+      "condition": "partly cloudy",
+      "severity": "calm"
+    },
+    {
+      "valid_at": "2026-09-27T05:00:00Z",
+      "horizon_sec": 7200,
+      "temp_c": 24.53,
+      "apparent_temp_c": 26.03,
+      "precipitation_mm_per_hr": 0.0,
+      "wind_kph": 6.53,
+      "humidity": 0.3711,
+      "precipitation_probability": 0.0,
+      "condition_code": 2,
+      "condition": "partly cloudy",
+      "severity": "calm"
+    },
+    {
+      "valid_at": "2026-09-27T06:00:00Z",
+      "horizon_sec": 10800,
+      "temp_c": 24.1,
+      "apparent_temp_c": 25.6,
+      "precipitation_mm_per_hr": 0.0,
+      "wind_kph": 6.88,
+      "humidity": 0.3541,
+      "precipitation_probability": 0.0,
+      "condition_code": 2,
+      "condition": "partly cloudy",
+      "severity": "calm"
+    },
+    {
+      "valid_at": "2026-09-27T07:00:00Z",
+      "horizon_sec": 14400,
+      "temp_c": 24.01,
+      "apparent_temp_c": 25.51,
+      "precipitation_mm_per_hr": 0.0,
+      "wind_kph": 7.31,
+      "humidity": 0.3504,
+      "precipitation_probability": 0.0,
+      "condition_code": 2,
+      "condition": "partly cloudy",
+      "severity": "calm"
+    },
+    {
+      "valid_at": "2026-09-27T08:00:00Z",
+      "horizon_sec": 18000,
+      "temp_c": 24.26,
+      "apparent_temp_c": 25.76,
+      "precipitation_mm_per_hr": 0.0,
+      "wind_kph": 7.81,
+      "humidity": 0.3603,
+      "precipitation_probability": 0.0,
+      "condition_code": 2,
+      "condition": "partly cloudy",
+      "severity": "calm"
+    },
+    {
+      "valid_at": "2026-09-27T09:00:00Z",
+      "horizon_sec": 21600,
+      "temp_c": 24.83,
+      "apparent_temp_c": 26.33,
+      "precipitation_mm_per_hr": 0.0,
+      "wind_kph": 8.38,
+      "humidity": 0.3831,
+      "precipitation_probability": 0.0,
+      "condition_code": 2,
+      "condition": "partly cloudy",
+      "severity": "calm"
+    },
+    {
+      "valid_at": "2026-09-27T10:00:00Z",
+      "horizon_sec": 25200,
+      "temp_c": 25.68,
+      "apparent_temp_c": 27.18,
+      "precipitation_mm_per_hr": 0.0,
+      "wind_kph": 9.0,
+      "humidity": 0.4173,
+      "precipitation_probability": 0.0,
+      "condition_code": 2,
+      "condition": "partly cloudy",
+      "severity": "calm"
+    },
+    {
+      "valid_at": "2026-09-27T11:00:00Z",
+      "horizon_sec": 28800,
+      "temp_c": 26.76,
+      "apparent_temp_c": 28.26,
+      "precipitation_mm_per_hr": 0.0,
+      "wind_kph": 9.68,
+      "humidity": 0.4606,
+      "precipitation_probability": 0.0,
+      "condition_code": 2,
+      "condition": "partly cloudy",
+      "severity": "calm"
+    },
+    {
+      "valid_at": "2026-09-27T12:00:00Z",
+      "horizon_sec": 32400,
+      "temp_c": 28.0,
+      "apparent_temp_c": 29.5,
+      "precipitation_mm_per_hr": 0.0,
+      "wind_kph": 10.38,
+      "humidity": 0.5099,
+      "precipitation_probability": 0.0,
+      "condition_code": 2,
+      "condition": "partly cloudy",
+      "severity": "calm"
+    },
+    {
+      "valid_at": "2026-09-27T13:00:00Z",
+      "horizon_sec": 36000,
+      "temp_c": 29.3,
+      "apparent_temp_c": 30.8,
+      "precipitation_mm_per_hr": 0.0,
+      "wind_kph": 11.12,
+      "humidity": 0.562,
+      "precipitation_probability": 0.0,
+      "condition_code": 2,
+      "condition": "partly cloudy",
+      "severity": "calm"
+    },
+    {
+      "valid_at": "2026-09-27T14:00:00Z",
+      "horizon_sec": 39600,
+      "temp_c": 30.58,
+      "apparent_temp_c": 32.08,
+      "precipitation_mm_per_hr": 0.0,
+      "wind_kph": 11.86,
+      "humidity": 0.6132,
+      "precipitation_probability": 0.0,
+      "condition_code": 2,
+      "condition": "partly cloudy",
+      "severity": "calm"
+    },
+    {
+      "valid_at": "2026-09-27T15:00:00Z",
+      "horizon_sec": 43200,
+      "temp_c": 31.75,
+      "apparent_temp_c": 33.25,
+      "precipitation_mm_per_hr": 0.0,
+      "wind_kph": 12.61,
+      "humidity": 0.6602,
+      "precipitation_probability": 0.0,
+      "condition_code": 2,
+      "condition": "partly cloudy",
+      "severity": "calm"
+    }
+  ],
+  "impact": {
+    "model": "weather-impact-1",
+    "model_kind": "rule_based",
+    "applied": true,
+    "availability": "synthetic",
+    "severity": "calm",
+    "drivers": {
+      "rain": 0.0028,
+      "heat": 0.0,
+      "wind": 0.0,
+      "flood": 0.0
+    },
+    "horizon_sec": 0,
+    "duration_sec": null,
+    "confidence": "medium",
+    "travel_time_mult": 1.0009,
+    "dwell_mult": 1.0006,
+    "service_rate_mult": 0.9996,
+    "attendance_mult": 0.9999,
+    "arrival_shift_min": 0.0336,
+    "arrival_spread_mult": 0.9994,
+    "emergency_gain_mult": 1.0,
+    "type_capacity_mult": {
+      "road": 0.9995,
+      "parking": 0.9995
+    },
+    "closed_entity_ids": [],
+    "bands": {
+      "travel_time_mult": {
+        "value": 1.0009,
+        "lower": 1.0006,
+        "upper": 1.0014,
+        "mild": 1.0006,
+        "severe": 1.0014,
+        "rules": [
+          {
+            "rule": "rain_travel",
+            "driver": 0.0028,
+            "coefficient": 0.32,
+            "basis": "wet-weather urban travel-time increase, planning estimate",
+            "kind": "rule_based"
+          }
+        ],
+        "uncertainty_basis": "coefficient range"
+      },
+      "dwell_mult": {
+        "value": 1.0006,
+        "lower": 1.0003,
+        "upper": 1.001,
+        "mild": 1.0003,
+        "severe": 1.001,
+        "rules": [
+          {
+            "rule": "rain_dwell",
+            "driver": 0.0028,
+            "coefficient": 0.22,
+            "basis": "shelter-seeking and slower pedestrian flow, engineering estimate",
+            "kind": "rule_based"
+          }
+        ],
+        "uncertainty_basis": "coefficient range"
+      },
+      "service_rate_mult": {
+        "value": 0.9996,
+        "lower": 0.9994,
+        "upper": 0.9998,
+        "mild": 0.9998,
+        "severe": 0.9994,
+        "rules": [
+          {
+            "rule": "rain_service",
+            "driver": 0.0028,
+            "coefficient": 0.14,
+            "basis": "slower gate scanning under umbrellas/wet tickets, engineering estimate",
+            "kind": "rule_based"
+          }
+        ],
+        "uncertainty_basis": "coefficient range"
+      },
+      "attendance_mult": {
+        "value": 0.9999,
+        "lower": 0.9997,
+        "upper": 1.0,
+        "mild": 1.0,
+        "severe": 0.9997,
+        "rules": [
+          {
+            "rule": "rain_attendance",
+            "driver": 0.0028,
+            "coefficient": 0.04,
+            "basis": "weather no-shows at ticketed events are small, engineering estimate",
+            "kind": "rule_based"
+          }
+        ],
+        "uncertainty_basis": "coefficient range"
+      },
+      "arrival_shift_min": {
+        "value": 0.0336,
+        "lower": 0.0112,
+        "upper": 0.0616,
+        "mild": 0.0112,
+        "severe": 0.0616,
+        "rules": [
+          {
+            "rule": "rain_arrival_min",
+            "driver": 0.0028,
+            "coefficient": 12.0,
+            "basis": "later departure from origin in rain, engineering estimate",
+            "kind": "rule_based"
+          }
+        ],
+        "uncertainty_basis": "coefficient range"
+      },
+      "arrival_spread_mult": {
+        "value": 0.9994,
+        "lower": 0.999,
+        "upper": 0.9997,
+        "mild": 0.9997,
+        "severe": 0.999,
+        "rules": [
+          {
+            "rule": "rain_bunching",
+            "driver": 0.0028,
+            "coefficient": 0.22,
+            "basis": "correlated departure decisions narrow the arrival window, engineering estimate",
+            "kind": "rule_based"
+          }
+        ],
+        "uncertainty_basis": "coefficient range"
+      },
+      "emergency_gain_mult": {
+        "value": 1.0,
+        "lower": 1.0,
+        "upper": 1.0,
+        "mild": 1.0,
+        "severe": 1.0,
+        "rules": [],
+        "uncertainty_basis": "no effect"
+      },
+      "capacity_mult": {
+        "value": 0.9995,
+        "lower": 0.9992,
+        "upper": 0.9997,
+        "mild": 0.9997,
+        "severe": 0.9992,
+        "rules": [
+          {
+            "rule": "rain_capacity",
+            "driver": 0.0028,
+            "coefficient": 0.18,
+            "basis": "reduced saturation flow on wet pavement, planning estimate",
+            "kind": "rule_based"
+          }
+        ],
+        "uncertainty_basis": "coefficient range"
+      }
+    },
+    "causal_chain": [
+      {
+        "stage": "weather",
+        "label": "Weather",
+        "detail": "Measured rainfall, apparent temperature, wind; flooding as a scenario input."
+      },
+      {
+        "stage": "behaviour",
+        "label": "Traveller behaviour",
+        "detail": "attendance_mult, arrival_shift_min, arrival_spread_mult — who comes, when, and how tightly bunched.",
+        "fields": [
+          "attendance_mult",
+          "arrival_shift_min",
+          "arrival_spread_mult"
+        ]
+      },
+      {
+        "stage": "network",
+        "label": "Network & roads",
+        "detail": "travel_time_mult, capacity of roads and car parks.",
+        "fields": [
+          "travel_time_mult",
+          "type_capacity_mult"
+        ]
+      },
+      {
+        "stage": "access",
+        "label": "Stations & gates",
+        "detail": "service_rate_mult, dwell_mult — queues build when service slows.",
+        "fields": [
+          "service_rate_mult",
+          "dwell_mult"
+        ]
+      },
+      {
+        "stage": "venue",
+        "label": "Venue & precinct",
+        "detail": "Gate queues spill onto approach roads; the venue fills later and slower.",
+        "fields": [
+          "dwell_mult"
+        ]
+      },
+      {
+        "stage": "crowd",
+        "label": "Crowd, congestion & risk",
+        "detail": "Utilisation, risk bands, cascades and emergency load, computed by the usual cycle.",
+        "fields": [
+          "emergency_gain_mult"
+        ]
+      }
+    ],
+    "note": null
+  },
+  "forecast_impacts": [
+    {
+      "valid_at": "2026-09-27T04:00:00Z",
+      "horizon_sec": 3600,
+      "severity": "calm",
+      "conditions": {
+        "valid_at": "2026-09-27T04:00:00Z",
+        "horizon_sec": 3600,
+        "temp_c": 25.26,
+        "apparent_temp_c": 26.76,
+        "precipitation_mm_per_hr": 0.0,
+        "wind_kph": 6.26,
+        "humidity": 0.4004,
+        "precipitation_probability": 0.0,
+        "condition_code": 2,
+        "condition": "partly cloudy",
+        "severity": "calm"
+      },
+      "travel_time_mult": 1.0,
+      "service_rate_mult": 1.0,
+      "attendance_mult": 1.0,
+      "confidence": "medium",
+      "bands": {
+        "travel_time_mult": {
+          "value": 1.0,
+          "lower": 1.0,
+          "upper": 1.0,
+          "mild": 1.0,
+          "severe": 1.0,
+          "rules": [],
+          "uncertainty_basis": "no effect"
+        },
+        "service_rate_mult": {
+          "value": 1.0,
+          "lower": 1.0,
+          "upper": 1.0,
+          "mild": 1.0,
+          "severe": 1.0,
+          "rules": [],
+          "uncertainty_basis": "no effect"
+        }
+      }
+    },
+    {
+      "valid_at": "2026-09-27T05:00:00Z",
+      "horizon_sec": 7200,
+      "severity": "calm",
+      "conditions": {
+        "valid_at": "2026-09-27T05:00:00Z",
+        "horizon_sec": 7200,
+        "temp_c": 24.53,
+        "apparent_temp_c": 26.03,
+        "precipitation_mm_per_hr": 0.0,
+        "wind_kph": 6.53,
+        "humidity": 0.3711,
+        "precipitation_probability": 0.0,
+        "condition_code": 2,
+        "condition": "partly cloudy",
+        "severity": "calm"
+      },
+      "travel_time_mult": 1.0,
+      "service_rate_mult": 1.0,
+      "attendance_mult": 1.0,
+      "confidence": "medium",
+      "bands": {
+        "travel_time_mult": {
+          "value": 1.0,
+          "lower": 1.0,
+          "upper": 1.0,
+          "mild": 1.0,
+          "severe": 1.0,
+          "rules": [],
+          "uncertainty_basis": "no effect"
+        },
+        "service_rate_mult": {
+          "value": 1.0,
+          "lower": 1.0,
+          "upper": 1.0,
+          "mild": 1.0,
+          "severe": 1.0,
+          "rules": [],
+          "uncertainty_basis": "no effect"
+        }
+      }
+    },
+    {
+      "valid_at": "2026-09-27T06:00:00Z",
+      "horizon_sec": 10800,
+      "severity": "calm",
+      "conditions": {
+        "valid_at": "2026-09-27T06:00:00Z",
+        "horizon_sec": 10800,
+        "temp_c": 24.1,
+        "apparent_temp_c": 25.6,
+        "precipitation_mm_per_hr": 0.0,
+        "wind_kph": 6.88,
+        "humidity": 0.3541,
+        "precipitation_probability": 0.0,
+        "condition_code": 2,
+        "condition": "partly cloudy",
+        "severity": "calm"
+      },
+      "travel_time_mult": 1.0,
+      "service_rate_mult": 1.0,
+      "attendance_mult": 1.0,
+      "confidence": "low",
+      "bands": {
+        "travel_time_mult": {
+          "value": 1.0,
+          "lower": 1.0,
+          "upper": 1.0,
+          "mild": 1.0,
+          "severe": 1.0,
+          "rules": [],
+          "uncertainty_basis": "no effect"
+        },
+        "service_rate_mult": {
+          "value": 1.0,
+          "lower": 1.0,
+          "upper": 1.0,
+          "mild": 1.0,
+          "severe": 1.0,
+          "rules": [],
+          "uncertainty_basis": "no effect"
+        }
+      }
+    },
+    {
+      "valid_at": "2026-09-27T07:00:00Z",
+      "horizon_sec": 14400,
+      "severity": "calm",
+      "conditions": {
+        "valid_at": "2026-09-27T07:00:00Z",
+        "horizon_sec": 14400,
+        "temp_c": 24.01,
+        "apparent_temp_c": 25.51,
+        "precipitation_mm_per_hr": 0.0,
+        "wind_kph": 7.31,
+        "humidity": 0.3504,
+        "precipitation_probability": 0.0,
+        "condition_code": 2,
+        "condition": "partly cloudy",
+        "severity": "calm"
+      },
+      "travel_time_mult": 1.0,
+      "service_rate_mult": 1.0,
+      "attendance_mult": 1.0,
+      "confidence": "low",
+      "bands": {
+        "travel_time_mult": {
+          "value": 1.0,
+          "lower": 1.0,
+          "upper": 1.0,
+          "mild": 1.0,
+          "severe": 1.0,
+          "rules": [],
+          "uncertainty_basis": "no effect"
+        },
+        "service_rate_mult": {
+          "value": 1.0,
+          "lower": 1.0,
+          "upper": 1.0,
+          "mild": 1.0,
+          "severe": 1.0,
+          "rules": [],
+          "uncertainty_basis": "no effect"
+        }
+      }
+    },
+    {
+      "valid_at": "2026-09-27T08:00:00Z",
+      "horizon_sec": 18000,
+      "severity": "calm",
+      "conditions": {
+        "valid_at": "2026-09-27T08:00:00Z",
+        "horizon_sec": 18000,
+        "temp_c": 24.26,
+        "apparent_temp_c": 25.76,
+        "precipitation_mm_per_hr": 0.0,
+        "wind_kph": 7.81,
+        "humidity": 0.3603,
+        "precipitation_probability": 0.0,
+        "condition_code": 2,
+        "condition": "partly cloudy",
+        "severity": "calm"
+      },
+      "travel_time_mult": 1.0,
+      "service_rate_mult": 1.0,
+      "attendance_mult": 1.0,
+      "confidence": "low",
+      "bands": {
+        "travel_time_mult": {
+          "value": 1.0,
+          "lower": 1.0,
+          "upper": 1.0,
+          "mild": 1.0,
+          "severe": 1.0,
+          "rules": [],
+          "uncertainty_basis": "no effect"
+        },
+        "service_rate_mult": {
+          "value": 1.0,
+          "lower": 1.0,
+          "upper": 1.0,
+          "mild": 1.0,
+          "severe": 1.0,
+          "rules": [],
+          "uncertainty_basis": "no effect"
+        }
+      }
+    },
+    {
+      "valid_at": "2026-09-27T09:00:00Z",
+      "horizon_sec": 21600,
+      "severity": "calm",
+      "conditions": {
+        "valid_at": "2026-09-27T09:00:00Z",
+        "horizon_sec": 21600,
+        "temp_c": 24.83,
+        "apparent_temp_c": 26.33,
+        "precipitation_mm_per_hr": 0.0,
+        "wind_kph": 8.38,
+        "humidity": 0.3831,
+        "precipitation_probability": 0.0,
+        "condition_code": 2,
+        "condition": "partly cloudy",
+        "severity": "calm"
+      },
+      "travel_time_mult": 1.0,
+      "service_rate_mult": 1.0,
+      "attendance_mult": 1.0,
+      "confidence": "low",
+      "bands": {
+        "travel_time_mult": {
+          "value": 1.0,
+          "lower": 1.0,
+          "upper": 1.0,
+          "mild": 1.0,
+          "severe": 1.0,
+          "rules": [],
+          "uncertainty_basis": "no effect"
+        },
+        "service_rate_mult": {
+          "value": 1.0,
+          "lower": 1.0,
+          "upper": 1.0,
+          "mild": 1.0,
+          "severe": 1.0,
+          "rules": [],
+          "uncertainty_basis": "no effect"
+        }
+      }
+    },
+    {
+      "valid_at": "2026-09-27T10:00:00Z",
+      "horizon_sec": 25200,
+      "severity": "calm",
+      "conditions": {
+        "valid_at": "2026-09-27T10:00:00Z",
+        "horizon_sec": 25200,
+        "temp_c": 25.68,
+        "apparent_temp_c": 27.18,
+        "precipitation_mm_per_hr": 0.0,
+        "wind_kph": 9.0,
+        "humidity": 0.4173,
+        "precipitation_probability": 0.0,
+        "condition_code": 2,
+        "condition": "partly cloudy",
+        "severity": "calm"
+      },
+      "travel_time_mult": 1.0,
+      "service_rate_mult": 1.0,
+      "attendance_mult": 1.0,
+      "confidence": "low",
+      "bands": {
+        "travel_time_mult": {
+          "value": 1.0,
+          "lower": 1.0,
+          "upper": 1.0,
+          "mild": 1.0,
+          "severe": 1.0,
+          "rules": [],
+          "uncertainty_basis": "no effect"
+        },
+        "service_rate_mult": {
+          "value": 1.0,
+          "lower": 1.0,
+          "upper": 1.0,
+          "mild": 1.0,
+          "severe": 1.0,
+          "rules": [],
+          "uncertainty_basis": "no effect"
+        }
+      }
+    },
+    {
+      "valid_at": "2026-09-27T11:00:00Z",
+      "horizon_sec": 28800,
+      "severity": "calm",
+      "conditions": {
+        "valid_at": "2026-09-27T11:00:00Z",
+        "horizon_sec": 28800,
+        "temp_c": 26.76,
+        "apparent_temp_c": 28.26,
+        "precipitation_mm_per_hr": 0.0,
+        "wind_kph": 9.68,
+        "humidity": 0.4606,
+        "precipitation_probability": 0.0,
+        "condition_code": 2,
+        "condition": "partly cloudy",
+        "severity": "calm"
+      },
+      "travel_time_mult": 1.0,
+      "service_rate_mult": 1.0,
+      "attendance_mult": 1.0,
+      "confidence": "low",
+      "bands": {
+        "travel_time_mult": {
+          "value": 1.0,
+          "lower": 1.0,
+          "upper": 1.0,
+          "mild": 1.0,
+          "severe": 1.0,
+          "rules": [],
+          "uncertainty_basis": "no effect"
+        },
+        "service_rate_mult": {
+          "value": 1.0,
+          "lower": 1.0,
+          "upper": 1.0,
+          "mild": 1.0,
+          "severe": 1.0,
+          "rules": [],
+          "uncertainty_basis": "no effect"
+        }
+      }
+    },
+    {
+      "valid_at": "2026-09-27T12:00:00Z",
+      "horizon_sec": 32400,
+      "severity": "calm",
+      "conditions": {
+        "valid_at": "2026-09-27T12:00:00Z",
+        "horizon_sec": 32400,
+        "temp_c": 28.0,
+        "apparent_temp_c": 29.5,
+        "precipitation_mm_per_hr": 0.0,
+        "wind_kph": 10.38,
+        "humidity": 0.5099,
+        "precipitation_probability": 0.0,
+        "condition_code": 2,
+        "condition": "partly cloudy",
+        "severity": "calm"
+      },
+      "travel_time_mult": 1.0,
+      "service_rate_mult": 1.0,
+      "attendance_mult": 1.0,
+      "confidence": "low",
+      "bands": {
+        "travel_time_mult": {
+          "value": 1.0,
+          "lower": 1.0,
+          "upper": 1.0,
+          "mild": 1.0,
+          "severe": 1.0,
+          "rules": [],
+          "uncertainty_basis": "no effect"
+        },
+        "service_rate_mult": {
+          "value": 1.0,
+          "lower": 1.0,
+          "upper": 1.0,
+          "mild": 1.0,
+          "severe": 1.0,
+          "rules": [],
+          "uncertainty_basis": "no effect"
+        }
+      }
+    },
+    {
+      "valid_at": "2026-09-27T13:00:00Z",
+      "horizon_sec": 36000,
+      "severity": "calm",
+      "conditions": {
+        "valid_at": "2026-09-27T13:00:00Z",
+        "horizon_sec": 36000,
+        "temp_c": 29.3,
+        "apparent_temp_c": 30.8,
+        "precipitation_mm_per_hr": 0.0,
+        "wind_kph": 11.12,
+        "humidity": 0.562,
+        "precipitation_probability": 0.0,
+        "condition_code": 2,
+        "condition": "partly cloudy",
+        "severity": "calm"
+      },
+      "travel_time_mult": 1.0,
+      "service_rate_mult": 1.0,
+      "attendance_mult": 1.0,
+      "confidence": "low",
+      "bands": {
+        "travel_time_mult": {
+          "value": 1.0,
+          "lower": 1.0,
+          "upper": 1.0,
+          "mild": 1.0,
+          "severe": 1.0,
+          "rules": [],
+          "uncertainty_basis": "no effect"
+        },
+        "service_rate_mult": {
+          "value": 1.0,
+          "lower": 1.0,
+          "upper": 1.0,
+          "mild": 1.0,
+          "severe": 1.0,
+          "rules": [],
+          "uncertainty_basis": "no effect"
+        }
+      }
+    },
+    {
+      "valid_at": "2026-09-27T14:00:00Z",
+      "horizon_sec": 39600,
+      "severity": "calm",
+      "conditions": {
+        "valid_at": "2026-09-27T14:00:00Z",
+        "horizon_sec": 39600,
+        "temp_c": 30.58,
+        "apparent_temp_c": 32.08,
+        "precipitation_mm_per_hr": 0.0,
+        "wind_kph": 11.86,
+        "humidity": 0.6132,
+        "precipitation_probability": 0.0,
+        "condition_code": 2,
+        "condition": "partly cloudy",
+        "severity": "calm"
+      },
+      "travel_time_mult": 1.0,
+      "service_rate_mult": 1.0,
+      "attendance_mult": 0.9998,
+      "confidence": "low",
+      "bands": {
+        "travel_time_mult": {
+          "value": 1.0,
+          "lower": 1.0,
+          "upper": 1.0,
+          "mild": 1.0,
+          "severe": 1.0,
+          "rules": [],
+          "uncertainty_basis": "no effect"
+        },
+        "service_rate_mult": {
+          "value": 1.0,
+          "lower": 1.0,
+          "upper": 1.0,
+          "mild": 1.0,
+          "severe": 1.0,
+          "rules": [],
+          "uncertainty_basis": "no effect"
+        }
+      }
+    },
+    {
+      "valid_at": "2026-09-27T15:00:00Z",
+      "horizon_sec": 43200,
+      "severity": "calm",
+      "conditions": {
+        "valid_at": "2026-09-27T15:00:00Z",
+        "horizon_sec": 43200,
+        "temp_c": 31.75,
+        "apparent_temp_c": 33.25,
+        "precipitation_mm_per_hr": 0.0,
+        "wind_kph": 12.61,
+        "humidity": 0.6602,
+        "precipitation_probability": 0.0,
+        "condition_code": 2,
+        "condition": "partly cloudy",
+        "severity": "calm"
+      },
+      "travel_time_mult": 1.0,
+      "service_rate_mult": 1.0,
+      "attendance_mult": 0.9962,
+      "confidence": "low",
+      "bands": {
+        "travel_time_mult": {
+          "value": 1.0,
+          "lower": 1.0,
+          "upper": 1.0,
+          "mild": 1.0,
+          "severe": 1.0,
+          "rules": [],
+          "uncertainty_basis": "no effect"
+        },
+        "service_rate_mult": {
+          "value": 1.0,
+          "lower": 1.0,
+          "upper": 1.0,
+          "mild": 1.0,
+          "severe": 1.0,
+          "rules": [],
+          "uncertainty_basis": "no effect"
+        }
+      }
+    }
+  ],
+  "driving_live": false,
+  "applied_to_live": false,
+  "detail": "Deterministic offline model — a plausible shape, not an observation."
+}

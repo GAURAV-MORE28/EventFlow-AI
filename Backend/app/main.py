@@ -41,10 +41,14 @@ async def lifespan(app: FastAPI):
         h.clear()
     await _restore_active_world(engine)
     await engine.start()
+    # Weather runs on its own cadence (minutes), not the 30s cycle: a fetch
+    # failure is already handled inside the service and never blocks startup.
+    await engine.weather.start()
     log.info("EventFlow AI backend ready on /api/v1")
     try:
         yield
     finally:
+        await engine.weather.stop()
         await engine.stop()
         set_engine(None)
 

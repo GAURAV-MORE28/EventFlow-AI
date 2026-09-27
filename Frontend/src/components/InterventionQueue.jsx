@@ -88,7 +88,7 @@ export default function InterventionQueue() {
   }
 
   return (
-    <section className="panel flex min-h-0 flex-col overflow-hidden">
+    <section className="panel flex min-h-0 h-full flex-col overflow-hidden">
       {/* Header */}
       <div className="panel-header">
         <div className="flex items-center gap-2">

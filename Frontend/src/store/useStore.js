@@ -46,6 +46,15 @@ export const useStore = create((set, get) => ({
   operations: null,
   events: [],
   disruptions: [],
+  // --- weather-driven digital twin -----------------------------------------
+  // The full `GET /weather` payload: reading, forecast, impact vector, and the
+  // two honesty flags (`availability`, `driving_live`). Rendered, never
+  // recomputed — the impact numbers and their bands are the backend's.
+  weather: null,
+  socialSignals: null,
+  // A completed weather what-if, kept separately from `whatIf` so the Digital
+  // Twin page and the What-If lab do not overwrite each other's result.
+  weatherScenario: { status: 'idle', result: null, params: null },
   // Bumped whenever the city changes outside the regular cycle (schedule
   // change, disruption, approval) so pages holding REST snapshots refetch.
   worldVersion: 0,
@@ -65,6 +74,7 @@ export const useStore = create((set, get) => ({
   mockMode: false,
   toasts: [],
   whatIf: { status: 'idle', result: null, label: null },
+  menuOpen: false,
 
   // --- action visualisation (TASK 2) ---------------------------------
   // Tracked lifecycle of executed / rejected actions. Every value the HUD and
@@ -111,6 +121,18 @@ export const useStore = create((set, get) => ({
     set((s) => ({ events: s.events.filter((e) => e.event_id !== eventId), worldVersion: s.worldVersion + 1 })),
   setDisruptions: (disruptions) =>
     set((s) => ({ disruptions: disruptions || [], worldVersion: s.worldVersion + 1 })),
+
+  /**
+   * `GET /weather` or the `weather_update` WS event. A weather change that is
+   * driving the live city arrives as an ordinary `state_update` /
+   * `state_reconciled` too — this only carries the reading and the impact
+   * vector, so the page never has to compute either.
+   */
+  setWeather: (weather) => set({ weather }),
+  setSocialSignals: (socialSignals) => set({ socialSignals }),
+  setWeatherScenario: (patch) =>
+    set((s) => ({ weatherScenario: { ...s.weatherScenario, ...patch } })),
+  clearWeatherScenario: () => set({ weatherScenario: { status: 'idle', result: null, params: null } }),
   bumpWorld: () => set((s) => ({ worldVersion: s.worldVersion + 1 })),
 
   /** MERGE, never replace. This is the rule that keeps the map from blanking. */
@@ -282,6 +304,7 @@ export const useStore = create((set, get) => ({
       actionHudExpanded: false,
       whatIfOverlay: null,
       whatIf: { status: 'idle', result: null, label: null },
+      weatherScenario: { status: 'idle', result: null, params: null },
       anomalies: [],
     }),
 
@@ -322,6 +345,7 @@ export const useStore = create((set, get) => ({
             actionHudExpanded: false,
             whatIfOverlay: null,
             whatIf: { status: 'idle', result: null, label: null },
+            weatherScenario: { status: 'idle', result: null, params: null },
             loadVarianceHistory: [],
             anomalies: [],
             activeCascadeRootId: null,
@@ -352,6 +376,9 @@ export const useStore = create((set, get) => ({
         operations: payload.operations || s.operations,
         worldVersion: s.worldVersion + 1,
         world,
+        // The reading belongs to a world's venue: a different world means the
+        // old weather and the old signals describe the wrong place.
+        ...(worldChanged ? { weather: null, socialSignals: null } : {}),
         // A different world: the old graph must not be drawn against the new
         // state. App refetches /graph for the new world_id.
         ...(worldChanged
@@ -403,6 +430,8 @@ export const useStore = create((set, get) => ({
     }),
 
   setWhatIf: (whatIf) => set((s) => ({ whatIf: { ...s.whatIf, ...whatIf } })),
+
+  setMenuOpen: (menuOpen) => set({ menuOpen }),
 
   toast: (message, tone = 'info') =>
     set((s) => ({

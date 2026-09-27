@@ -9,7 +9,7 @@
     "build": "vite build",
     "preview": "vite preview",
     "validate:mocks": "node scripts/validate-mocks.mjs",
-    "test": "npm run validate:mocks && node scripts/test-mock-lifecycle.mjs && node scripts/test-ws-reconnect.mjs && node scripts/test-store-world.mjs"
+    "test": "npm run validate:mocks && node scripts/test-mock-lifecycle.mjs && node scripts/test-ws-reconnect.mjs && node scripts/test-store-world.mjs && node scripts/test-weather-store.mjs"
   },
   "dependencies": {
     "@deck.gl/core": "^9.0.35",

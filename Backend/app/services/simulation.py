@@ -91,7 +91,10 @@ class SimulationRegistry:
         with engine.world_lock:
             base_gen = engine.generator.clone()
             scen_gen = engine.generator.clone()
-        for s in scenarios:
+        # A `weather_scenario` becomes the `weather` modifier carrying its impact
+        # vector (services/weather.py); every other type passes through unchanged.
+        applied = engine.weather.expand_scenarios(scenarios)
+        for s in applied:
             scen_gen.inject(s["scenario_type"], s.get("params", {}), source="whatif")
         scen_start = scen_gen.clone()  # the scenario at t0, for candidate evaluation
 
@@ -179,7 +182,76 @@ class SimulationRegistry:
             "timeline": timeline,
             "horizon_sec": int(horizon_sec),
             "scenarios": scenarios,
+            "weather": self._weather_block(engine, scenarios, horizon_sec, step, critical, types, s_side),
         }
+
+    @staticmethod
+    def _weather_block(engine: Any, scenarios: list[dict], horizon_sec: int, step: int,
+                       critical: dict[str, float], types: dict[str, str],
+                       central: dict[str, Any]) -> dict[str, Any] | None:
+        """Weather provenance plus a real outcome uncertainty band.
+
+        The band is produced by re-running the *same* scenario with the impact
+        model's lower and upper coefficients, so "peak 0.91 (0.86–0.97)" is three
+        simulations, not a number multiplied by a guess. Only weather scenarios
+        pay for the extra runs; every other what-if returns `None` here.
+        """
+        weather_params = [dict(s.get("params") or {}) for s in scenarios
+                          if s.get("scenario_type") == "weather_scenario"]
+        for s in scenarios:                                    # weather inside a `combined`
+            if s.get("scenario_type") == "combined":
+                weather_params += [dict(sub.get("params") or {})
+                                   for sub in (s.get("params") or {}).get("scenarios") or []
+                                   if sub.get("scenario_type") == "weather_scenario"]
+        if not weather_params:
+            return None
+        service = engine.weather
+        params = weather_params[0]
+        impact = service.scenario_impact(params)
+        bands = service.scenario_band_impacts(params)
+        block: dict[str, Any] = {
+            "scenario_conditions": service.scenario_conditions(params),
+            "impact": impact,
+            "live_reading": {
+                "availability": (service.state or {}).get("availability", "unavailable"),
+                "source": (service.state or {}).get("source", "unavailable"),
+                "observed_at": (service.state or {}).get("observed_at"),
+                "current": (service.state or {}).get("current"),
+            },
+            "uncertainty": None,
+        }
+        if bands is None:
+            return block
+        try:
+            edges: dict[str, dict[str, float]] = {}
+            for edge, vector in bands.items():      # "mild" and "severe"
+                with engine.world_lock:
+                    gen = engine.generator.clone()
+                gen.inject("weather", {"impact": vector}, source="whatif")
+                run = run_forward(gen, horizon_sec, step, 300, critical)
+                edges[edge] = summarise_side(run, types)
+        except Exception:
+            log.exception("weather uncertainty band failed; reporting the central run only")
+            return block
+        metrics = {}
+        for key in ("peak_utilisation", "avg_utilisation", "critical_count", "avg_travel_time_sec",
+                    "queued_people", "road_pressure", "venue_pressure", "transport_pressure",
+                    "late_entries"):
+            # The mild variant is not always the numerically lower outcome (a
+            # metric can be non-monotone in severity), so the band is the span of
+            # what actually ran, widened to include the central result. A band
+            # that excluded its own central value would be meaningless.
+            low = min(edges["mild"][key], edges["severe"][key], central[key])
+            high = max(edges["mild"][key], edges["severe"][key], central[key])
+            metrics[key] = {"value": central[key], "lower": round(low, 4), "upper": round(high, 4)}
+        block["uncertainty"] = {
+            "method": "three runs of the same scenario — at the impact model's mild, central and severe "
+                      "rule coefficients — widened to include the central result",
+            "kind": impact["model_kind"],
+            "confidence": impact["confidence"],
+            "metrics": metrics,
+        }
+        return block
 
 
 SIMULATIONS = SimulationRegistry()

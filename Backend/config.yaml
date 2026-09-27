@@ -155,6 +155,125 @@ geo:
   retries: 1
   cache_ttl_sec: 3600
 
+# --- Weather-driven digital twin (app/providers/weather.py + app/services/weather*.py) ---
+# Live weather is fetched from Open-Meteo, which needs NO API key and no account,
+# so the core demo runs against real observations out of the box.
+#   provider: open_meteo | synthetic | none
+#     open_meteo  real live data. On failure: the last good reading, labelled
+#                 `cached`; with nothing cached, `unavailable` (never faked).
+#     synthetic   deterministic offline model, always labelled `synthetic` —
+#                 a plausible shape, never presented as an observation.
+#     none        the weather layer reports `unavailable`.
+#   EVENTFLOW_WEATHER_PROVIDER overrides `provider`.
+#
+# `drive_live: false` is deliberate. Weather is always fetched, always shown and
+# always available to What-If, but it only becomes a modifier on the LIVE city
+# when an operator switches it on (POST /weather/apply) — so `sim_time` stays
+# fully determined by the seed, and the reproducible demo run does not depend on
+# today's actual weather. Every payload reports `driving_live`.
+#
+# Every coefficient below is RULE-BASED: a documented estimate applied to a
+# measured value, with k_min/k_max bounding it so the reported uncertainty band
+# comes from the real coefficient range instead of an invented confidence
+# number. `basis` on each rule (services/weather_impact.py) states where the
+# figure comes from; nothing here is a fitted or learned parameter.
+weather:
+  provider: open_meteo
+  refresh_sec: 900               # weather changes on the scale of minutes, not cycles
+  forecast_hours: 12
+  timeout_sec: 6.0
+  retries: 1
+  min_interval_sec: 1.0
+  client_cache_ttl_sec: 120      # a burst of UI requests is one provider request
+  stale_after_sec: 3600          # a cached reading older than this is flagged `stale`
+  drive_live: false              # operator opt-in; see above
+  user_agent: "EventFlow-AI/1.0 (hackathon demo; +https://github.com/)"
+  # `provider: synthetic` only — the deterministic model's baseline. Lets an
+  # offline run stand in for a particular kind of day (a heavy-rain demo, or
+  # verifying the severe-weather UI paths) without touching code. It is still
+  # reported as `synthetic`, never as an observation.
+  # base: { rain_mm_per_hr: 26.0, temp_c: 31.0, wind_kph: 45.0 }
+
+  # Severity bands. Rainfall = the standard hourly rain-rate classes; wind =
+  # Beaufort 6 / 8 / 10 in km/h; apparent temperature = heat-stress estimates
+  # (not a clinical index).
+  severity:
+    rain_mm_per_hr: { moderate: 2.5, severe: 7.6, extreme: 30.0 }
+    wind_kph:       { moderate: 39.0, severe: 62.0, extreme: 88.0 }
+    apparent_c:     { moderate: 35.0, severe: 40.0, extreme: 45.0 }
+
+  # Reference intensities: the value at which a rule reaches its full effect.
+  rain_ref_mm_per_hr: 25.0
+  heat_onset_c: 32.0
+  heat_ref_c: 45.0
+  wind_onset_kph: 39.0
+  wind_ref_kph: 88.0
+  flood_onset: 0.05
+  flood_closure_severity: 0.80   # at/above this, entities the operator NAMED close
+
+  # Rain -> movement, service and capacity.
+  rain_travel:      { k: 0.32, k_min: 0.20, k_max: 0.50 }
+  rain_dwell:       { k: 0.22, k_min: 0.12, k_max: 0.35 }
+  rain_service:     { k: 0.14, k_min: 0.08, k_max: 0.22 }
+  rain_capacity:    { k: 0.18, k_min: 0.10, k_max: 0.28 }
+  # Attendance elasticity for a TICKETED event is low: a ticket holder at a
+  # sold-out final comes in the rain. Keep k small — a large value makes heavy
+  # rain read as a relief measure, which is wrong.
+  rain_attendance:  { k: 0.04, k_min: 0.01, k_max: 0.10 }
+  rain_arrival_min: { k: 12.0, k_min: 4.0,  k_max: 22.0 }
+  # Delayed arrivals BUNCH (correlated "wait out the shower" decisions), so the
+  # arrival window narrows and the instantaneous peak rises. This is the
+  # mechanism that makes rain worse rather than merely later.
+  rain_bunching:    { k: 0.22, k_min: 0.10, k_max: 0.34 }
+  # Extreme heat -> behaviour and medical load.
+  heat_dwell:       { k: 0.18, k_min: 0.08, k_max: 0.30 }
+  heat_attendance:  { k: 0.04, k_min: 0.01, k_max: 0.10 }
+  heat_arrival_min: { k: 14.0, k_min: 5.0,  k_max: 26.0 }
+  heat_bunching:    { k: 0.20, k_min: 0.08, k_max: 0.32 }
+  heat_emergency:   { k: 0.85, k_min: 0.40, k_max: 1.60 }
+  # High wind -> open-air operations.
+  wind_service:     { k: 0.12, k_min: 0.05, k_max: 0.22 }
+  wind_capacity:    { k: 0.10, k_min: 0.04, k_max: 0.18 }
+  # Flooding -> localised access loss (applied to exposed entity TYPES).
+  flood_capacity:   { k: 0.55, k_min: 0.35, k_max: 0.80 }
+  flood_travel:     { k: 0.45, k_min: 0.25, k_max: 0.70 }
+
+  # Uncertainty widening.
+  horizon_widening_per_hour: 0.06
+  low_confidence_after_sec: 10800
+
+  # Rails on the composed vector, so no input can produce an absurd multiplier.
+  limits:
+    travel_time_mult: [1.0, 2.5]
+    dwell_mult: [1.0, 2.2]
+    service_rate_mult: [0.4, 1.0]
+    attendance_mult: [0.5, 1.0]
+    emergency_gain_mult: [1.0, 3.0]
+    capacity_mult: [0.3, 1.0]
+    arrival_shift_min: [0.0, 90.0]
+    arrival_spread_mult: [0.6, 1.0]
+
+# Public social signals (app/providers/social.py). Mastodon public hashtag
+# timelines are readable WITHOUT an API key, which is why they are the default:
+# the signals shown are real posts real people published.
+#   provider: mastodon | fixture | none
+#     mastodon  live public posts. Hashtags are derived from the ACTIVE world's
+#               venue and city — never hardcoded. An empty result means nobody
+#               posted, which is reported as such.
+#     fixture   offline test data from app/data/social_fixture.json, always
+#               labelled `fallback_fixture` / `is_real_post: false`. NOT posts.
+#     none      the panel reports `unavailable`.
+#   EVENTFLOW_SOCIAL_PROVIDER overrides `provider`.
+social:
+  provider: mastodon
+  instance: "https://mastodon.social"
+  weather_tags: [rain, flood, weather, heatwave, storm]
+  max_tags: 5
+  timeout_sec: 6.0
+  retries: 1
+  min_interval_sec: 0.5
+  cache_ttl_sec: 300
+
 # Static city data (app/providers/data.py). `file` reads events.json /
 # hotels.json / topology.json from `dir` (each optional) and normalises them.
 data:

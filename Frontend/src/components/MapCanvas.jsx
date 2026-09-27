@@ -27,6 +27,10 @@ import { useStore } from '../store/useStore.js';
 const STEP_REVEAL_MS = 400; // 02 §5.3.2 — 400ms stagger between cascade steps
 const MIN_ARC_OPACITY = 0.35; // clamp so nothing is invisible
 const WHATIF_RGB = [45, 212, 191]; // teal-400 — the "simulated / not live" colour (Mint)
+const WEATHER_RGB = [56, 130, 246]; // blue-500 — environmental conditions
+// Severity → ring alpha. Keyed off the `severity` STRING the backend returned,
+// never off a rainfall threshold computed here (02 §3).
+const WEATHER_ALPHA = { calm: 0, moderate: 70, severe: 120, extreme: 175 };
 
 /**
  * One shared pulse phase (0..1) for the action rings and effect edges. Mirrors
@@ -140,6 +144,7 @@ export default function MapCanvas() {
     interventions,
     whatIfOverlay,
     world,
+    weather,
   } = useStore();
   // A generated world is real geography: basemap, road geometry, footprint.
   const generated = world?.source === 'generated_blueprint';
@@ -259,6 +264,47 @@ export default function MapCanvas() {
       })
       .filter(Boolean);
   }, [whatIfOverlay, graph.edges, nodesById]);
+
+  /**
+   * Weather on the map. Two things, both straight from `GET /weather`:
+   *
+   *  1. a conditions disc over the monitored area, shaded by the `severity`
+   *     string the backend classified (never by a threshold computed here);
+   *  2. a marker on every entity TYPE whose capacity the impact vector reduces,
+   *     which is how the propagation is actually applied — by type, not by id,
+   *     so a generated OSM world highlights correctly with no id assumptions.
+   *
+   * Drawn only when the weather is actually affecting something
+   * (`impact.applied`), so a calm day adds no chrome.
+   */
+  const weatherApplied = Boolean(weather?.impact?.applied);
+  const weatherDisc = useMemo(() => {
+    const location = weather?.location;
+    const radius = world?.footprint?.radius_m;
+    if (!weatherApplied || !location || typeof location.lat !== 'number') return [];
+    return [{
+      position: [location.lon, location.lat],
+      // A generated world knows its monitored radius; the demo world does not,
+      // so fall back to a fixed marker rather than inventing a coverage area.
+      radius_m: radius || null,
+      severity: weather.current?.severity || 'calm',
+    }];
+  }, [weatherApplied, weather, world]);
+
+  const weatherAffected = useMemo(() => {
+    if (!weatherApplied) return [];
+    const impact = weather.impact;
+    const reduced = new Set(
+      Object.entries(impact.type_capacity_mult || {})
+        .filter(([, mult]) => mult < 0.999)
+        .map(([type]) => type),
+    );
+    const closed = new Set(impact.closed_entity_ids || []);
+    if (!reduced.size && !closed.size) return [];
+    return graph.nodes
+      .filter((n) => reduced.has(n.entity_type) || closed.has(n.entity_id))
+      .map((n) => ({ ...n, closed: closed.has(n.entity_id) }));
+  }, [weatherApplied, weather, graph.nodes]);
 
   const actionTargetIds = useMemo(() => {
     const ids = new Set();
@@ -679,6 +725,39 @@ export default function MapCanvas() {
       pickable: false,
       updateTriggers: { getRadius: [pulse], getLineColor: [pulse] },
     }),
+    // Environmental conditions over the monitored area. Under the entity dots,
+    // above the basemap: context, never something that hides state.
+    new ScatterplotLayer({
+      id: 'weather-area',
+      data: weatherDisc.filter((d) => d.radius_m),
+      getPosition: (d) => d.position,
+      getRadius: (d) => d.radius_m,
+      radiusUnits: 'meters',
+      stroked: true,
+      filled: true,
+      getFillColor: (d) => [...WEATHER_RGB, Math.round((WEATHER_ALPHA[d.severity] || 0) * 0.16)],
+      getLineColor: (d) => [...WEATHER_RGB, WEATHER_ALPHA[d.severity] || 0],
+      getLineWidth: 1.5,
+      lineWidthUnits: 'pixels',
+      pickable: false,
+      updateTriggers: { getFillColor: [weather?.current?.severity], getLineColor: [weather?.current?.severity] },
+    }),
+    // The entities the weather is actually acting on, by entity TYPE.
+    new ScatterplotLayer({
+      id: 'weather-affected',
+      data: weatherAffected,
+      getPosition: (d) => [d.lon, d.lat],
+      getRadius: (d) => dotRadius(d) + 4,
+      radiusUnits: 'pixels',
+      stroked: true,
+      filled: false,
+      // A flooded closure is a loss of service, so it reads red, not blue.
+      getLineColor: (d) => (d.closed ? [239, 68, 68, 220] : [...WEATHER_RGB, 170]),
+      getLineWidth: (d) => (d.closed ? 2.5 : 1.5),
+      lineWidthUnits: 'pixels',
+      pickable: false,
+      updateTriggers: { getLineColor: [weatherAffected.length], getRadius: [weatherAffected.length] },
+    }),
     // Crisp selection ring — marks the currently-selected entity regardless of
     // action state. Topmost layer so it reads over glows and action rings.
     new ScatterplotLayer({
@@ -744,6 +823,37 @@ export default function MapCanvas() {
         <span className="text-slate-600">·</span>
         <span className="font-mono text-slate-400">{feedEdges.length} Feeds</span>
       </div>
+
+      {/* Weather chip: only shown when weather is genuinely affecting the city,
+          and it always says whether the reading is live. */}
+      {weatherApplied && (
+        <div className="pointer-events-none absolute right-3 top-11 z-10 flex items-center gap-2 rounded border border-blue-500/40 bg-surface-950/85 px-2.5 py-1 text-[10px] backdrop-blur select-none">
+          <span className="h-1.5 w-1.5 rounded-full bg-blue-400" />
+          <span className="font-semibold uppercase tracking-wider text-blue-200">
+            {weather.current?.severity} weather
+          </span>
+          <span className="text-slate-600">·</span>
+          <span className="font-mono text-slate-400">
+            {weather.current?.precipitation_mm_per_hr ?? 0} mm/hr
+          </span>
+          <span className="text-slate-600">·</span>
+          <span className={`font-semibold ${weather.availability === 'live' ? 'text-emerald-300' : 'text-amber-300'}`}>
+            {weather.availability === 'live' ? 'LIVE' : weather.availability.toUpperCase()}
+          </span>
+          {weatherAffected.length > 0 && (
+            <>
+              <span className="text-slate-600">·</span>
+              <span className="font-mono text-slate-400">{weatherAffected.length} affected</span>
+            </>
+          )}
+          {!weather.applied_to_live && (
+            <>
+              <span className="text-slate-600">·</span>
+              <span className="text-slate-400">advisory</span>
+            </>
+          )}
+        </div>
+      )}
 
       {generated && (
         <div className="pointer-events-auto absolute bottom-1 left-2 z-10 rounded bg-surface-950/80 px-1.5 py-0.5 text-[9px] text-slate-300">

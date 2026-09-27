@@ -1,0 +1,663 @@
+{
+  "baseline": {
+    "peak_utilisation": 1.6156,
+    "peak_entity_id": "road_5",
+    "load_variance": 0.0325,
+    "critical_count": 6,
+    "avg_utilisation": 0.5511,
+    "transport_pressure": 0.6269,
+    "road_pressure": 0.5332,
+    "venue_pressure": 0.6546,
+    "hotel_pressure": 0.8744,
+    "queued_people": 2719.7,
+    "late_entries": 8670.5,
+    "rooms_unmet": 0.3,
+    "unmet_demand": 8671.2,
+    "avg_travel_time_sec": 1034.3
+  },
+  "scenario": {
+    "peak_utilisation": 1.6156,
+    "peak_entity_id": "road_5",
+    "load_variance": 0.0309,
+    "critical_count": 8,
+    "avg_utilisation": 0.6159,
+    "transport_pressure": 0.619,
+    "road_pressure": 0.6736,
+    "venue_pressure": 0.6669,
+    "hotel_pressure": 0.8558,
+    "queued_people": 6748.9,
+    "late_entries": 7476.1,
+    "rooms_unmet": 0.0,
+    "unmet_demand": 7476.1,
+    "avg_travel_time_sec": 1317.0
+  },
+  "delta": {
+    "peak_utilisation_pct": 0.0,
+    "load_variance_pct": -4.9,
+    "new_critical_entities": [
+      "gate_1",
+      "road_4",
+      "road_9"
+    ],
+    "resolved_critical_entities": [
+      "line_red"
+    ],
+    "metrics": {
+      "peak_utilisation": 0.0,
+      "load_variance": -0.0016,
+      "avg_utilisation": 0.0648,
+      "transport_pressure": -0.0079,
+      "road_pressure": 0.1404,
+      "venue_pressure": 0.0123,
+      "hotel_pressure": -0.0186,
+      "queued_people": 4029.2,
+      "late_entries": -1194.4,
+      "rooms_unmet": -0.3,
+      "unmet_demand": -1195.1,
+      "avg_travel_time_sec": 282.7
+    }
+  },
+  "cascade": {
+    "root_entity_id": "gate_1",
+    "source": "deterministic",
+    "generated_at": "2026-09-04T15:20:00Z",
+    "total_downstream_failures": 0,
+    "max_depth": 0,
+    "steps": [
+      {
+        "entity_id": "gate_1",
+        "predicted_band": "critical",
+        "eta_sec": 0,
+        "failure_probability": 0.99,
+        "via_edge_id": null,
+        "depth": 0,
+        "source_entity_id": null,
+        "utilisation_before": 0.3511,
+        "utilisation_after": 0.931,
+        "flow_change_people": 86.7,
+        "reason": "Gate 1 is at or forecast over its critical line (93% of capacity); 87 people above the line must go elsewhere.",
+        "confidence": null,
+        "step_index": 0
+      }
+    ],
+    "ml_enhanced": false
+  },
+  "candidate_interventions": [
+    {
+      "intervention_id": "int_499a5",
+      "intervention_type": "gate_redistribution",
+      "status": "proposed",
+      "target_entity_ids": [
+        "gate_1",
+        "gate_3"
+      ],
+      "triggered_by_entity_id": "gate_1",
+      "title": "Reassign 30% of Gate 1 entries to Gate 3",
+      "description": "Stewards and app alerts direct 30% of arrivals heading for Gate 1 (93%) to Gate 3 (8%).",
+      "estimated_relief_pct": 28.9,
+      "estimated_cost_paise": 25000,
+      "estimated_delay_sec": 240,
+      "feasibility": 0.9,
+      "rank_score": 0.9714,
+      "certificate": {
+        "certificate_id": "cert_0a74",
+        "intervention_id": "int_499a5",
+        "verdict": "STABLE",
+        "converged": true,
+        "iterations": 17,
+        "post_nudge_variance": 0.0579,
+        "baseline_variance": 0.058,
+        "max_zone_utilisation": 0.8573,
+        "max_zone_entity_id": "stadium_main",
+        "oscillation_risk": false,
+        "compliance_sensitivity": 0.0029,
+        "reason": "Equilibrium holds across 40-90% compliance; peak 86% at Main Stadium.",
+        "compliance_sweep": [
+          {
+            "compliance_rate": 0.4,
+            "max_utilisation": 0.8544,
+            "verdict": "STABLE"
+          },
+          {
+            "compliance_rate": 0.6,
+            "max_utilisation": 0.8544,
+            "verdict": "STABLE"
+          },
+          {
+            "compliance_rate": 0.9,
+            "max_utilisation": 0.8573,
+            "verdict": "STABLE"
+          }
+        ]
+      },
+      "created_at": "2026-09-04T15:20:00Z",
+      "expires_at": "2026-09-04T15:35:00Z",
+      "evaluation": {
+        "horizon_sec": 1800,
+        "compliance": 0.6,
+        "root_entity_id": "gate_1",
+        "root_peak_before": 0.931,
+        "root_peak_after": 0.6617,
+        "network_peak_before": 1.6149,
+        "network_peak_after": 1.6149,
+        "critical_before": 8,
+        "critical_after": 7,
+        "new_critical_entities": [],
+        "people_redirected": 912,
+        "travel_time_delta_sec": -5.8,
+        "rooms_unmet_delta": 0.0
+      }
+    },
+    {
+      "intervention_id": "int_4b73a",
+      "intervention_type": "stagger_entry",
+      "status": "proposed",
+      "target_entity_ids": [
+        "gate_1"
+      ],
+      "triggered_by_entity_id": "gate_1",
+      "title": "Stagger entry at Gate 1",
+      "description": "Ask 35% of arrivals for these gates (group and price-sensitive ticket holders first) to arrive 12 minutes later, with a food-and-drink credit for doing so.",
+      "estimated_relief_pct": 10.1,
+      "estimated_cost_paise": 180000,
+      "estimated_delay_sec": 720,
+      "feasibility": 0.85,
+      "rank_score": 0.2122,
+      "certificate": {
+        "certificate_id": "cert_a828",
+        "intervention_id": "int_4b73a",
+        "verdict": "STABLE",
+        "converged": true,
+        "iterations": 1,
+        "post_nudge_variance": 0.0571,
+        "baseline_variance": 0.0571,
+        "max_zone_utilisation": 0.8544,
+        "max_zone_entity_id": "stadium_main",
+        "oscillation_risk": false,
+        "compliance_sensitivity": 0.0001,
+        "reason": "Equilibrium holds across 40-90% compliance; peak 85% at Main Stadium.",
+        "compliance_sweep": [
+          {
+            "compliance_rate": 0.4,
+            "max_utilisation": 0.8543,
+            "verdict": "STABLE"
+          },
+          {
+            "compliance_rate": 0.6,
+            "max_utilisation": 0.8543,
+            "verdict": "STABLE"
+          },
+          {
+            "compliance_rate": 0.9,
+            "max_utilisation": 0.8544,
+            "verdict": "STABLE"
+          }
+        ]
+      },
+      "created_at": "2026-09-04T15:20:00Z",
+      "expires_at": "2026-09-04T15:35:00Z",
+      "evaluation": {
+        "horizon_sec": 1800,
+        "compliance": 0.6,
+        "root_entity_id": "gate_1",
+        "root_peak_before": 0.931,
+        "root_peak_after": 0.8372,
+        "network_peak_before": 1.6149,
+        "network_peak_after": 1.6149,
+        "critical_before": 8,
+        "critical_after": 7,
+        "new_critical_entities": [],
+        "people_redirected": 1054,
+        "travel_time_delta_sec": -8.3,
+        "rooms_unmet_delta": 0.0
+      }
+    }
+  ],
+  "top_changes": [
+    {
+      "entity_id": "road_9",
+      "display_name": "Arterial 9",
+      "entity_type": "road",
+      "baseline_peak": 0.6769,
+      "scenario_peak": 1.3087
+    },
+    {
+      "entity_id": "road_4",
+      "display_name": "Arterial 4",
+      "entity_type": "road",
+      "baseline_peak": 0.7871,
+      "scenario_peak": 1.333
+    },
+    {
+      "entity_id": "road_6",
+      "display_name": "Arterial 6",
+      "entity_type": "road",
+      "baseline_peak": 1.1444,
+      "scenario_peak": 1.6153
+    },
+    {
+      "entity_id": "road_12",
+      "display_name": "Arterial 12",
+      "entity_type": "road",
+      "baseline_peak": 0.3252,
+      "scenario_peak": 0.7377
+    },
+    {
+      "entity_id": "road_10",
+      "display_name": "Arterial 10",
+      "entity_type": "road",
+      "baseline_peak": 0.4587,
+      "scenario_peak": 0.8376
+    },
+    {
+      "entity_id": "emergency_north",
+      "display_name": "North Emergency Post",
+      "entity_type": "emergency_facility",
+      "baseline_peak": 0.4948,
+      "scenario_peak": 0.8268
+    },
+    {
+      "entity_id": "emergency_south",
+      "display_name": "South Emergency Post",
+      "entity_type": "emergency_facility",
+      "baseline_peak": 0.9115,
+      "scenario_peak": 1.175
+    },
+    {
+      "entity_id": "gate_1",
+      "display_name": "Gate 1",
+      "entity_type": "gate",
+      "baseline_peak": 0.7422,
+      "scenario_peak": 0.931
+    },
+    {
+      "entity_id": "stadium_main",
+      "display_name": "Main Stadium",
+      "entity_type": "venue",
+      "baseline_peak": 0.9451,
+      "scenario_peak": 0.8543
+    },
+    {
+      "entity_id": "line_red",
+      "display_name": "Red Line",
+      "entity_type": "transport_route",
+      "baseline_peak": 0.9595,
+      "scenario_peak": 0.8763
+    }
+  ],
+  "timeline": [
+    {
+      "offset_sec": 0,
+      "baseline_peak": 1.1357,
+      "scenario_peak": 1.1357
+    },
+    {
+      "offset_sec": 300,
+      "baseline_peak": 1.1455,
+      "scenario_peak": 1.1455
+    },
+    {
+      "offset_sec": 600,
+      "baseline_peak": 1.1419,
+      "scenario_peak": 1.1419
+    },
+    {
+      "offset_sec": 900,
+      "baseline_peak": 1.3739,
+      "scenario_peak": 1.3915
+    },
+    {
+      "offset_sec": 1200,
+      "baseline_peak": 1.6149,
+      "scenario_peak": 1.6149
+    },
+    {
+      "offset_sec": 1500,
+      "baseline_peak": 1.6132,
+      "scenario_peak": 1.6132
+    },
+    {
+      "offset_sec": 1800,
+      "baseline_peak": 1.5996,
+      "scenario_peak": 1.5996
+    },
+    {
+      "offset_sec": 2100,
+      "baseline_peak": 1.6052,
+      "scenario_peak": 1.6052
+    },
+    {
+      "offset_sec": 2400,
+      "baseline_peak": 1.5894,
+      "scenario_peak": 1.6092
+    },
+    {
+      "offset_sec": 2700,
+      "baseline_peak": 1.585,
+      "scenario_peak": 1.6143
+    },
+    {
+      "offset_sec": 3000,
+      "baseline_peak": 1.4838,
+      "scenario_peak": 1.5978
+    },
+    {
+      "offset_sec": 3300,
+      "baseline_peak": 1.1553,
+      "scenario_peak": 1.5861
+    },
+    {
+      "offset_sec": 3600,
+      "baseline_peak": 1.1394,
+      "scenario_peak": 1.6066
+    }
+  ],
+  "horizon_sec": 3600,
+  "scenarios": [
+    {
+      "scenario_type": "weather_scenario",
+      "params": {
+        "rain_mm_per_hr": 25.0,
+        "storm_duration_min": 90
+      }
+    }
+  ],
+  "weather": {
+    "scenario_conditions": {
+      "valid_at": "2026-09-27T03:48:16Z",
+      "horizon_sec": 0,
+      "temp_c": 26.25,
+      "apparent_temp_c": 27.75,
+      "precipitation_mm_per_hr": 25.0,
+      "wind_kph": 6.09,
+      "humidity": 0.4398,
+      "precipitation_probability": null,
+      "condition_code": 2,
+      "condition": "partly cloudy",
+      "severity": "severe"
+    },
+    "impact": {
+      "model": "weather-impact-1",
+      "model_kind": "rule_based",
+      "applied": true,
+      "availability": "scenario",
+      "severity": "severe",
+      "drivers": {
+        "rain": 1.0,
+        "heat": 0.0,
+        "wind": 0.0,
+        "flood": 0.0
+      },
+      "horizon_sec": 0,
+      "duration_sec": 5400,
+      "confidence": "high",
+      "travel_time_mult": 1.32,
+      "dwell_mult": 1.22,
+      "service_rate_mult": 0.86,
+      "attendance_mult": 0.96,
+      "arrival_shift_min": 12.0,
+      "arrival_spread_mult": 0.78,
+      "emergency_gain_mult": 1.0,
+      "type_capacity_mult": {
+        "road": 0.82,
+        "parking": 0.82
+      },
+      "closed_entity_ids": [],
+      "bands": {
+        "travel_time_mult": {
+          "value": 1.32,
+          "lower": 1.2,
+          "upper": 1.5,
+          "mild": 1.2,
+          "severe": 1.5,
+          "rules": [
+            {
+              "rule": "rain_travel",
+              "driver": 1.0,
+              "coefficient": 0.32,
+              "basis": "wet-weather urban travel-time increase, planning estimate",
+              "kind": "rule_based"
+            }
+          ],
+          "uncertainty_basis": "coefficient range"
+        },
+        "dwell_mult": {
+          "value": 1.22,
+          "lower": 1.12,
+          "upper": 1.35,
+          "mild": 1.12,
+          "severe": 1.35,
+          "rules": [
+            {
+              "rule": "rain_dwell",
+              "driver": 1.0,
+              "coefficient": 0.22,
+              "basis": "shelter-seeking and slower pedestrian flow, engineering estimate",
+              "kind": "rule_based"
+            }
+          ],
+          "uncertainty_basis": "coefficient range"
+        },
+        "service_rate_mult": {
+          "value": 0.86,
+          "lower": 0.78,
+          "upper": 0.92,
+          "mild": 0.92,
+          "severe": 0.78,
+          "rules": [
+            {
+              "rule": "rain_service",
+              "driver": 1.0,
+              "coefficient": 0.14,
+              "basis": "slower gate scanning under umbrellas/wet tickets, engineering estimate",
+              "kind": "rule_based"
+            }
+          ],
+          "uncertainty_basis": "coefficient range"
+        },
+        "attendance_mult": {
+          "value": 0.96,
+          "lower": 0.9,
+          "upper": 0.99,
+          "mild": 0.99,
+          "severe": 0.9,
+          "rules": [
+            {
+              "rule": "rain_attendance",
+              "driver": 1.0,
+              "coefficient": 0.04,
+              "basis": "weather no-shows at ticketed events are small, engineering estimate",
+              "kind": "rule_based"
+            }
+          ],
+          "uncertainty_basis": "coefficient range"
+        },
+        "arrival_shift_min": {
+          "value": 12.0,
+          "lower": 4.0,
+          "upper": 22.0,
+          "mild": 4.0,
+          "severe": 22.0,
+          "rules": [
+            {
+              "rule": "rain_arrival_min",
+              "driver": 1.0,
+              "coefficient": 12.0,
+              "basis": "later departure from origin in rain, engineering estimate",
+              "kind": "rule_based"
+            }
+          ],
+          "uncertainty_basis": "coefficient range"
+        },
+        "arrival_spread_mult": {
+          "value": 0.78,
+          "lower": 0.66,
+          "upper": 0.9,
+          "mild": 0.9,
+          "severe": 0.66,
+          "rules": [
+            {
+              "rule": "rain_bunching",
+              "driver": 1.0,
+              "coefficient": 0.22,
+              "basis": "correlated departure decisions narrow the arrival window, engineering estimate",
+              "kind": "rule_based"
+            }
+          ],
+          "uncertainty_basis": "coefficient range"
+        },
+        "emergency_gain_mult": {
+          "value": 1.0,
+          "lower": 1.0,
+          "upper": 1.0,
+          "mild": 1.0,
+          "severe": 1.0,
+          "rules": [],
+          "uncertainty_basis": "no effect"
+        },
+        "capacity_mult": {
+          "value": 0.82,
+          "lower": 0.72,
+          "upper": 0.9,
+          "mild": 0.9,
+          "severe": 0.72,
+          "rules": [
+            {
+              "rule": "rain_capacity",
+              "driver": 1.0,
+              "coefficient": 0.18,
+              "basis": "reduced saturation flow on wet pavement, planning estimate",
+              "kind": "rule_based"
+            }
+          ],
+          "uncertainty_basis": "coefficient range"
+        }
+      },
+      "causal_chain": [
+        {
+          "stage": "weather",
+          "label": "Weather",
+          "detail": "Measured rainfall, apparent temperature, wind; flooding as a scenario input."
+        },
+        {
+          "stage": "behaviour",
+          "label": "Traveller behaviour",
+          "detail": "attendance_mult, arrival_shift_min, arrival_spread_mult — who comes, when, and how tightly bunched.",
+          "fields": [
+            "attendance_mult",
+            "arrival_shift_min",
+            "arrival_spread_mult"
+          ]
+        },
+        {
+          "stage": "network",
+          "label": "Network & roads",
+          "detail": "travel_time_mult, capacity of roads and car parks.",
+          "fields": [
+            "travel_time_mult",
+            "type_capacity_mult"
+          ]
+        },
+        {
+          "stage": "access",
+          "label": "Stations & gates",
+          "detail": "service_rate_mult, dwell_mult — queues build when service slows.",
+          "fields": [
+            "service_rate_mult",
+            "dwell_mult"
+          ]
+        },
+        {
+          "stage": "venue",
+          "label": "Venue & precinct",
+          "detail": "Gate queues spill onto approach roads; the venue fills later and slower.",
+          "fields": [
+            "dwell_mult"
+          ]
+        },
+        {
+          "stage": "crowd",
+          "label": "Crowd, congestion & risk",
+          "detail": "Utilisation, risk bands, cascades and emergency load, computed by the usual cycle.",
+          "fields": [
+            "emergency_gain_mult"
+          ]
+        }
+      ],
+      "note": null
+    },
+    "live_reading": {
+      "availability": "synthetic",
+      "source": "synthetic",
+      "observed_at": "2026-09-27T03:48:16Z",
+      "current": {
+        "valid_at": "2026-09-27T03:48:16Z",
+        "horizon_sec": 0,
+        "temp_c": 26.25,
+        "apparent_temp_c": 27.75,
+        "precipitation_mm_per_hr": 0.071,
+        "wind_kph": 6.09,
+        "humidity": 0.4398,
+        "precipitation_probability": 0.0071,
+        "condition_code": 2,
+        "condition": "partly cloudy",
+        "severity": "calm"
+      }
+    },
+    "uncertainty": {
+      "method": "three runs of the same scenario — at the impact model's mild, central and severe rule coefficients — widened to include the central result",
+      "kind": "rule_based",
+      "confidence": "high",
+      "metrics": {
+        "peak_utilisation": {
+          "value": 1.6156,
+          "lower": 1.6156,
+          "upper": 1.6156
+        },
+        "avg_utilisation": {
+          "value": 0.6159,
+          "lower": 0.6009,
+          "upper": 0.6159
+        },
+        "critical_count": {
+          "value": 8,
+          "lower": 8,
+          "upper": 8
+        },
+        "avg_travel_time_sec": {
+          "value": 1317.0,
+          "lower": 1223.1,
+          "upper": 1377.3
+        },
+        "queued_people": {
+          "value": 6748.9,
+          "lower": 5177.7,
+          "upper": 7365.1
+        },
+        "road_pressure": {
+          "value": 0.6736,
+          "lower": 0.637,
+          "upper": 0.6736
+        },
+        "venue_pressure": {
+          "value": 0.6669,
+          "lower": 0.6366,
+          "upper": 0.6727
+        },
+        "transport_pressure": {
+          "value": 0.619,
+          "lower": 0.5848,
+          "upper": 0.649
+        },
+        "late_entries": {
+          "value": 7476.1,
+          "lower": 6711.4,
+          "upper": 8410.7
+        }
+      }
+    }
+  },
+  "simulation_id": "sim_mock_weather",
+  "status": "complete",
+  "label": "Heavy rain 25 mm/hr"
+}

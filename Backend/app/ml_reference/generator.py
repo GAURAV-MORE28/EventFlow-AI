@@ -341,7 +341,11 @@ class SyntheticGenerator:
                 end = self._minutes(ev["end_time"])
             else:
                 end = ev["end_min"]
-            arr = self._window(ev, "arrival_window_start", "arrival_window_end", shift)
+            # Environmental conditions shift when people set out, not when the
+            # event starts: arrivals move, the schedule does not.
+            arr_shift = float(eff["arrival_shift_min"])
+            arr_spread = float(eff["arrival_spread_mult"])
+            arr = self._window(ev, "arrival_window_start", "arrival_window_end", shift + arr_shift)
             dep = self._window(ev, "departure_window_start", "departure_window_end", shift)
             out.append({
                 "event_id": ev["event_id"], "venue": ev["venue_entity_id"],
@@ -350,8 +354,8 @@ class SyntheticGenerator:
                 "oot": float(ev.get("out_of_town_share", 0.25)),
                 # Arrival / departure curves: centre and spread in sim minutes.
                 # An explicit window holds ~95% of its people (mid +- 2 sd).
-                "arr_mid": arr[0] if arr else start + shift - float(self.demand["arrival_lead_min"]),
-                "arr_sd": arr[1] if arr else float(self.demand["arrival_sd_min"]),
+                "arr_mid": arr[0] if arr else start + shift + arr_shift - float(self.demand["arrival_lead_min"]),
+                "arr_sd": max(1.0, (arr[1] if arr else float(self.demand["arrival_sd_min"])) * arr_spread),
                 "dep_mid": dep[0] if dep else end + shift + float(self.demand["egress_lag_min"]),
                 "dep_sd": dep[1] if dep else float(self.demand["egress_sd_min"]),
             })
@@ -482,6 +486,11 @@ class SyntheticGenerator:
             "event_shift_min": {}, "extra_events": [], "dwell_mult": 1.0,
             "diversions": [], "stagger": {}, "mu_boost": {}, "coupling_cut": {},
             "room_mult": {}, "hotel_avoid": {}, "cancelled_events": set(),
+            # Environmental conditions (weather). Separate from `dwell_mult` so a
+            # condition can slow travel without inflating occupancy, and reduce
+            # service rate without slowing travel.
+            "travel_mult": 1.0, "mu_mult": 1.0, "emergency_gain_mult": 1.0,
+            "type_cap_mult": {}, "arrival_shift_min": 0.0, "arrival_spread_mult": 1.0,
         }
         now = self._elapsed_sec
         for m in self._modifiers:
@@ -503,6 +512,29 @@ class SyntheticGenerator:
                         eff["weight_mult"][eid] = eff["weight_mult"].get(eid, 1.0) * max(0.05, 1.0 + delta)
             elif k == "weather_rain":
                 eff["dwell_mult"] *= RAIN_FACTOR.get(str(p.get("intensity", "moderate")), 1.12)
+            elif k == "weather":
+                # An environmental-conditions modifier. The impact vector is
+                # computed outside the simulator (services/weather_impact.py);
+                # here it is only applied. Every key is optional and defaults to
+                # "no effect", so a partial vector is safe.
+                imp = p.get("impact") or {}
+                eff["travel_mult"] *= max(0.1, float(imp.get("travel_time_mult", 1.0)))
+                eff["dwell_mult"] *= max(0.1, float(imp.get("dwell_mult", 1.0)))
+                eff["mu_mult"] *= max(0.05, float(imp.get("service_rate_mult", 1.0)))
+                eff["emergency_gain_mult"] *= max(0.0, float(imp.get("emergency_gain_mult", 1.0)))
+                eff["attendance_mult"]["*"] = (eff["attendance_mult"].get("*", 1.0)
+                                               * max(0.0, float(imp.get("attendance_mult", 1.0))))
+                eff["arrival_shift_min"] += float(imp.get("arrival_shift_min", 0.0))
+                # Weather-delayed arrivals BUNCH: everyone watches the same radar,
+                # so the decision to set out correlates across the population and
+                # the arrival window narrows. A narrower window over the same
+                # number of people is a higher instantaneous peak.
+                eff["arrival_spread_mult"] *= max(0.3, float(imp.get("arrival_spread_mult", 1.0)))
+                for etype, mult in (imp.get("type_capacity_mult") or {}).items():
+                    eff["type_cap_mult"][etype] = eff["type_cap_mult"].get(etype, 1.0) * max(0.05, float(mult))
+                for eid_closed in imp.get("closed_entity_ids") or []:
+                    if eid_closed in self.nodes:
+                        eff["closed"].add(eid_closed)
             elif k in ("gate_closure", "transport_outage", "road_closure", "station_closure"):
                 if eid in self.nodes:
                     eff["closed"].add(eid)
@@ -590,7 +622,12 @@ class SyntheticGenerator:
     # --- capacity -------------------------------------------------------------------------
     def capacity(self, entity_id: str) -> float:
         mult = self._eff["cap_mult"].get(entity_id, 1.0)
-        if self.types.get(entity_id) == "hotel":
+        etype = self.types.get(entity_id)
+        # Environmental capacity loss applies to a whole entity TYPE (wet roads,
+        # flooded car parks) — never to named ids, so generated worlds behave
+        # exactly like the demo city.
+        mult *= self._eff["type_cap_mult"].get(etype, 1.0)
+        if etype == "hotel":
             mult *= self._eff["room_mult"].get(entity_id, 1.0)
         return max(1.0, self.cap[entity_id] * mult)
 
@@ -1050,6 +1087,11 @@ class SyntheticGenerator:
         counts: dict[str, float] = {}
         dm = eff["dwell_mult"]
         mu_boost = eff["mu_boost"]
+        # Environmental conditions: service-rate and travel-time multipliers, and
+        # the gain on incident load. All 1.0 unless a `weather` modifier is active.
+        mm = eff["mu_mult"]
+        tm = eff["travel_mult"]
+        eg = eff["emergency_gain_mult"]
 
         # Stations and hubs (fluid queue on the station's service rate).
         for a in self.queue_nodes:
@@ -1059,7 +1101,7 @@ class SyntheticGenerator:
                 self._queue[a] = 0.0
                 continue
             lam = flows["acc_in"].get(a, 0.0) + flows["acc_out"].get(a, 0.0)
-            mu = self.capacity(a) * STATION_MU_PER_CAP / dm + mu_boost.get(a, 0.0)
+            mu = self.capacity(a) * STATION_MU_PER_CAP / dm * mm + mu_boost.get(a, 0.0)
             q_prev = self._queue.get(a, 0.0)
             q = max(0.0, q_prev + (lam - mu) * dt)
             self._queue[a] = q
@@ -1100,7 +1142,7 @@ class SyntheticGenerator:
         for g in (e for e, ty in self.types.items() if ty == "gate"):
             v = gate_venue.get(g)
             full = v is not None and room.get(v, 1.0) <= 0.0
-            mu = 0.0 if (g in closed or full) else self.capacity(g) * GATE_MU_PER_CAP / dm + mu_boost.get(g, 0.0)
+            mu = 0.0 if (g in closed or full) else self.capacity(g) * GATE_MU_PER_CAP / dm * mm + mu_boost.get(g, 0.0)
             q_in = flows["gate_in"].get(g, 0.0)
             q = self._queue.get(g, 0.0) + q_in * dt
             served = min(q, mu * dt, room[v]) if v in room else min(q, mu * dt)
@@ -1280,7 +1322,8 @@ class SyntheticGenerator:
             load = self._background(ef, t) * self.capacity(ef)
             for src, c in self.evac_in.get(ef, []):
                 u = counts.get(src, 0.0) / self.capacity(src)
-                load += c * max(0.0, u - EMERGENCY_TRIGGER_UTIL) * self.capacity(ef) * EMERGENCY_GAIN * (1.0 - cut.get(src, 0.0))
+                load += (c * max(0.0, u - EMERGENCY_TRIGGER_UTIL) * self.capacity(ef) * EMERGENCY_GAIN * eg
+                         * (1.0 - cut.get(src, 0.0)))
             counts[ef] = min(load, EMERGENCY_MAX * self.capacity(ef))
 
         # Deterministic sensor-scale noise (±1%), keyed on (entity, 30s bucket).
@@ -1293,14 +1336,14 @@ class SyntheticGenerator:
         tw, tp = 0.0, 0.0
         for a, g, lam, tt in path_acc:
             delay = 0.0
-            mu_a = self.capacity(a) * STATION_MU_PER_CAP
+            mu_a = self.capacity(a) * STATION_MU_PER_CAP * mm
             if self._queue.get(a, 0.0) > 0 and mu_a > 0:
                 delay += self._queue[a] / mu_a * 60.0
             if g:
-                mu_g = self.capacity(g) * GATE_MU_PER_CAP
+                mu_g = self.capacity(g) * GATE_MU_PER_CAP * mm
                 if mu_g > 0:
                     delay += self._queue.get(g, 0.0) / mu_g * 60.0
-            tw += lam * (tt * dm + delay)
+            tw += lam * (tt * dm * tm + delay)
             tp += lam
         if tp > 0:
             self._stats["travel_time_weighted"] += tw * dt
@@ -1415,7 +1458,9 @@ class SyntheticGenerator:
         if q <= 0 or self.types.get(eid) not in ("gate", "transport_node"):
             return 0.0  # a venue's outside queue is reported as people, not a scan delay
         rate = GATE_MU_PER_CAP if self.types.get(eid) == "gate" else STATION_MU_PER_CAP
-        mu = self.capacity(eid) * rate
+        # Same slowed service rate the step used, so a reported delay matches the
+        # queue that actually built (environmental conditions slow scanning).
+        mu = self.capacity(eid) * rate * self._eff["mu_mult"]
         return q / mu * 60.0 if mu > 0 else 0.0
 
     def is_closed(self, eid: str) -> bool:

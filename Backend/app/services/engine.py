@@ -75,6 +75,12 @@ class Engine:
         self.counterfactuals: dict[str, Any] = {}
         self.commander = None
         self._install_world(world or self.legacy_world())
+        # Weather is advisory by default (see services/weather.py): always
+        # fetched and always shown, but it only modifies the live city when an
+        # operator (or config) switches it on, so the seeded run stays reproducible.
+        from .weather import WeatherService
+
+        self.weather = WeatherService(self)
 
         self._task: asyncio.Task | None = None
         self._stopping = asyncio.Event()
@@ -163,6 +169,8 @@ class Engine:
             if self.commander is not None and hasattr(self.commander, "_cache"):
                 self.commander._cache.clear()
             self._shed_forecast_until = 0
+            if getattr(self, "weather", None) is not None:
+                self.weather.on_world_changed()
             self.world_changed()
             await asyncio.to_thread(seed_topology, self.store)
             await asyncio.to_thread(clear_run_tables)
@@ -191,7 +199,10 @@ class Engine:
         }
         self.generator = self.registry.build_generator(topology, self.seed)
         if hasattr(self.generator, "clone"):
-            self.nominal = self.generator.clone(sources={"intervention", "schedule"})
+            # `weather` is announced information (a published forecast), so the
+            # twin's process model tracks it just like the schedule; only
+            # unannounced disruptions are withheld.
+            self.nominal = self.generator.clone(sources={"intervention", "schedule", "weather"})
         else:  # an ML drop-in generator without clone(): the twin runs model-free
             self.nominal = None
         self.counterfactuals = {}
@@ -1446,9 +1457,12 @@ class Engine:
         did = f"dis_{len(store.disruptions) + 1:04d}"
         while did in store.disruptions:
             did = did + "x"
+        # A weather scenario is applied as its computed impact vector; the record
+        # keeps the operator's own parameters so the UI shows what they asked for.
+        applied = self.weather.expand_scenarios([{"scenario_type": scenario_type, "params": params}])[0]
         with self.world_lock:
             for w in [self.generator] + list(self.counterfactuals.values()):
-                w.inject(scenario_type, params, source="disruption", modifier_id=did)
+                w.inject(applied["scenario_type"], applied["params"], source="disruption", modifier_id=did)
         record = {
             "disruption_id": did, "scenario_type": scenario_type, "params": dict(params or {}),
             "label": label, "started_at": store.sim_time,

@@ -3,7 +3,6 @@
  *
  * Layout:
  *   TopBar
- *   NavBar
  *   ┌──────────────────────────────────────────────┐
  *   │  LIVE NETWORK MAP (all remaining space)       │
  *   │  entity detail panel + action strip overlay   │
@@ -16,7 +15,6 @@
 import ActionHUD from '../components/ActionHUD.jsx';
 import EntityDetailPanel from '../components/EntityDetailPanel.jsx';
 import MapCanvas from '../components/MapCanvas.jsx';
-import NavBar from '../components/NavBar.jsx';
 import { ReplayBanner } from '../components/PageShell.jsx';
 import TopBar from '../components/TopBar.jsx';
 import { useActionTracking } from '../lib/useActionTracking.js';
@@ -45,7 +43,6 @@ export default function CommandCentre() {
   return (
     <div className="flex h-screen flex-col overflow-hidden bg-surface-950 font-sans">
       <TopBar />
-      <NavBar />
       <main className="flex min-h-0 flex-1 flex-col overflow-hidden p-2">
         <ReplayBanner className="mb-2 shrink-0" />
         <section className="relative min-h-0 flex-1 overflow-hidden rounded-md border border-surface-700/60 bg-surface-950 shadow-panel">

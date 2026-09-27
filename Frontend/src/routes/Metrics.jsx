@@ -37,6 +37,7 @@ import { clock, decimals, minutes } from '../lib/format.js';
 import { useStore } from '../store/useStore.js';
 import { ReplayBanner } from '../components/PageShell.jsx';
 import TwinFidelityGauge from '../components/TwinFidelityGauge.jsx';
+import MenuToggle from '../components/MenuToggle.jsx';
 
 const EMPHASISED = new Set([
   'prediction.cascade_lead_time_sec',
@@ -301,21 +302,24 @@ export default function Metrics() {
       <div className="mx-auto max-w-7xl">
         <ReplayBanner />
         {/* Header Bar */}
-        <header className="mb-6 flex flex-wrap items-center justify-between gap-4 border-b border-surface-700/60 pb-4">
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="flex h-2 w-2 rounded-full bg-emerald-400" />
-              <span className="text-[10px] font-mono uppercase tracking-[0.2em] text-slate-400">
-                BENCHMARKS & DRIFT ASSESSMENT
-              </span>
+        <header className="mb-6 flex flex-wrap items-center justify-between gap-4 border-b border-surface-700/60 pb-4 transition-all">
+          <div className="flex items-start gap-3">
+            <div className="pt-1"><MenuToggle /></div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="flex h-2 w-2 rounded-full bg-emerald-400" />
+                <span className="text-[10px] font-mono uppercase tracking-[0.2em] text-slate-400">
+                  BENCHMARKS & DRIFT ASSESSMENT
+                </span>
+              </div>
+              <h1 className="mt-1 text-xl font-bold tracking-tight text-slate-100">
+                EventFlow AI — Measured Operational Outcomes
+              </h1>
+              <p className="mt-0.5 text-xs text-slate-400 max-w-2xl">
+                Every value is computed from the running simulation: forecasts against what happened,
+                the twin against ground truth, and approved actions against a do-nothing counterfactual.
+              </p>
             </div>
-            <h1 className="mt-1 text-xl font-bold tracking-tight text-slate-100">
-              EventFlow AI — Measured Operational Outcomes
-            </h1>
-            <p className="mt-0.5 text-xs text-slate-400 max-w-2xl">
-              Every value is computed from the running simulation: forecasts against what happened,
-              the twin against ground truth, and approved actions against a do-nothing counterfactual.
-            </p>
           </div>
 
           <Link

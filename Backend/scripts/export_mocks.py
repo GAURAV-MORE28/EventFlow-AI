@@ -203,6 +203,39 @@ async def build(out: Path, cycles: int) -> None:
     simulation["candidate_interventions"] = [clean(i) for i in simulation["candidate_interventions"]]
     write(out, "simulation.json", simulation)
 
+    # --- weather-driven digital twin -------------------------------------------------
+    # Recorded with the OFFLINE providers on purpose: a replay fixture must never
+    # claim `availability: "live"`, because replaying a recording is not a live
+    # observation. The synthetic reading is labelled `synthetic` and the social
+    # fixture is labelled `fallback_fixture` / `is_real_post: false`.
+    from app.providers import social as SOCIAL
+    from app.providers import weather as WEATHER
+
+    WEATHER.set_weather_provider(WEATHER.SyntheticWeather(seed=engine.seed))
+    SOCIAL.set_social_provider(SOCIAL.FixtureSignals())
+    engine.weather.driving_live = False
+    engine.weather.refresh_sync()
+    weather_payload = engine.weather.payload()
+    weather_payload["sim_time"] = store.sim_time
+    write(out, "weather.json", weather_payload)
+
+    topics = engine.weather.topics()
+    signals = SOCIAL.get_social_provider().signals(topics, window_sec=21600, limit=20)
+    write(out, "social_signals.json", {**signals, "topics": topics})
+
+    weather_sim = SIMULATIONS._execute(
+        engine,
+        [{"scenario_type": "weather_scenario", "params": {"rain_mm_per_hr": 25.0, "storm_duration_min": 90}}],
+        3600,
+    )
+    weather_sim.update({
+        "simulation_id": "sim_mock_weather",
+        "status": "complete",
+        "label": "Heavy rain 25 mm/hr",
+    })
+    weather_sim["candidate_interventions"] = [clean(i) for i in weather_sim["candidate_interventions"]]
+    write(out, "weather_simulation.json", weather_sim)
+
     write(out, "health.json", {
         "status": "ok",
         "server_time": store.sim_time,
@@ -214,6 +247,9 @@ async def build(out: Path, cycles: int) -> None:
             "twin": {"ready": True, "ensemble_size": engine.config.raw["twin"]["ensemble_size"]},
             "equilibrium": {"ready": True},
             "commander": {"ready": True, "active_source": "deterministic"},
+            "weather": engine.weather.health(),
+            "social": {"ready": True, "active_source": "fixture",
+                       "detail": "Offline fixture data, labelled as such — never presented as real posts."},
         },
     })
 

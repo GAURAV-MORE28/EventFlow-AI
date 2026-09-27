@@ -64,6 +64,12 @@ EXPORTS: dict[str, type] = {
     "blueprint_list_response": S.BlueprintListResponse,
     "world_info": S.WorldInfo,
     "geospatial_status": S.GeospatialStatus,
+    # weather-driven digital twin (additive)
+    "weather_response": S.WeatherResponse,
+    "weather_impact": S.WeatherImpact,
+    "weather_conditions": S.WeatherConditions,
+    "social_signals_response": S.SocialSignalsResponse,
+    "public_signal": S.PublicSignal,
 }
 
 

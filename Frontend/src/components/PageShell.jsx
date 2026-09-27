@@ -4,16 +4,14 @@
  */
 import { riskColor } from '../lib/colors.js';
 import { useStore } from '../store/useStore.js';
-import NavBar from './NavBar.jsx';
 import TopBar from './TopBar.jsx';
 
 export default function PageShell({ title, subtitle, actions = null, children }) {
   return (
     <div className="flex h-screen flex-col overflow-hidden bg-surface-950 font-sans">
       <TopBar />
-      <NavBar />
       <main className="min-h-0 flex-1 overflow-y-auto">
-        <div className="mx-auto max-w-7xl px-4 py-4">
+        <div className="mx-auto max-w-7xl px-4 py-4 pb-24">
           <ReplayBanner />
           <header className="mb-4 flex flex-wrap items-end justify-between gap-3 border-b border-surface-700/60 pb-3">
             <div>
@@ -89,3 +87,4 @@ export function ErrorNote({ error }) {
     </div>
   );
 }
+

@@ -1,0 +1,10 @@
+{
+  "_comment": "OFFLINE TEST DATA — NOT SOCIAL MEDIA POSTS. These entries exist only so the classification and UI paths can be exercised with no network. Every signal built from this file is returned with source='fallback_fixture' and is_real_post=false, and must never be shown as something a person published. The live provider is app/providers/social.py MastodonPublicSignals.",
+  "entries": [
+    {"age_sec": 600,  "text": "Heavy rain near the stadium approach, traffic crawling on the main road.", "location_topic": "#testcity"},
+    {"age_sec": 1500, "text": "Waterlogged underpass by the north gate, people turning back.", "location_topic": "#testcity"},
+    {"age_sec": 2400, "text": "Metro delayed about fifteen minutes, platform is packed.", "location_topic": "#testcity"},
+    {"age_sec": 3600, "text": "Sweltering out here, heat is brutal before kickoff.", "location_topic": "#testcity"},
+    {"age_sec": 90000, "text": "Clear skies yesterday, nothing to report.", "location_topic": "#testcity"}
+  ]
+}

@@ -76,8 +76,84 @@ async def health() -> S.HealthResponse:
             ),
             "equilibrium": S.ModuleHealth(ready=registry.equilibrium.ready()),
             "commander": S.ModuleHealth(ready=True, active_source=engine.commander.engine_mode),
+            # `active_source` here is the honest answer to "is this live weather?":
+            # open_meteo / cached:open_meteo / synthetic / unavailable.
+            "weather": S.ModuleHealth(**engine.weather.health()),
+            "social": S.ModuleHealth(**_social_health()),
         },
     )
+
+
+def _social_health() -> dict:
+    from ..providers.social import get_social_provider
+
+    provider = get_social_provider()
+    return {"ready": provider.name != "none", "active_source": provider.name,
+            "detail": ("Public signals are read from a keyless Mastodon hashtag timeline; an empty "
+                       "result means nobody posted, not a failure."
+                       if provider.name == "mastodon" else
+                       "Offline fixture data, labelled as such — never presented as real posts."
+                       if provider.name == "fixture" else
+                       "Public-signal integration is disabled.")}
+
+
+# --- weather-driven digital twin (additive) ----------------------------------
+@router.get("/weather", response_model=S.WeatherResponse)
+async def weather() -> S.WeatherResponse:
+    """Current conditions, forecast and the impact vector for the ACTIVE world's
+    venue. `availability` says whether the reading is live, cached, synthetic or
+    unavailable; `driving_live` says whether any of it reaches the simulation."""
+    engine = get_engine()
+    service = engine.weather
+    if service.state is None:
+        await asyncio.to_thread(service.refresh_sync)
+    return S.WeatherResponse(**service.payload())
+
+
+@router.post("/weather/refresh", response_model=S.WeatherResponse)
+async def weather_refresh() -> S.WeatherResponse:
+    """Force a fetch now. A failure is reported in the payload, never as a 500 —
+    weather being unavailable is a normal operating state."""
+    engine = get_engine()
+    changed = await asyncio.to_thread(engine.weather.refresh_sync)
+    if changed and engine.weather.driving_live:
+        await engine.reconcile("weather_updated")
+    await engine.weather.broadcast()
+    return S.WeatherResponse(**engine.weather.payload())
+
+
+@router.post("/weather/apply", response_model=S.WeatherResponse)
+async def weather_apply(body: S.WeatherApplyRequest) -> S.WeatherResponse:
+    """Let the live weather drive the simulated city (or stop it doing so).
+
+    Off by default so the seeded demo run stays reproducible. Switching it on
+    applies the current impact vector to the live world and its nominal process
+    model and reconciles immediately, so the effect is visible at once."""
+    engine = get_engine()
+    payload = await engine.weather.set_driving_live(body.enabled)
+    _audit(engine, f"operator:{body.operator_id or 'demo'}",
+           "weather_apply" if body.enabled else "weather_clear", None,
+           {"enabled": bool(body.enabled), "severity": payload["impact"]["severity"],
+            "availability": payload["availability"]})
+    await engine.weather.broadcast()
+    return S.WeatherResponse(**payload)
+
+
+@router.get("/social/signals", response_model=S.SocialSignalsResponse)
+async def social_signals(window_sec: int = Query(default=21600, ge=600, le=604800),
+                         limit: int = Query(default=20, ge=1, le=50)) -> S.SocialSignalsResponse:
+    """Publicly posted signals about conditions near the ACTIVE world's venue.
+
+    Post text is third-party content: it is HTML-stripped and returned as data.
+    Nothing in the simulation reads it — the weather that drives the twin comes
+    from the weather provider alone."""
+    from ..providers.social import get_social_provider
+
+    engine = get_engine()
+    topics = engine.weather.topics()
+    provider = get_social_provider()
+    result = await asyncio.to_thread(provider.signals, topics, window_sec=window_sec, limit=limit)
+    return S.SocialSignalsResponse(**{**result, "topics": topics})
 
 
 # --- §3.2 topology ----------------------------------------------------------
@@ -680,6 +756,50 @@ def _validate_scenario(engine, scenario_type: str, params: dict) -> None:
         engine.events.get(params.get("event_id", engine.events.primary_event_id))
     if scenario_type == "attendance_delta" and params.get("event_id"):
         engine.events.get(params["event_id"])
+    if scenario_type == "weather_scenario":
+        _validate_weather_scenario(engine, params)
+
+
+# Physically meaningful ranges for a weather what-if. A value outside these is
+# rejected rather than silently clamped, so an operator never sees a result that
+# did not simulate what they asked for (the old `weather_rain` accepted any
+# `intensity` string and quietly fell back to "moderate").
+WEATHER_RANGES: dict[str, tuple[float, float]] = {
+    "rain_mm_per_hr": (0.0, 200.0),
+    "temp_c": (-30.0, 60.0),
+    "apparent_temp_c": (-30.0, 70.0),
+    "wind_kph": (0.0, 300.0),
+    "humidity": (0.0, 1.0),
+    "flood_severity": (0.0, 1.0),
+    "storm_duration_min": (0.0, 1440.0),
+}
+
+
+def _validate_weather_scenario(engine, params: dict) -> None:
+    known = set(WEATHER_RANGES) | {"flooded_entity_ids", "condition_code"}
+    unknown = sorted(set(params) - known)
+    if unknown:
+        raise ApiError("INVALID_SCENARIO",
+                       f"Unknown weather parameter(s): {', '.join(unknown)}.",
+                       {"unknown": unknown, "accepted": sorted(known)})
+    if not params:
+        raise ApiError("INVALID_SCENARIO",
+                       "A weather scenario needs at least one parameter to change.",
+                       {"accepted": sorted(known)})
+    for key, (low, high) in WEATHER_RANGES.items():
+        if params.get(key) is None:
+            continue
+        try:
+            value = float(params[key])
+        except (TypeError, ValueError):
+            raise ApiError("INVALID_SCENARIO", f"'{key}' must be a number.", {"parameter": key}) from None
+        if not low <= value <= high:
+            raise ApiError("INVALID_SCENARIO", f"'{key}' must be between {low} and {high}.",
+                           {"parameter": key, "value": value, "min": low, "max": high})
+    for eid in params.get("flooded_entity_ids") or []:
+        if eid not in engine.store.nodes:
+            raise ApiError("INVALID_SCENARIO", f"'{eid}' is not an entity in this world.",
+                           {"entity_id": eid})
 
 
 # --- helpers -----------------------------------------------------------------------------------------

@@ -180,6 +180,37 @@
       "title": "CascadeStep",
       "type": "object"
     },
+    "CausalLink": {
+      "additionalProperties": false,
+      "properties": {
+        "stage": {
+          "title": "Stage",
+          "type": "string"
+        },
+        "label": {
+          "title": "Label",
+          "type": "string"
+        },
+        "detail": {
+          "title": "Detail",
+          "type": "string"
+        },
+        "fields": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Fields",
+          "type": "array"
+        }
+      },
+      "required": [
+        "stage",
+        "label",
+        "detail"
+      ],
+      "title": "CausalLink",
+      "type": "object"
+    },
     "Certificate": {
       "additionalProperties": false,
       "properties": {
@@ -297,6 +328,108 @@
         "verdict"
       ],
       "title": "ComplianceSweepRow",
+      "type": "object"
+    },
+    "ImpactBand": {
+      "additionalProperties": false,
+      "description": "A scalar with the range it could plausibly take. `lower`/`upper` come from\nthe rule coefficients' configured range, widened by the forecast horizon —\nnever from an invented confidence figure.\n\n`mild` / `severe` are the k_min and k_max variants of this scalar. They are\nNOT lower/upper: for a shrinking multiplier (service rate, capacity,\nattendance) the k_max variant is the smaller number. A coherent scenario\nvariant mixes by coefficient extreme, which is what these two are for.",
+      "properties": {
+        "value": {
+          "title": "Value",
+          "type": "number"
+        },
+        "lower": {
+          "title": "Lower",
+          "type": "number"
+        },
+        "upper": {
+          "title": "Upper",
+          "type": "number"
+        },
+        "mild": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Mild"
+        },
+        "severe": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Severe"
+        },
+        "rules": {
+          "items": {
+            "$ref": "#/$defs/ImpactRule"
+          },
+          "title": "Rules",
+          "type": "array"
+        },
+        "uncertainty_basis": {
+          "title": "Uncertainty Basis",
+          "type": "string"
+        }
+      },
+      "required": [
+        "value",
+        "lower",
+        "upper",
+        "uncertainty_basis"
+      ],
+      "title": "ImpactBand",
+      "type": "object"
+    },
+    "ImpactRule": {
+      "additionalProperties": false,
+      "description": "One rule that contributed to an impact scalar, with its basis stated.",
+      "properties": {
+        "rule": {
+          "title": "Rule",
+          "type": "string"
+        },
+        "driver": {
+          "title": "Driver",
+          "type": "number"
+        },
+        "coefficient": {
+          "title": "Coefficient",
+          "type": "number"
+        },
+        "basis": {
+          "title": "Basis",
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "rule_based",
+            "estimated",
+            "learned",
+            "simulated"
+          ],
+          "title": "Kind",
+          "type": "string"
+        }
+      },
+      "required": [
+        "rule",
+        "driver",
+        "coefficient",
+        "basis",
+        "kind"
+      ],
+      "title": "ImpactRule",
       "type": "object"
     },
     "Intervention": {
@@ -579,7 +712,8 @@
             "event_cancellation",
             "road_closure",
             "station_closure",
-            "capacity_reduction"
+            "capacity_reduction",
+            "weather_scenario"
           ],
           "title": "Scenario Type",
           "type": "string"
@@ -860,6 +994,484 @@
       ],
       "title": "SimulationTimelinePoint",
       "type": "object"
+    },
+    "SimulationWeather": {
+      "additionalProperties": false,
+      "description": "The weather half of a what-if result: what was simulated, what the impact\nmodel made of it, the live reading it was layered on, and the outcome band.",
+      "properties": {
+        "scenario_conditions": {
+          "$ref": "#/$defs/WeatherConditions"
+        },
+        "impact": {
+          "$ref": "#/$defs/WeatherImpact"
+        },
+        "live_reading": {
+          "$ref": "#/$defs/WeatherLiveReading"
+        },
+        "uncertainty": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/WeatherUncertainty"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "scenario_conditions",
+        "impact",
+        "live_reading"
+      ],
+      "title": "SimulationWeather",
+      "type": "object"
+    },
+    "WeatherConditions": {
+      "additionalProperties": false,
+      "description": "One weather reading. A value the provider did not supply is `null`\n(\"unknown\", 00 §0) — never 0 and never a sentinel. `temp_c` is degrees\nCelsius, `precipitation_mm_per_hr` millimetres per hour, `wind_kph`\nkilometres per hour; `humidity` and `precipitation_probability` are\nfractions 0.0–1.0.",
+      "properties": {
+        "valid_at": {
+          "title": "Valid At",
+          "type": "string"
+        },
+        "horizon_sec": {
+          "default": 0,
+          "title": "Horizon Sec",
+          "type": "integer"
+        },
+        "temp_c": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Temp C"
+        },
+        "apparent_temp_c": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Apparent Temp C"
+        },
+        "precipitation_mm_per_hr": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Precipitation Mm Per Hr"
+        },
+        "wind_kph": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Wind Kph"
+        },
+        "humidity": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Humidity"
+        },
+        "precipitation_probability": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Precipitation Probability"
+        },
+        "condition_code": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Condition Code"
+        },
+        "condition": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Condition"
+        },
+        "severity": {
+          "default": "calm",
+          "enum": [
+            "calm",
+            "moderate",
+            "severe",
+            "extreme"
+          ],
+          "title": "Severity",
+          "type": "string"
+        }
+      },
+      "required": [
+        "valid_at"
+      ],
+      "title": "WeatherConditions",
+      "type": "object"
+    },
+    "WeatherDrivers": {
+      "additionalProperties": false,
+      "description": "Each weather input normalised to a 0.0–1.0 intensity.",
+      "properties": {
+        "rain": {
+          "title": "Rain",
+          "type": "number"
+        },
+        "heat": {
+          "title": "Heat",
+          "type": "number"
+        },
+        "wind": {
+          "title": "Wind",
+          "type": "number"
+        },
+        "flood": {
+          "title": "Flood",
+          "type": "number"
+        }
+      },
+      "required": [
+        "rain",
+        "heat",
+        "wind",
+        "flood"
+      ],
+      "title": "WeatherDrivers",
+      "type": "object"
+    },
+    "WeatherImpact": {
+      "additionalProperties": false,
+      "description": "The impact vector the city model applies. Multipliers are dimensionless\nand 1.0 means \"no effect\"; `applied: false` means nothing was applied at\nall (calm weather, or no reading).",
+      "properties": {
+        "model": {
+          "title": "Model",
+          "type": "string"
+        },
+        "model_kind": {
+          "enum": [
+            "rule_based",
+            "estimated",
+            "learned",
+            "simulated"
+          ],
+          "title": "Model Kind",
+          "type": "string"
+        },
+        "applied": {
+          "title": "Applied",
+          "type": "boolean"
+        },
+        "availability": {
+          "enum": [
+            "live",
+            "cached",
+            "synthetic",
+            "scenario",
+            "unavailable"
+          ],
+          "title": "Availability",
+          "type": "string"
+        },
+        "severity": {
+          "enum": [
+            "calm",
+            "moderate",
+            "severe",
+            "extreme"
+          ],
+          "title": "Severity",
+          "type": "string"
+        },
+        "drivers": {
+          "$ref": "#/$defs/WeatherDrivers"
+        },
+        "horizon_sec": {
+          "default": 0,
+          "title": "Horizon Sec",
+          "type": "integer"
+        },
+        "duration_sec": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Duration Sec"
+        },
+        "confidence": {
+          "enum": [
+            "high",
+            "medium",
+            "low"
+          ],
+          "title": "Confidence",
+          "type": "string"
+        },
+        "travel_time_mult": {
+          "title": "Travel Time Mult",
+          "type": "number"
+        },
+        "dwell_mult": {
+          "title": "Dwell Mult",
+          "type": "number"
+        },
+        "service_rate_mult": {
+          "title": "Service Rate Mult",
+          "type": "number"
+        },
+        "attendance_mult": {
+          "title": "Attendance Mult",
+          "type": "number"
+        },
+        "arrival_shift_min": {
+          "title": "Arrival Shift Min",
+          "type": "number"
+        },
+        "arrival_spread_mult": {
+          "default": 1.0,
+          "title": "Arrival Spread Mult",
+          "type": "number"
+        },
+        "emergency_gain_mult": {
+          "title": "Emergency Gain Mult",
+          "type": "number"
+        },
+        "type_capacity_mult": {
+          "additionalProperties": {
+            "type": "number"
+          },
+          "title": "Type Capacity Mult",
+          "type": "object"
+        },
+        "closed_entity_ids": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Closed Entity Ids",
+          "type": "array"
+        },
+        "bands": {
+          "additionalProperties": {
+            "$ref": "#/$defs/ImpactBand"
+          },
+          "title": "Bands",
+          "type": "object"
+        },
+        "causal_chain": {
+          "items": {
+            "$ref": "#/$defs/CausalLink"
+          },
+          "title": "Causal Chain",
+          "type": "array"
+        },
+        "note": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Note"
+        },
+        "band_edge": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Band Edge"
+        }
+      },
+      "required": [
+        "model",
+        "model_kind",
+        "applied",
+        "availability",
+        "severity",
+        "drivers",
+        "confidence",
+        "travel_time_mult",
+        "dwell_mult",
+        "service_rate_mult",
+        "attendance_mult",
+        "arrival_shift_min",
+        "emergency_gain_mult"
+      ],
+      "title": "WeatherImpact",
+      "type": "object"
+    },
+    "WeatherLiveReading": {
+      "additionalProperties": false,
+      "properties": {
+        "availability": {
+          "enum": [
+            "live",
+            "cached",
+            "synthetic",
+            "scenario",
+            "unavailable"
+          ],
+          "title": "Availability",
+          "type": "string"
+        },
+        "source": {
+          "title": "Source",
+          "type": "string"
+        },
+        "observed_at": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Observed At"
+        },
+        "current": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/WeatherConditions"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "availability",
+        "source"
+      ],
+      "title": "WeatherLiveReading",
+      "type": "object"
+    },
+    "WeatherUncertainty": {
+      "additionalProperties": false,
+      "description": "Outcome uncertainty from three runs of the same scenario (lower, central\nand upper rule coefficients), not a multiplier on a guess.",
+      "properties": {
+        "method": {
+          "title": "Method",
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "rule_based",
+            "estimated",
+            "learned",
+            "simulated"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "confidence": {
+          "enum": [
+            "high",
+            "medium",
+            "low"
+          ],
+          "title": "Confidence",
+          "type": "string"
+        },
+        "metrics": {
+          "additionalProperties": {
+            "$ref": "#/$defs/WeatherUncertaintyMetric"
+          },
+          "title": "Metrics",
+          "type": "object"
+        }
+      },
+      "required": [
+        "method",
+        "kind",
+        "confidence"
+      ],
+      "title": "WeatherUncertainty",
+      "type": "object"
+    },
+    "WeatherUncertaintyMetric": {
+      "additionalProperties": false,
+      "properties": {
+        "value": {
+          "title": "Value",
+          "type": "number"
+        },
+        "lower": {
+          "title": "Lower",
+          "type": "number"
+        },
+        "upper": {
+          "title": "Upper",
+          "type": "number"
+        }
+      },
+      "required": [
+        "value",
+        "lower",
+        "upper"
+      ],
+      "title": "WeatherUncertaintyMetric",
+      "type": "object"
     }
   },
   "additionalProperties": false,
@@ -972,6 +1584,17 @@
       },
       "title": "Scenarios",
       "type": "array"
+    },
+    "weather": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/SimulationWeather"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
     }
   },
   "required": [

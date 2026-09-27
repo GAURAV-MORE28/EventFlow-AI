@@ -296,6 +296,7 @@
       }
     }
   ],
+  "weather": null,
   "simulation_id": "sim_mock1",
   "status": "complete",
   "label": "Gate 5 closure"

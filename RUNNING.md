@@ -151,12 +151,58 @@ real sources (`Backend/app/providers/`):
   `events.json`, `hotels.json` and `topology.json` from `data.dir` (each is
   optional) and normalises them to the wire conventions (ids, UTC timestamps,
   paise, fractions), rejecting invalid records.
+- **Weather** (`weather.py`): **on by default and it needs no API key.**
+  `open_meteo` fetches real current conditions and a 12-hour forecast for the
+  active world's venue. On failure you get the last good reading labelled
+  `cached`, or `unavailable` if there is none — never a fabricated reading.
+  `provider: synthetic` is a deterministic offline model, always labelled
+  `synthetic`; `provider: none` switches the layer off.
+  `EVENTFLOW_WEATHER_PROVIDER` overrides it.
+- **Public signals** (`social.py`): **on by default, also keyless.** Reads
+  public Mastodon hashtag timelines for topics derived from the active world's
+  venue. `provider: fixture` uses offline data that is always labelled
+  `is_real_post: false`; `provider: none` switches it off.
+  `EVENTFLOW_SOCIAL_PROVIDER` overrides it.
+
+## Weather and the Digital Twin
+
+`/twin` in the UI. Weather is an input to the existing twin, not a separate
+one: a reading becomes a small vector of multipliers (travel time, dwell,
+service rate, capacity by entity type, attendance, arrival timing and
+bunching, incident-load gain) which the normal flow model propagates into
+queues, gate spill, road load, cascades and risk.
+
+**Weather does not touch the live simulation until you say so.**
+`weather.drive_live` is `false`, so the reading is advisory: shown on the page
+and usable in What-If, but not applied. That keeps `sim_time` fully determined
+by the seed. Press **Drive the live city** (or `POST /weather/apply
+{"enabled": true}`) to apply it; the page and the map both say which mode you
+are in.
+
+```bash
+curl localhost:8000/api/v1/weather                       # reading + forecast + impact vector
+curl -X POST localhost:8000/api/v1/weather/refresh       # fetch now
+curl -X POST localhost:8000/api/v1/weather/apply -d '{"enabled": true}' \
+     -H 'Content-Type: application/json'                 # let it drive the live city
+curl 'localhost:8000/api/v1/social/signals?window_sec=21600'
+# a weather what-if, on clones of the live city:
+curl -X POST localhost:8000/api/v1/simulate -H 'Content-Type: application/json' \
+  -d '{"scenarios":[{"scenario_type":"weather_scenario",
+                     "params":{"rain_mm_per_hr":25,"storm_duration_min":90}}],
+       "horizon_sec":3600}'
+```
+
+For an offline heavy-weather demo, point `EVENTFLOW_CONFIG` at a copy of
+`config.yaml` with `weather.provider: synthetic` and
+`weather.base: {rain_mm_per_hr: 26, temp_c: 31, wind_kph: 45}`. It still
+reports `synthetic`, never `live`.
 
 ## Tests
 
 ```bash
 cd Backend
-python -m pytest tests/ -q       # 192 tests; temporary database, no network (tests/conftest.py)
+python -m pytest tests/ -q       # 263 tests; temporary database, no network (tests/conftest.py)
+python -m pytest tests/test_weather.py -q   # the weather twin: providers, impact model, isolation
 cd ../Frontend
 npm run validate:mocks            # fixtures vs contracts/schemas
 npm run build
@@ -199,3 +245,7 @@ schedule and the hotel catalogue persist.
 | Optimiser | Rule templates with executable actions; relief measured by simulation |
 | Equilibrium certificate | Fixed-point best-response solver |
 | Commander | Deterministic templates over tool results; every number validated |
+| Weather input | **Real**: live Open-Meteo observations + forecast, no API key. `availability` states live / cached / synthetic / unavailable on every payload |
+| Weather impact model | **Rule-based**, not learned: documented coefficients with a configured `k_min`/`k_max` range and a `basis` string per rule (`config.yaml`, `weather:`) |
+| Weather uncertainty | Bands from the coefficient range widened by forecast horizon; outcome ranges from three runs of the same scenario (mild / central / severe) |
+| Public social signals | **Real**: public Mastodon hashtag timelines, keyless. Post text is the platform's; type/scope/relevance are our keyword classification. Offline fixture data is always flagged `is_real_post: false` |

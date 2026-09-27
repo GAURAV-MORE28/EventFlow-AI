@@ -1,0 +1,113 @@
+{
+  "additionalProperties": false,
+  "description": "One publicly posted signal. `text` / `author` / `url` / `posted_at` are\nthe platform's own data (`observation_kind: \"user_report\"`); `signal_type`,\n`scope`, `matched_terms` and `relevance` are our keyword classification\n(`classification_kind: \"derived\"`). `is_real_post` is false for offline\nfixture data, which is never presented as anyone's words.",
+  "properties": {
+    "signal_id": {
+      "title": "Signal Id",
+      "type": "string"
+    },
+    "source": {
+      "title": "Source",
+      "type": "string"
+    },
+    "source_detail": {
+      "title": "Source Detail",
+      "type": "string"
+    },
+    "is_real_post": {
+      "title": "Is Real Post",
+      "type": "boolean"
+    },
+    "posted_at": {
+      "title": "Posted At",
+      "type": "string"
+    },
+    "author": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Author"
+    },
+    "url": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Url"
+    },
+    "text": {
+      "title": "Text",
+      "type": "string"
+    },
+    "location_topic": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Location Topic"
+    },
+    "signal_type": {
+      "title": "Signal Type",
+      "type": "string"
+    },
+    "observation_kind": {
+      "title": "Observation Kind",
+      "type": "string"
+    },
+    "classification_kind": {
+      "title": "Classification Kind",
+      "type": "string"
+    },
+    "matched_terms": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Matched Terms",
+      "type": "array"
+    },
+    "scope": {
+      "default": "global",
+      "enum": [
+        "local",
+        "global"
+      ],
+      "title": "Scope",
+      "type": "string"
+    },
+    "relevance": {
+      "title": "Relevance",
+      "type": "number"
+    }
+  },
+  "required": [
+    "signal_id",
+    "source",
+    "source_detail",
+    "is_real_post",
+    "posted_at",
+    "text",
+    "signal_type",
+    "observation_kind",
+    "classification_kind",
+    "relevance"
+  ],
+  "title": "public_signal",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

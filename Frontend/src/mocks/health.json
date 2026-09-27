@@ -22,6 +22,16 @@
     "commander": {
       "ready": true,
       "active_source": "deterministic"
+    },
+    "weather": {
+      "ready": true,
+      "active_source": "synthetic",
+      "detail": "synthetic; driving_live=false; Deterministic offline model — a plausible shape, not an observation."
+    },
+    "social": {
+      "ready": true,
+      "active_source": "fixture",
+      "detail": "Offline fixture data, labelled as such — never presented as real posts."
     }
   }
 }

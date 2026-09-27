@@ -172,6 +172,43 @@ scenario to the scenario clone only, runs both forward with the same
 `run_forward`, and compares. The live world is never touched. Applying to live
 is a separate explicit call (`POST /disruptions` or `POST /events/{id}`).
 
+## 11a. Weather layer (weather-driven digital twin)
+
+Weather is an **input to the twin above**, not a second twin. One world, one
+cycle, one what-if engine.
+
+```
+providers/weather.py        Open-Meteo (keyless) → conditions + 12 h forecast
+services/weather_impact.py  rule-based coefficients → impact vector (pure function)
+services/weather.py         refresh loop, live-drive switch, scenario translation
+generator.py                one modifier kind: inject("weather", {"impact": …})
+```
+
+The vector is: `travel_time_mult`, `dwell_mult`, `service_rate_mult`,
+`attendance_mult`, `arrival_shift_min`, `arrival_spread_mult`,
+`emergency_gain_mult`, `type_capacity_mult` (by entity **type**),
+`closed_entity_ids` (only entities an operator named). The existing flow model
+propagates it: slower travel and service → longer queues → gate spill onto
+roads → `evacuates_to` incident load → cascades → risk. Delayed arrivals also
+*bunch* (`arrival_spread_mult` narrows the arrival window), which is what makes
+rain worse rather than merely later.
+
+| Concern | Owner | Note |
+|---|---|---|
+| Is the reading real? | `providers/weather.py` | `availability`: live / cached / synthetic / unavailable. A fallback is never relabelled live; no reading ⇒ identity vector, nothing applied |
+| Weather → numbers | `services/weather_impact.py` | `model_kind: rule_based`. Coefficients in `config.yaml`; each has `k_min`/`k_max` and a `basis`. Pure and deterministic |
+| Does it affect the live city? | `services/weather.py` | `weather.drive_live` (default **false**) + `POST /weather/apply`. Reported as `driving_live` / `applied_to_live` |
+| Scalar uncertainty | `weather_impact` `bands` | coefficient range, widened by forecast horizon |
+| Outcome uncertainty | `services/simulation.py` | three runs: mild / central / severe coefficients. Variants mix by coefficient extreme (`mild`/`severe` per band), never by band edge |
+| Public signals | `providers/social.py` | Real keyless Mastodon hashtag timelines. Never read by the simulation |
+
+Applied to the live city, the vector also goes to `engine.nominal` (a forecast
+is announced information, so the twin's process model knows it) and to
+counterfactual forks (a do-nothing fork answers "what if we had not acted", not
+"what if it had not rained"). What-If uses `scenario_type: "weather_scenario"`
+through the **existing** clone path, so §11's isolation guarantee covers it
+unchanged; parameters are validated against physical ranges rather than clamped.
+
 ## 12. Attendee journeys
 
 Time-dependent Dijkstra over the look-ahead projection (a clone of the live
@@ -212,6 +249,16 @@ produces its output from deterministic logic.
   reconciliation; the next cycle persists the new state.
 * Two backend processes sharing one SQLite file (e.g. a dev server and
   `export_mocks`) collide on run-table rows; use separate `DATABASE_URL`s.
+* The weather impact model is rule-based, with engineering-estimate
+  coefficients. It is directionally right and monotone in severity; it is not
+  fitted to observed data and must not be presented as a calibrated or learned
+  model. The `basis` string on every rule says where its figure comes from.
+* Flood exposure is applied to exposed entity *types* uniformly; the system has
+  no elevation or drainage data, so it never infers which specific entities
+  flood. Closures happen only for entities an operator names explicitly.
+* Public signals are real posts but coverage is thin for most venues: a
+  `#<venue>` hashtag usually has nothing in it, so `local_count` is often 0 and
+  the panel says so rather than showing distant posts as local.
 * Departure options differ only when the network state along the route
   differs; on an uncongested route the times are (correctly) the same.
 * A What-If "peak utilisation" can be pinned at a station's physical maximum in

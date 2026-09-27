@@ -1,0 +1,107 @@
+{
+  "provider": "fixture",
+  "availability": "fixture",
+  "fetched_at": "2026-09-27T03:48:16Z",
+  "queried_tags": [
+    "mainstadium"
+  ],
+  "window_sec": 21600,
+  "signals": [
+    {
+      "signal_id": "sig_fx_000",
+      "source": "fallback_fixture",
+      "source_detail": "social_fixture.json — offline test data, not a real post",
+      "is_real_post": false,
+      "posted_at": "2026-09-27T03:38:16Z",
+      "author": null,
+      "url": null,
+      "text": "Heavy rain near the stadium approach, traffic crawling on the main road.",
+      "location_topic": "#testcity",
+      "signal_type": "rain_report",
+      "observation_kind": "synthetic_test_data",
+      "classification_kind": "derived",
+      "matched_terms": [
+        "rain"
+      ],
+      "scope": "local",
+      "relevance": 0.8
+    },
+    {
+      "signal_id": "sig_fx_001",
+      "source": "fallback_fixture",
+      "source_detail": "social_fixture.json — offline test data, not a real post",
+      "is_real_post": false,
+      "posted_at": "2026-09-27T03:23:16Z",
+      "author": null,
+      "url": null,
+      "text": "Waterlogged underpass by the north gate, people turning back.",
+      "location_topic": "#testcity",
+      "signal_type": "flood_report",
+      "observation_kind": "synthetic_test_data",
+      "classification_kind": "derived",
+      "matched_terms": [
+        "waterlogged"
+      ],
+      "scope": "local",
+      "relevance": 0.8
+    },
+    {
+      "signal_id": "sig_fx_002",
+      "source": "fallback_fixture",
+      "source_detail": "social_fixture.json — offline test data, not a real post",
+      "is_real_post": false,
+      "posted_at": "2026-09-27T03:08:16Z",
+      "author": null,
+      "url": null,
+      "text": "Metro delayed about fifteen minutes, platform is packed.",
+      "location_topic": "#testcity",
+      "signal_type": "transport_disruption",
+      "observation_kind": "synthetic_test_data",
+      "classification_kind": "derived",
+      "matched_terms": [
+        "delay",
+        "delayed",
+        "metro delay",
+        "packed"
+      ],
+      "scope": "local",
+      "relevance": 1.0
+    },
+    {
+      "signal_id": "sig_fx_003",
+      "source": "fallback_fixture",
+      "source_detail": "social_fixture.json — offline test data, not a real post",
+      "is_real_post": false,
+      "posted_at": "2026-09-27T02:48:16Z",
+      "author": null,
+      "url": null,
+      "text": "Sweltering out here, heat is brutal before kickoff.",
+      "location_topic": "#testcity",
+      "signal_type": "heat_report",
+      "observation_kind": "synthetic_test_data",
+      "classification_kind": "derived",
+      "matched_terms": [
+        "sweltering"
+      ],
+      "scope": "local",
+      "relevance": 0.8
+    }
+  ],
+  "summary": {
+    "count": 4,
+    "local_count": 4,
+    "global_count": 0,
+    "by_type": {
+      "flood_report": 1,
+      "heat_report": 1,
+      "rain_report": 1,
+      "transport_disruption": 1
+    },
+    "max_relevance": 1.0
+  },
+  "detail": "Offline fixture data, clearly labelled. No real social posts were retrieved.",
+  "classifier": "keyword_match_v1",
+  "topics": [
+    "Main Stadium"
+  ]
+}

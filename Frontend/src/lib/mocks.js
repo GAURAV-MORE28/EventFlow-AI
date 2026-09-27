@@ -35,6 +35,9 @@ import hotelsData from '../mocks/hotels.json';
 import stayData from '../mocks/stay_recommendation.json';
 import saturationData from '../mocks/saturation.json';
 import disruptionsData from '../mocks/disruptions.json';
+import weatherData from '../mocks/weather.json';
+import socialData from '../mocks/social_signals.json';
+import weatherSimulationData from '../mocks/weather_simulation.json';
 
 import { advanceMockDriver } from './mockLifecycle.js';
 
@@ -56,7 +59,16 @@ export const twinFidelity = () => delay(twinFidelityData);
 export const metrics = () => delay(metricsData);
 export const regret = () => delay(regretData);
 export const interventions = () => delay(interventionState);
-export const simulation = () => delay(simulationData);
+export const simulation = (id) =>
+  delay(id === 'sim_mock_weather' ? weatherSimulationData : simulationData);
+/**
+ * The recorded weather reading. It was exported with the OFFLINE provider, so
+ * `availability` is `synthetic` and `driving_live` is false — replaying a
+ * recording is not a live observation and the payload says so.
+ */
+export const weather = () => delay(weatherData);
+/** Recorded public signals, every one labelled `is_real_post: false`. */
+export const socialSignals = () => delay(socialData);
 
 export const forecast = () =>
   delay({

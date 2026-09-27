@@ -23,7 +23,8 @@
             "event_cancellation",
             "road_closure",
             "station_closure",
-            "capacity_reduction"
+            "capacity_reduction",
+            "weather_scenario"
           ],
           "title": "Scenario Type",
           "type": "string"

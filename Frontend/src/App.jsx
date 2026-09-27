@@ -8,7 +8,7 @@
  * Bootstrap happens once here: fetch the static topology, then either connect
  * the WebSocket or start the mock driver. No component fetches its own data.
  */
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Route, Routes } from 'react-router-dom';
 
 import CommandCentre from './routes/CommandCentre.jsx';
@@ -18,6 +18,7 @@ import Events from './routes/Events.jsx';
 import Accommodation from './routes/Accommodation.jsx';
 import Interventions from './routes/Interventions.jsx';
 import WhatIf from './routes/WhatIf.jsx';
+import DigitalTwin from './routes/DigitalTwin.jsx';
 import Commander from './routes/Commander.jsx';
 import VenueSetup from './routes/VenueSetup.jsx';
 import { Crowd, Transport } from './routes/Network.jsx';
@@ -26,6 +27,8 @@ import { MOCK_MODE, api } from './lib/api.js';
 import { startMockDriver } from './lib/mocks.js';
 import { connectWebSocket } from './lib/ws.js';
 import { useStore } from './store/useStore.js';
+import NavigationWrapper from './components/NavigationWrapper.jsx';
+import Preloader from './components/Preloader.jsx';
 
 /** Graph + primary event + schedule of the ACTIVE world (refetched when it changes). */
 async function loadTopology(store) {
@@ -38,12 +41,32 @@ async function loadTopology(store) {
   store.setGraph(graph);
   store.setEvents(events.events);
   if (graph.world) store.setWorld(graph.world);
+  // The weather reading and the public signals are for THIS world's venue, so
+  // they are refetched with the topology whenever the world changes.
+  loadEnvironment(store);
   return graph.world;
+}
+
+/**
+ * Weather + public signals. Both are advisory context: a failure leaves the
+ * store's previous value in place and shows nothing rather than a fake reading,
+ * and neither one can stop the shell from mounting.
+ */
+function loadEnvironment(store) {
+  api
+    .weather()
+    .then((weather) => store.setWeather(weather))
+    .catch(() => {});
+  api
+    .socialSignals()
+    .then((signals) => store.setSocialSignals(signals))
+    .catch(() => {});
 }
 
 export default function App() {
   const store = useStore();
   const loadedWorld = useRef(null);
+  const [isBootstrapping, setIsBootstrapping] = useState(true);
   const worldKey = useStore((s) => (s.world ? `${s.world.world_id}:${s.world.run_id}` : null));
   const worldId = useStore((s) => s.world?.world_id ?? null);
 
@@ -102,6 +125,11 @@ export default function App() {
         }
         disconnect = connectWebSocket(store, { client: 'command_centre' });
       }
+
+      if (!cancelled) {
+        // Add a slight minimum delay so the slick animation is always seen
+        setTimeout(() => setIsBootstrapping(false), 800);
+      }
     }
 
     bootstrap();
@@ -115,8 +143,10 @@ export default function App() {
 
   return (
     <>
-      <Routes>
-        <Route path="/" element={<CommandCentre />} />
+      <Preloader show={isBootstrapping} />
+      <NavigationWrapper>
+        <Routes>
+          <Route path="/" element={<CommandCentre />} />
         <Route path="/attendee" element={<Attendee />} />
         <Route path="/metrics" element={<Metrics />} />
         <Route path="/events" element={<Events />} />
@@ -125,10 +155,12 @@ export default function App() {
         <Route path="/crowd" element={<Crowd />} />
         <Route path="/interventions" element={<Interventions />} />
         <Route path="/whatif" element={<WhatIf />} />
+        <Route path="/twin" element={<DigitalTwin />} />
         <Route path="/commander" element={<Commander />} />
         <Route path="/venue" element={<VenueSetup />} />
       </Routes>
-      <Toasts />
+        <Toasts />
+      </NavigationWrapper>
     </>
   );
 }

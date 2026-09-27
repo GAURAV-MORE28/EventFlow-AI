@@ -773,33 +773,33 @@
       {
         "entity_id": "gate_5",
         "display_name": "Gate 5",
-        "current_utilisation": 0.0174,
+        "current_utilisation": 0.0167,
         "current_band": "low",
         "time_to_critical_sec": 3322,
         "trajectory": [
           {
             "horizon_sec": 0,
-            "utilisation": 0.0174
+            "utilisation": 0.0167
           },
           {
             "horizon_sec": 300,
-            "utilisation": 0.0283
+            "utilisation": 0.0277
           },
           {
             "horizon_sec": 600,
-            "utilisation": 0.0393
+            "utilisation": 0.0388
           },
           {
             "horizon_sec": 900,
-            "utilisation": 0.0502
+            "utilisation": 0.0498
           },
           {
             "horizon_sec": 1200,
-            "utilisation": 0.0707
+            "utilisation": 0.0704
           },
           {
             "horizon_sec": 1800,
-            "utilisation": 0.1118
+            "utilisation": 0.1115
           }
         ]
       },
@@ -1205,33 +1205,33 @@
       {
         "entity_id": "gate_5",
         "display_name": "Gate 5",
-        "current_utilisation": 0.0216,
+        "current_utilisation": 0.0212,
         "current_band": "low",
         "time_to_critical_sec": 3241,
         "trajectory": [
           {
             "horizon_sec": 0,
-            "utilisation": 0.0216
+            "utilisation": 0.0212
           },
           {
             "horizon_sec": 300,
-            "utilisation": 0.0336
+            "utilisation": 0.0333
           },
           {
             "horizon_sec": 600,
-            "utilisation": 0.0457
+            "utilisation": 0.0453
           },
           {
             "horizon_sec": 900,
-            "utilisation": 0.0577
+            "utilisation": 0.0574
           },
           {
             "horizon_sec": 1200,
-            "utilisation": 0.0787
+            "utilisation": 0.0784
           },
           {
             "horizon_sec": 1800,
-            "utilisation": 0.1206
+            "utilisation": 0.1204
           }
         ]
       },
@@ -2654,29 +2654,29 @@
       {
         "entity_id": "gate_6",
         "display_name": "Gate 6",
-        "current_utilisation": 0.0299,
+        "current_utilisation": 0.0301,
         "current_band": "low",
         "time_to_critical_sec": 3362,
         "trajectory": [
           {
             "horizon_sec": 0,
-            "utilisation": 0.0299
+            "utilisation": 0.0301
           },
           {
             "horizon_sec": 300,
-            "utilisation": 0.0419
+            "utilisation": 0.0421
           },
           {
             "horizon_sec": 600,
-            "utilisation": 0.0539
+            "utilisation": 0.054
           },
           {
             "horizon_sec": 900,
-            "utilisation": 0.0659
+            "utilisation": 0.066
           },
           {
             "horizon_sec": 1200,
-            "utilisation": 0.0834
+            "utilisation": 0.0835
           },
           {
             "horizon_sec": 1800,
@@ -3455,33 +3455,33 @@
       {
         "entity_id": "gate_6",
         "display_name": "Gate 6",
-        "current_utilisation": 0.0361,
+        "current_utilisation": 0.0366,
         "current_band": "low",
         "time_to_critical_sec": 3186,
         "trajectory": [
           {
             "horizon_sec": 0,
-            "utilisation": 0.0361
+            "utilisation": 0.0366
           },
           {
             "horizon_sec": 300,
-            "utilisation": 0.0501
+            "utilisation": 0.0505
           },
           {
             "horizon_sec": 600,
-            "utilisation": 0.0641
+            "utilisation": 0.0645
           },
           {
             "horizon_sec": 900,
-            "utilisation": 0.0781
+            "utilisation": 0.0784
           },
           {
             "horizon_sec": 1200,
-            "utilisation": 0.0987
+            "utilisation": 0.0989
           },
           {
             "horizon_sec": 1800,
-            "utilisation": 0.1398
+            "utilisation": 0.14
           }
         ]
       },
@@ -4631,33 +4631,33 @@
       {
         "entity_id": "gate_6",
         "display_name": "Gate 6",
-        "current_utilisation": 0.0475,
+        "current_utilisation": 0.048,
         "current_band": "low",
-        "time_to_critical_sec": 3124,
+        "time_to_critical_sec": 3123,
         "trajectory": [
           {
             "horizon_sec": 0,
-            "utilisation": 0.0475
+            "utilisation": 0.048
           },
           {
             "horizon_sec": 300,
-            "utilisation": 0.0628
+            "utilisation": 0.0633
           },
           {
             "horizon_sec": 600,
-            "utilisation": 0.0782
+            "utilisation": 0.0785
           },
           {
             "horizon_sec": 900,
-            "utilisation": 0.0935
+            "utilisation": 0.0938
           },
           {
             "horizon_sec": 1200,
-            "utilisation": 0.1257
+            "utilisation": 0.126
           },
           {
             "horizon_sec": 1800,
-            "utilisation": 0.1902
+            "utilisation": 0.1904
           }
         ]
       }
@@ -4946,33 +4946,33 @@
       {
         "entity_id": "gate_6",
         "display_name": "Gate 6",
-        "current_utilisation": 0.0533,
+        "current_utilisation": 0.0528,
         "current_band": "low",
         "time_to_critical_sec": 3127,
         "trajectory": [
           {
             "horizon_sec": 0,
-            "utilisation": 0.0533
+            "utilisation": 0.0528
           },
           {
             "horizon_sec": 300,
-            "utilisation": 0.0694
+            "utilisation": 0.069
           },
           {
             "horizon_sec": 600,
-            "utilisation": 0.0856
+            "utilisation": 0.0852
           },
           {
             "horizon_sec": 900,
-            "utilisation": 0.1017
+            "utilisation": 0.1014
           },
           {
             "horizon_sec": 1200,
-            "utilisation": 0.1418
+            "utilisation": 0.1415
           },
           {
             "horizon_sec": 1800,
-            "utilisation": 0.222
+            "utilisation": 0.2218
           }
         ]
       }
@@ -6149,33 +6149,33 @@
       {
         "entity_id": "gate_6",
         "display_name": "Gate 6",
-        "current_utilisation": 0.0645,
+        "current_utilisation": 0.0647,
         "current_band": "low",
         "time_to_critical_sec": 3064,
         "trajectory": [
           {
             "horizon_sec": 0,
-            "utilisation": 0.0645
+            "utilisation": 0.0647
           },
           {
             "horizon_sec": 300,
-            "utilisation": 0.0816
+            "utilisation": 0.0818
           },
           {
             "horizon_sec": 600,
-            "utilisation": 0.0987
+            "utilisation": 0.0988
           },
           {
             "horizon_sec": 900,
-            "utilisation": 0.1158
+            "utilisation": 0.1159
           },
           {
             "horizon_sec": 1200,
-            "utilisation": 0.1807
+            "utilisation": 0.1808
           },
           {
             "horizon_sec": 1800,
-            "utilisation": 0.3105
+            "utilisation": 0.3106
           }
         ]
       },
@@ -6215,33 +6215,33 @@
       {
         "entity_id": "hotel_east_cluster",
         "display_name": "East Hotel Cluster",
-        "current_utilisation": 0.8659,
+        "current_utilisation": 0.8667,
         "current_band": "moderate",
-        "time_to_critical_sec": 3418,
+        "time_to_critical_sec": 3415,
         "trajectory": [
           {
             "horizon_sec": 0,
-            "utilisation": 0.8659
+            "utilisation": 0.8667
           },
           {
             "horizon_sec": 300,
-            "utilisation": 0.8749
+            "utilisation": 0.8756
           },
           {
             "horizon_sec": 600,
-            "utilisation": 0.884
+            "utilisation": 0.8845
           },
           {
             "horizon_sec": 900,
-            "utilisation": 0.893
+            "utilisation": 0.8934
           },
           {
             "horizon_sec": 1200,
-            "utilisation": 0.9024
+            "utilisation": 0.9028
           },
           {
             "horizon_sec": 1800,
-            "utilisation": 0.9213
+            "utilisation": 0.9216
           }
         ]
       }
@@ -7748,33 +7748,33 @@
       {
         "entity_id": "road_5",
         "display_name": "Arterial 5",
-        "current_utilisation": 0.3533,
+        "current_utilisation": 0.3522,
         "current_band": "low",
         "time_to_critical_sec": 2556,
         "trajectory": [
           {
             "horizon_sec": 0,
-            "utilisation": 0.3533
+            "utilisation": 0.3522
           },
           {
             "horizon_sec": 300,
-            "utilisation": 0.363
+            "utilisation": 0.3621
           },
           {
             "horizon_sec": 600,
-            "utilisation": 0.3728
+            "utilisation": 0.3719
           },
           {
             "horizon_sec": 900,
-            "utilisation": 0.3825
+            "utilisation": 0.3818
           },
           {
             "horizon_sec": 1200,
-            "utilisation": 0.3882
+            "utilisation": 0.3876
           },
           {
             "horizon_sec": 1800,
-            "utilisation": 0.3996
+            "utilisation": 0.3992
           }
         ]
       },
@@ -9302,33 +9302,33 @@
       {
         "entity_id": "hotel_west_cluster",
         "display_name": "West Hotel Cluster",
-        "current_utilisation": 0.8676,
+        "current_utilisation": 0.8661,
         "current_band": "moderate",
-        "time_to_critical_sec": 3593,
+        "time_to_critical_sec": 3600,
         "trajectory": [
           {
             "horizon_sec": 0,
-            "utilisation": 0.8676
+            "utilisation": 0.8661
           },
           {
             "horizon_sec": 300,
-            "utilisation": 0.8771
+            "utilisation": 0.8758
           },
           {
             "horizon_sec": 600,
-            "utilisation": 0.8866
+            "utilisation": 0.8854
           },
           {
             "horizon_sec": 900,
-            "utilisation": 0.8961
+            "utilisation": 0.8951
           },
           {
             "horizon_sec": 1200,
-            "utilisation": 0.9066
+            "utilisation": 0.9057
           },
           {
             "horizon_sec": 1800,
-            "utilisation": 0.9276
+            "utilisation": 0.927
           }
         ]
       }
@@ -9440,33 +9440,33 @@
       {
         "entity_id": "gate_6",
         "display_name": "Gate 6",
-        "current_utilisation": 0.0893,
+        "current_utilisation": 0.089,
         "current_band": "low",
         "time_to_critical_sec": 2722,
         "trajectory": [
           {
             "horizon_sec": 0,
-            "utilisation": 0.0893
+            "utilisation": 0.089
           },
           {
             "horizon_sec": 300,
-            "utilisation": 0.1178
+            "utilisation": 0.1175
           },
           {
             "horizon_sec": 600,
-            "utilisation": 0.1463
+            "utilisation": 0.1461
           },
           {
             "horizon_sec": 900,
-            "utilisation": 0.1748
+            "utilisation": 0.1746
           },
           {
             "horizon_sec": 1200,
-            "utilisation": 0.3302
+            "utilisation": 0.33
           },
           {
             "horizon_sec": 1800,
-            "utilisation": 0.6409
+            "utilisation": 0.6407
           }
         ]
       },
@@ -10250,33 +10250,33 @@
       {
         "entity_id": "road_5",
         "display_name": "Arterial 5",
-        "current_utilisation": 0.3627,
+        "current_utilisation": 0.3638,
         "current_band": "low",
-        "time_to_critical_sec": 2557,
+        "time_to_critical_sec": 2556,
         "trajectory": [
           {
             "horizon_sec": 0,
-            "utilisation": 0.3627
+            "utilisation": 0.3638
           },
           {
             "horizon_sec": 300,
-            "utilisation": 0.3741
+            "utilisation": 0.3751
           },
           {
             "horizon_sec": 600,
-            "utilisation": 0.3855
+            "utilisation": 0.3863
           },
           {
             "horizon_sec": 900,
-            "utilisation": 0.3969
+            "utilisation": 0.3976
           },
           {
             "horizon_sec": 1200,
-            "utilisation": 0.3954
+            "utilisation": 0.396
           },
           {
             "horizon_sec": 1800,
-            "utilisation": 0.3923
+            "utilisation": 0.3927
           }
         ]
       },
@@ -10388,33 +10388,33 @@
       {
         "entity_id": "line_red",
         "display_name": "Red Line",
-        "current_utilisation": 0.7118,
+        "current_utilisation": 0.7111,
         "current_band": "high",
-        "time_to_critical_sec": 1286,
+        "time_to_critical_sec": 1290,
         "trajectory": [
           {
             "horizon_sec": 0,
-            "utilisation": 0.7118
+            "utilisation": 0.7111
           },
           {
             "horizon_sec": 300,
-            "utilisation": 0.7624
+            "utilisation": 0.7618
           },
           {
             "horizon_sec": 600,
-            "utilisation": 0.8131
+            "utilisation": 0.8125
           },
           {
             "horizon_sec": 900,
-            "utilisation": 0.8637
+            "utilisation": 0.8632
           },
           {
             "horizon_sec": 1200,
-            "utilisation": 0.8919
+            "utilisation": 0.8915
           },
           {
             "horizon_sec": 1800,
-            "utilisation": 0.9483
+            "utilisation": 0.9481
           }
         ]
       },
@@ -10895,33 +10895,33 @@
       {
         "entity_id": "gate_5",
         "display_name": "Gate 5",
-        "current_utilisation": 0.1529,
+        "current_utilisation": 0.1519,
         "current_band": "low",
         "time_to_critical_sec": 1411,
         "trajectory": [
           {
             "horizon_sec": 0,
-            "utilisation": 0.1529
+            "utilisation": 0.1519
           },
           {
             "horizon_sec": 300,
-            "utilisation": 0.2937
+            "utilisation": 0.2928
           },
           {
             "horizon_sec": 600,
-            "utilisation": 0.4345
+            "utilisation": 0.4338
           },
           {
             "horizon_sec": 900,
-            "utilisation": 0.5753
+            "utilisation": 0.5747
           },
           {
             "horizon_sec": 1200,
-            "utilisation": 0.7661
+            "utilisation": 0.7656
           },
           {
             "horizon_sec": 1800,
-            "utilisation": 1.1477
+            "utilisation": 1.1473
           }
         ]
       },
@@ -12449,33 +12449,33 @@
       {
         "entity_id": "hotel_west_cluster",
         "display_name": "West Hotel Cluster",
-        "current_utilisation": 0.8879,
+        "current_utilisation": 0.8859,
         "current_band": "high",
-        "time_to_critical_sec": 3219,
+        "time_to_critical_sec": 3235,
         "trajectory": [
           {
             "horizon_sec": 0,
-            "utilisation": 0.8879
+            "utilisation": 0.8859
           },
           {
             "horizon_sec": 300,
-            "utilisation": 0.8965
+            "utilisation": 0.8948
           },
           {
             "horizon_sec": 600,
-            "utilisation": 0.9051
+            "utilisation": 0.9036
           },
           {
             "horizon_sec": 900,
-            "utilisation": 0.9137
+            "utilisation": 0.9125
           },
           {
             "horizon_sec": 1200,
-            "utilisation": 0.9236
+            "utilisation": 0.9226
           },
           {
             "horizon_sec": 1800,
-            "utilisation": 0.9435
+            "utilisation": 0.9427
           }
         ]
       },
@@ -13976,33 +13976,33 @@
       {
         "entity_id": "hotel_west_cluster",
         "display_name": "West Hotel Cluster",
-        "current_utilisation": 0.8936,
+        "current_utilisation": 0.895,
         "current_band": "high",
-        "time_to_critical_sec": 2984,
+        "time_to_critical_sec": 2971,
         "trajectory": [
           {
             "horizon_sec": 0,
-            "utilisation": 0.8936
+            "utilisation": 0.895
           },
           {
             "horizon_sec": 300,
-            "utilisation": 0.9028
+            "utilisation": 0.904
           },
           {
             "horizon_sec": 600,
-            "utilisation": 0.9119
+            "utilisation": 0.913
           },
           {
             "horizon_sec": 900,
-            "utilisation": 0.9211
+            "utilisation": 0.922
           },
           {
             "horizon_sec": 1200,
-            "utilisation": 0.9311
+            "utilisation": 0.9319
           },
           {
             "horizon_sec": 1800,
-            "utilisation": 0.9512
+            "utilisation": 0.9517
           }
         ]
       }
@@ -15101,33 +15101,33 @@
       {
         "entity_id": "gate_6",
         "display_name": "Gate 6",
-        "current_utilisation": 0.1469,
+        "current_utilisation": 0.1474,
         "current_band": "low",
         "time_to_critical_sec": 1473,
         "trajectory": [
           {
             "horizon_sec": 0,
-            "utilisation": 0.1469
+            "utilisation": 0.1474
           },
           {
             "horizon_sec": 300,
-            "utilisation": 0.2635
+            "utilisation": 0.2639
           },
           {
             "horizon_sec": 600,
-            "utilisation": 0.38
+            "utilisation": 0.3804
           },
           {
             "horizon_sec": 900,
-            "utilisation": 0.4966
+            "utilisation": 0.4969
           },
           {
             "horizon_sec": 1200,
-            "utilisation": 0.7077
+            "utilisation": 0.7079
           },
           {
             "horizon_sec": 1800,
-            "utilisation": 1.1298
+            "utilisation": 1.13
           }
         ]
       },
@@ -15476,33 +15476,33 @@
       {
         "entity_id": "gate_5",
         "display_name": "Gate 5",
-        "current_utilisation": 0.4324,
+        "current_utilisation": 0.433,
         "current_band": "moderate",
-        "time_to_critical_sec": 666,
+        "time_to_critical_sec": 665,
         "trajectory": [
           {
             "horizon_sec": 0,
-            "utilisation": 0.4324
+            "utilisation": 0.433
           },
           {
             "horizon_sec": 300,
-            "utilisation": 0.643
+            "utilisation": 0.6435
           },
           {
             "horizon_sec": 600,
-            "utilisation": 0.8536
+            "utilisation": 0.8541
           },
           {
             "horizon_sec": 900,
-            "utilisation": 1.0642
+            "utilisation": 1.0646
           },
           {
             "horizon_sec": 1200,
-            "utilisation": 1.095
+            "utilisation": 1.0953
           },
           {
             "horizon_sec": 1800,
-            "utilisation": 1.1565
+            "utilisation": 1.1567
           }
         ]
       },
@@ -16055,33 +16055,33 @@
       {
         "entity_id": "line_red",
         "display_name": "Red Line",
-        "current_utilisation": 0.8692,
+        "current_utilisation": 0.8689,
         "current_band": "high",
-        "time_to_critical_sec": 305,
+        "time_to_critical_sec": 308,
         "trajectory": [
           {
             "horizon_sec": 0,
-            "utilisation": 0.8692
+            "utilisation": 0.8689
           },
           {
             "horizon_sec": 300,
-            "utilisation": 0.8995
+            "utilisation": 0.8992
           },
           {
             "horizon_sec": 600,
-            "utilisation": 0.9298
+            "utilisation": 0.9296
           },
           {
             "horizon_sec": 900,
-            "utilisation": 0.9601
+            "utilisation": 0.9599
           },
           {
             "horizon_sec": 1200,
-            "utilisation": 0.9447
+            "utilisation": 0.9445
           },
           {
             "horizon_sec": 1800,
-            "utilisation": 0.9138
+            "utilisation": 0.9137
           }
         ]
       },
@@ -17312,33 +17312,33 @@
       {
         "entity_id": "gate_5",
         "display_name": "Gate 5",
-        "current_utilisation": 0.6417,
+        "current_utilisation": 0.6415,
         "current_band": "high",
         "time_to_critical_sec": 437,
         "trajectory": [
           {
             "horizon_sec": 0,
-            "utilisation": 0.6417
+            "utilisation": 0.6415
           },
           {
             "horizon_sec": 300,
-            "utilisation": 0.8191
+            "utilisation": 0.8189
           },
           {
             "horizon_sec": 600,
-            "utilisation": 0.9964
+            "utilisation": 0.9962
           },
           {
             "horizon_sec": 900,
-            "utilisation": 1.1738
+            "utilisation": 1.1736
           },
           {
             "horizon_sec": 1200,
-            "utilisation": 1.1649
+            "utilisation": 1.1647
           },
           {
             "horizon_sec": 1800,
-            "utilisation": 1.1471
+            "utilisation": 1.147
           }
         ]
       },
@@ -18977,33 +18977,33 @@
       {
         "entity_id": "gate_5",
         "display_name": "Gate 5",
-        "current_utilisation": 0.8331,
+        "current_utilisation": 0.8334,
         "current_band": "critical",
-        "time_to_critical_sec": 188,
+        "time_to_critical_sec": 187,
         "trajectory": [
           {
             "horizon_sec": 0,
-            "utilisation": 0.8331
+            "utilisation": 0.8334
           },
           {
             "horizon_sec": 300,
-            "utilisation": 0.9399
+            "utilisation": 0.9401
           },
           {
             "horizon_sec": 600,
-            "utilisation": 1.0466
+            "utilisation": 1.0469
           },
           {
             "horizon_sec": 900,
-            "utilisation": 1.1534
+            "utilisation": 1.1536
           },
           {
             "horizon_sec": 1200,
-            "utilisation": 1.1527
+            "utilisation": 1.1529
           },
           {
             "horizon_sec": 1800,
-            "utilisation": 1.1513
+            "utilisation": 1.1514
           }
         ]
       },
@@ -21821,33 +21821,33 @@
       {
         "entity_id": "gate_5",
         "display_name": "Gate 5",
-        "current_utilisation": 1.0505,
+        "current_utilisation": 1.0499,
         "current_band": "critical",
         "time_to_critical_sec": 0,
         "trajectory": [
           {
             "horizon_sec": 0,
-            "utilisation": 1.0505
+            "utilisation": 1.0499
           },
           {
             "horizon_sec": 300,
-            "utilisation": 1.084
+            "utilisation": 1.0835
           },
           {
             "horizon_sec": 600,
-            "utilisation": 1.1174
+            "utilisation": 1.117
           },
           {
             "horizon_sec": 900,
-            "utilisation": 1.1509
+            "utilisation": 1.1506
           },
           {
             "horizon_sec": 1200,
-            "utilisation": 1.1555
+            "utilisation": 1.1552
           },
           {
             "horizon_sec": 1800,
-            "utilisation": 1.1647
+            "utilisation": 1.1645
           }
         ]
       },
@@ -22592,33 +22592,33 @@
       {
         "entity_id": "hotel_west_cluster",
         "display_name": "West Hotel Cluster",
-        "current_utilisation": 0.9272,
+        "current_utilisation": 0.9278,
         "current_band": "high",
-        "time_to_critical_sec": 1895,
+        "time_to_critical_sec": 1879,
         "trajectory": [
           {
             "horizon_sec": 0,
-            "utilisation": 0.9272
+            "utilisation": 0.9278
           },
           {
             "horizon_sec": 300,
-            "utilisation": 0.9372
+            "utilisation": 0.9377
           },
           {
             "horizon_sec": 600,
-            "utilisation": 0.9473
+            "utilisation": 0.9477
           },
           {
             "horizon_sec": 900,
-            "utilisation": 0.9573
+            "utilisation": 0.9576
           },
           {
             "horizon_sec": 1200,
-            "utilisation": 0.9645
+            "utilisation": 0.9648
           },
           {
             "horizon_sec": 1800,
-            "utilisation": 0.9789
+            "utilisation": 0.9791
           }
         ]
       }

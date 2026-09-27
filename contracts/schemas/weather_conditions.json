@@ -1,0 +1,128 @@
+{
+  "additionalProperties": false,
+  "description": "One weather reading. A value the provider did not supply is `null`\n(\"unknown\", 00 §0) — never 0 and never a sentinel. `temp_c` is degrees\nCelsius, `precipitation_mm_per_hr` millimetres per hour, `wind_kph`\nkilometres per hour; `humidity` and `precipitation_probability` are\nfractions 0.0–1.0.",
+  "properties": {
+    "valid_at": {
+      "title": "Valid At",
+      "type": "string"
+    },
+    "horizon_sec": {
+      "default": 0,
+      "title": "Horizon Sec",
+      "type": "integer"
+    },
+    "temp_c": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Temp C"
+    },
+    "apparent_temp_c": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Apparent Temp C"
+    },
+    "precipitation_mm_per_hr": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Precipitation Mm Per Hr"
+    },
+    "wind_kph": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Wind Kph"
+    },
+    "humidity": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Humidity"
+    },
+    "precipitation_probability": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Precipitation Probability"
+    },
+    "condition_code": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Condition Code"
+    },
+    "condition": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Condition"
+    },
+    "severity": {
+      "default": "calm",
+      "enum": [
+        "calm",
+        "moderate",
+        "severe",
+        "extreme"
+      ],
+      "title": "Severity",
+      "type": "string"
+    }
+  },
+  "required": [
+    "valid_at"
+  ],
+  "title": "weather_conditions",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

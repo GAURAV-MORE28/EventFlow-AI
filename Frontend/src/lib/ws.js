@@ -40,6 +40,10 @@ export function connectWebSocket(store, { client = 'command_centre', attendeeId 
     // arrives in the state_update / cascade_update sent just before this).
     state_reconciled: () => store.bumpWorld(),
     disruption_update: (p) => store.setDisruptions(p.disruptions),
+    // A new weather reading (or an operator switching it on/off). When it is
+    // driving the live city the resulting state change arrives separately, as
+    // the usual state_update / state_reconciled pair.
+    weather_update: (p) => store.setWeather(p),
     twin_fidelity: (p) => store.setTwinFidelity(p),
     regret_update: (p) => store.appendRegret(p.entry, p.summary),
     anomaly: (p) => store.pushAnomaly(p),

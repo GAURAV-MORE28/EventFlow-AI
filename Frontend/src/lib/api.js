@@ -132,6 +132,17 @@ export const api = {
     MOCK_MODE ? mocks.liveOnly() : post('/disruptions', { operator_id: 'op_demo', ...body }),
   clearDisruption: (id) => (MOCK_MODE ? mocks.liveOnly() : del(`/disruptions/${id}`)),
 
+  // --- weather-driven digital twin ----------------------------------------------
+  // Replay mode serves the RECORDED weather payload, which is labelled
+  // `synthetic` / `fixture` — it never claims to be a live observation.
+  weather: () => (MOCK_MODE ? mocks.weather() : get('/weather')),
+  refreshWeather: () => (MOCK_MODE ? mocks.weather() : post('/weather/refresh', {})),
+  // Changes the live city, so replay mode refuses rather than faking it.
+  applyWeather: (enabled) =>
+    MOCK_MODE ? mocks.liveOnly() : post('/weather/apply', { enabled, operator_id: 'op_demo' }),
+  socialSignals: (params = {}) =>
+    MOCK_MODE ? mocks.socialSignals() : get(`/social/signals${query(params)}`),
+
   // --- venue -> radius -> footprint -> blueprint -> event graph -----------------
   // Every call needs the live backend (real OSM / Nominatim); mock mode never
   // pretends to have queried an external provider.
