@@ -1,0 +1,13 @@
+# The trained models, on top of the core install:
+#   pip install -r requirements-ml.txt
+# Inference is CPU only. On Linux, install the CPU torch wheel first, or pip
+# pulls the multi-GB CUDA build:
+#   pip install torch==2.10.0 --index-url https://download.pytorch.org/whl/cpu
+-r requirements.txt
+
+# HX-Cascade GNN (ML/cascade.py); without it the cascade model is off (gnn_mode "off")
+torch==2.10.0
+torch_geometric==2.8.0.post1
+
+# Forecast correction (ML/forecast_correction.py); without it the twin model is served
+lightgbm==4.6.0

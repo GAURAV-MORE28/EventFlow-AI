@@ -1,0 +1,268 @@
+{
+ "model_version": "forecast_correction_v2",
+ "gate": {
+  "checks": {
+   "test.mae_1800_below_twin_model": true,
+   "test.ttc_error_below_twin_model": true,
+   "demo.mae_1800_not_above_twin_model": true,
+   "demo.ttc_error_not_above_twin_model": true,
+   "demo.ttc_error_at_most_180s": true
+  },
+  "passes": true,
+  "limits": {
+   "ttc_max_error_sec": 180.0
+  }
+ },
+ "results": {
+  "val": {
+   "rows": 117392,
+   "ttc_rows": 7718,
+   "persistence": {
+    "mae_900": 0.04799,
+    "mae_1800": 0.08526,
+    "mae_3600": 0.14055,
+    "mae_1800_vs_observed": 0.08539,
+    "ttc_error_sec": 1815.7,
+    "ttc_error_median_sec": 1830.0,
+    "ttc_detected": 0.014,
+    "false_ttc_rate": 0.0005
+   },
+   "float32_borderline_rows": 1,
+   "twin_model": {
+    "mae_900": 0.00805,
+    "mae_1800": 0.00933,
+    "mae_3600": 0.01116,
+    "mae_1800_vs_observed": 0.0108,
+    "ttc_error_sec": 333.7,
+    "ttc_error_median_sec": 28.0,
+    "ttc_detected": 0.846,
+    "false_ttc_rate": 0.0012
+   },
+   "model": {
+    "mae_900": 0.00552,
+    "mae_1800": 0.00742,
+    "mae_3600": 0.00998,
+    "mae_1800_vs_observed": 0.00947,
+    "ttc_error_sec": 305.4,
+    "ttc_error_median_sec": 24.0,
+    "ttc_detected": 0.854,
+    "false_ttc_rate": 0.0009,
+    "coverage_90": {
+     "900": 0.893,
+     "1800": 0.895,
+     "3600": 0.898
+    },
+    "band_width_90": {
+     "900": 0.0208,
+     "1800": 0.029,
+     "3600": 0.0384
+    }
+   }
+  },
+  "test": {
+   "rows": 234784,
+   "ttc_rows": 18015,
+   "persistence": {
+    "mae_900": 0.04909,
+    "mae_1800": 0.08826,
+    "mae_3600": 0.1491,
+    "mae_1800_vs_observed": 0.08736,
+    "ttc_error_sec": 1786.3,
+    "ttc_error_median_sec": 1800.0,
+    "ttc_detected": 0.009,
+    "false_ttc_rate": 0.0007
+   },
+   "float32_borderline_rows": 0,
+   "twin_model": {
+    "mae_900": 0.01487,
+    "mae_1800": 0.01863,
+    "mae_3600": 0.02148,
+    "mae_1800_vs_observed": 0.01845,
+    "ttc_error_sec": 446.9,
+    "ttc_error_median_sec": 45.0,
+    "ttc_detected": 0.79,
+    "false_ttc_rate": 0.0023
+   },
+   "model": {
+    "mae_900": 0.01061,
+    "mae_1800": 0.01522,
+    "mae_3600": 0.01935,
+    "mae_1800_vs_observed": 0.01556,
+    "ttc_error_sec": 403.3,
+    "ttc_error_median_sec": 32.0,
+    "ttc_detected": 0.802,
+    "false_ttc_rate": 0.002,
+    "coverage_90": {
+     "900": 0.874,
+     "1800": 0.87,
+     "3600": 0.871
+    },
+    "band_width_90": {
+     "900": 0.0298,
+     "1800": 0.0411,
+     "3600": 0.0514
+    }
+   }
+  },
+  "demo_scenario": {
+   "rows": 15544,
+   "ttc_rows": 1219,
+   "persistence": {
+    "mae_900": 0.05394,
+    "mae_1800": 0.09937,
+    "mae_3600": 0.15136,
+    "mae_1800_vs_observed": 0.09956,
+    "ttc_error_sec": 1767.4,
+    "ttc_error_median_sec": 1770.0,
+    "ttc_detected": 0.009,
+    "false_ttc_rate": 0.0
+   },
+   "float32_borderline_rows": 0,
+   "twin_model": {
+    "mae_900": 0.00444,
+    "mae_1800": 0.00486,
+    "mae_3600": 0.00465,
+    "mae_1800_vs_observed": 0.00662,
+    "ttc_error_sec": 86.3,
+    "ttc_error_median_sec": 26.0,
+    "ttc_detected": 0.972,
+    "false_ttc_rate": 0.0
+   },
+   "model": {
+    "mae_900": 0.00215,
+    "mae_1800": 0.00296,
+    "mae_3600": 0.00427,
+    "mae_1800_vs_observed": 0.00524,
+    "ttc_error_sec": 56.3,
+    "ttc_error_median_sec": 25.0,
+    "ttc_detected": 0.985,
+    "false_ttc_rate": 0.0,
+    "coverage_90": {
+     "900": 0.87,
+     "1800": 0.902,
+     "3600": 0.925
+    },
+    "band_width_90": {
+     "900": 0.0164,
+     "1800": 0.0262,
+     "3600": 0.0373
+    }
+   }
+  },
+  "demo": {
+   "rows": 7772,
+   "ttc_rows": 600,
+   "persistence": {
+    "mae_900": 0.05328,
+    "mae_1800": 0.098,
+    "mae_3600": 0.14818,
+    "mae_1800_vs_observed": 0.09824,
+    "ttc_error_sec": 1764.1,
+    "ttc_error_median_sec": 1770.0,
+    "ttc_detected": 0.007,
+    "false_ttc_rate": 0.0
+   },
+   "float32_borderline_rows": 0,
+   "twin_model": {
+    "mae_900": 0.00279,
+    "mae_1800": 0.00215,
+    "mae_3600": 0.00159,
+    "mae_1800_vs_observed": 0.00404,
+    "ttc_error_sec": 62.1,
+    "ttc_error_median_sec": 23.0,
+    "ttc_detected": 0.983,
+    "false_ttc_rate": 0.0
+   },
+   "model": {
+    "mae_900": 0.0013,
+    "mae_1800": 0.00137,
+    "mae_3600": 0.0014,
+    "mae_1800_vs_observed": 0.00381,
+    "ttc_error_sec": 49.3,
+    "ttc_error_median_sec": 23.0,
+    "ttc_detected": 0.992,
+    "false_ttc_rate": 0.0,
+    "coverage_90": {
+     "900": 0.878,
+     "1800": 0.913,
+     "3600": 0.939
+    },
+    "band_width_90": {
+     "900": 0.0134,
+     "1800": 0.023,
+     "3600": 0.0356
+    }
+   }
+  },
+  "demo_disrupted": {
+   "rows": 7772,
+   "ttc_rows": 619,
+   "persistence": {
+    "mae_900": 0.0546,
+    "mae_1800": 0.10075,
+    "mae_3600": 0.15455,
+    "mae_1800_vs_observed": 0.10087,
+    "ttc_error_sec": 1770.5,
+    "ttc_error_median_sec": 1770.0,
+    "ttc_detected": 0.011,
+    "false_ttc_rate": 0.0
+   },
+   "float32_borderline_rows": 0,
+   "twin_model": {
+    "mae_900": 0.00609,
+    "mae_1800": 0.00756,
+    "mae_3600": 0.00772,
+    "mae_1800_vs_observed": 0.00921,
+    "ttc_error_sec": 109.8,
+    "ttc_error_median_sec": 30.0,
+    "ttc_detected": 0.961,
+    "false_ttc_rate": 0.0
+   },
+   "model": {
+    "mae_900": 0.00301,
+    "mae_1800": 0.00455,
+    "mae_3600": 0.00714,
+    "mae_1800_vs_observed": 0.00666,
+    "ttc_error_sec": 63.1,
+    "ttc_error_median_sec": 27.0,
+    "ttc_detected": 0.979,
+    "false_ttc_rate": 0.0,
+    "coverage_90": {
+     "900": 0.862,
+     "1800": 0.892,
+     "3600": 0.911
+    },
+    "band_width_90": {
+     "900": 0.0194,
+     "1800": 0.0293,
+     "3600": 0.0389
+    }
+   }
+  }
+ },
+ "latency_ms": {
+  "p50": 54.87,
+  "p95": 59.3,
+  "forecast_budget_ms": 300.0
+ },
+ "splits": {
+  "train": {
+   "rows": 469800,
+   "runs": 60
+  },
+  "val": {
+   "rows": 117392,
+   "runs": 15
+  },
+  "test": {
+   "rows": 234784,
+   "runs": 30
+  },
+  "demo": {
+   "rows": 15544,
+   "runs": 2
+  }
+ },
+ "definitions": "see Backend/scripts/train_forecast_correction.py; truth = simulator ground truth; demo_scenario = the two live-map runs pooled (demo: plain, demo_disrupted: seeded disruptions), never trained on",
+ "in_simulation_only": true
+}

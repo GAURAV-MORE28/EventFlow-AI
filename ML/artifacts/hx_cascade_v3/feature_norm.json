@@ -1,0 +1,76 @@
+{
+  "builder": "ML/features/graph_features.py",
+  "node_feature_order": [
+    "util",
+    "forecast_900",
+    "forecast_1800",
+    "forecast_3600",
+    "critical_line",
+    "headroom_now",
+    "headroom_900",
+    "headroom_1800",
+    "headroom_3600",
+    "log_capacity",
+    "is_observed",
+    "flow_rel",
+    "in_degree",
+    "out_degree",
+    "type_venue",
+    "type_zone",
+    "type_transport_node",
+    "type_transport_route",
+    "type_road",
+    "type_hotel",
+    "type_parking",
+    "type_gate",
+    "type_emergency_facility"
+  ],
+  "edge_feature_order": [
+    "edge_feeds",
+    "edge_adjacent_to",
+    "edge_serves",
+    "edge_last_mile_to",
+    "edge_substitutes_for",
+    "edge_evacuates_to",
+    "transfer_coefficient",
+    "travel_time",
+    "substitutability",
+    "is_reverse"
+  ],
+  "node_feat_dim": 23,
+  "edge_feat_dim": 10,
+  "cascade_relevant_types": [
+    "gate",
+    "road",
+    "transport_node",
+    "emergency_facility"
+  ],
+  "constants": {
+    "util_clip": 3.0,
+    "cap_ref": 100000.0,
+    "degree_div": 8.0,
+    "travel_div": 1800.0,
+    "flow_scale": 15.0
+  },
+  "label_thresholds": {
+    "critical_utilisation": 0.9,
+    "warning_utilisation": 0.75,
+    "risk_bands": {
+      "low": 30,
+      "moderate": 60,
+      "high": 80
+    },
+    "band_hold_cycles": 3,
+    "post_change_no_hold_cycles": 10,
+    "by_type": {
+      "venue": {
+        "warning": 0.97,
+        "critical": 1.02
+      },
+      "hotel": {
+        "warning": 0.92,
+        "critical": 0.98
+      }
+    }
+  }
+}

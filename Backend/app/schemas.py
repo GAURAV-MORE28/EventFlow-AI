@@ -336,6 +336,10 @@ class CascadeResult(Base):
     max_depth: int
     steps: list[CascadeStep]
     ml_enhanced: bool = False
+    # Additive: the producer of `step.confidence` ("gnn" in gnn_mode annotate)
+    # and its model version; null when no step carries a confidence.
+    confidence_source: Optional[CascadeSource] = None
+    confidence_model_version: Optional[str] = None
 
 
 class ActiveCascadesResponse(Base):
@@ -532,6 +536,15 @@ class ModuleHealth(Base):
     active_source: Optional[str] = None
     ensemble_size: Optional[int] = None
     detail: Optional[str] = None
+    # cascade only: what the loaded cascade model does (config `cascade.gnn_mode`);
+    # `active_source` is always the source the published cascades carry.
+    gnn_mode: Optional[Literal["off", "shadow", "annotate"]] = None
+    # cascade / forecaster only: the loaded model's version, when one loaded.
+    model_version: Optional[str] = None
+    model_ready: Optional[bool] = None
+    # cascade only: why the latest cycle ran without the loaded model (OOD guard
+    # or a topology mismatch); null when the model was used or none is loaded.
+    fallback_reason: Optional[str] = None
 
 
 class HealthResponse(Base):

@@ -1,0 +1,458 @@
+{
+ "model_version": "hx_cascade_v3@1ff98e87",
+ "comparison_version": "hx_cascade_v2@745b2205",
+ "map": "live",
+ "live_topology_hash": "fceb4736f52693dc20d3e47d605513f3683ff6c505deda9cefaee5123137581a",
+ "demo_seed": 42,
+ "alert_thresholds": {
+  "hx_cascade_v3": {
+   "900": 0.49,
+   "1800": 0.32,
+   "3600": 0.54
+  },
+  "hx_cascade_v2": {
+   "900": 0.6,
+   "1800": 0.6,
+   "3600": 0.6
+  },
+  "deterministic_cascade": "a published cascade step projected critical with eta <= h"
+ },
+ "definition": "offline: ML/evaluation/cascade_eval.py over every cycle after warm-up whose 3600 s window lies inside the run; online: services/prediction_eval.py, as /metrics reports",
+ "runs": [
+  {
+   "label": "demo",
+   "scenario_seed": 42,
+   "steps": 720,
+   "warmup": 20,
+   "disruptions": [],
+   "model_fallback_cycles": 0,
+   "online": {
+    "deterministic_cascade": {
+     "precision": 0.598,
+     "precision_n": 1271,
+     "recall": 0.875,
+     "recall_n": 16,
+     "lead_time_sec": 1716.0,
+     "lead_time_n": 14,
+     "open_alerts": 0
+    },
+    "model": {
+     "precision": 0.904,
+     "precision_n": 1793,
+     "recall": 1.0,
+     "recall_n": 16,
+     "lead_time_sec": 3156.0,
+     "lead_time_n": 16,
+     "open_alerts": 0
+    },
+    "comparison": {
+     "precision": 0.693,
+     "precision_n": 2430,
+     "recall": 1.0,
+     "recall_n": 16,
+     "lead_time_sec": 3156.0,
+     "lead_time_n": 16,
+     "open_alerts": 5
+    }
+   },
+   "latency_ms": {
+    "model_in_cycle": {
+     "p50": 4.73,
+     "p95": 5.38,
+     "max": 7.89
+    },
+    "comparison": {
+     "p50": 9.09,
+     "p95": 10.05
+    },
+    "cascade_budget_ms": 600000
+   },
+   "saved_predictions": "ML\\evaluation\\results\\shadow_hx_cascade_v3_demo_seed42.npz",
+   "seconds": 131.8
+  },
+  {
+   "label": "demo_disrupted",
+   "scenario_seed": 42,
+   "steps": 720,
+   "warmup": 20,
+   "disruptions": [
+    {
+     "step": 408,
+     "kind": "weather_rain",
+     "params": {
+      "intensity": "heavy"
+     }
+    }
+   ],
+   "model_fallback_cycles": 0,
+   "online": {
+    "deterministic_cascade": {
+     "precision": 0.67,
+     "precision_n": 1241,
+     "recall": 0.789,
+     "recall_n": 19,
+     "lead_time_sec": 1738.0,
+     "lead_time_n": 15,
+     "open_alerts": 0
+    },
+    "model": {
+     "precision": 0.94,
+     "precision_n": 1796,
+     "recall": 0.947,
+     "recall_n": 19,
+     "lead_time_sec": 2928.0,
+     "lead_time_n": 18,
+     "open_alerts": 0
+    },
+    "comparison": {
+     "precision": 0.743,
+     "precision_n": 2386,
+     "recall": 0.947,
+     "recall_n": 19,
+     "lead_time_sec": 2955.0,
+     "lead_time_n": 18,
+     "open_alerts": 5
+    }
+   },
+   "latency_ms": {
+    "model_in_cycle": {
+     "p50": 5.68,
+     "p95": 6.6,
+     "max": 8.19
+    },
+    "comparison": {
+     "p50": 10.48,
+     "p95": 11.97
+    },
+    "cascade_budget_ms": 600000
+   },
+   "saved_predictions": "ML\\evaluation\\results\\shadow_hx_cascade_v3_demo_disrupted_seed42.npz",
+   "seconds": 122.2
+  }
+ ],
+ "offline": {
+  "per_run": {
+   "demo": {
+    "deterministic_cascade": {
+     "n_samples": 20095,
+     "900": {
+      "precision": 0.3424,
+      "recall": 0.75,
+      "f1": 0.4701,
+      "average_precision": 0.3114,
+      "ece": null,
+      "positives": 420,
+      "alerts": 920
+     },
+     "1800": {
+      "precision": 0.5004,
+      "recall": 0.7452,
+      "f1": 0.5988,
+      "average_precision": 0.5054,
+      "ece": null,
+      "positives": 840,
+      "alerts": 1251
+     },
+     "3600": {
+      "precision": 0.598,
+      "recall": 0.4524,
+      "f1": 0.5151,
+      "average_precision": 0.4181,
+      "ece": null,
+      "positives": 1680,
+      "alerts": 1271
+     },
+     "ttc_mae_sec": 426.0276,
+     "ttc_n": 760,
+     "event_recall": 0.8571,
+     "events": 14,
+     "lead_time_sec": 2005.0
+    },
+    "hx_cascade_v3": {
+     "n_samples": 20095,
+     "900": {
+      "precision": 0.8457,
+      "recall": 0.9786,
+      "f1": 0.9073,
+      "average_precision": 0.9886,
+      "ece": 0.0082,
+      "positives": 420,
+      "alerts": 486
+     },
+     "1800": {
+      "precision": 0.8077,
+      "recall": 0.9952,
+      "f1": 0.8917,
+      "average_precision": 0.9919,
+      "ece": 0.0136,
+      "positives": 840,
+      "alerts": 1035
+     },
+     "3600": {
+      "precision": 0.9029,
+      "recall": 0.9631,
+      "f1": 0.932,
+      "average_precision": 0.9926,
+      "ece": 0.0224,
+      "positives": 1680,
+      "alerts": 1792
+     },
+     "ttc_mae_sec": 104.0513,
+     "ttc_n": 1618,
+     "event_recall": 1.0,
+     "events": 14,
+     "lead_time_sec": 3600.0
+    },
+    "hx_cascade_v2": {
+     "n_samples": 20095,
+     "900": {
+      "precision": 0.4142,
+      "recall": 0.9833,
+      "f1": 0.5829,
+      "average_precision": 0.9574,
+      "ece": 0.0808,
+      "positives": 420,
+      "alerts": 997
+     },
+     "1800": {
+      "precision": 0.5157,
+      "recall": 1.0,
+      "f1": 0.6804,
+      "average_precision": 0.983,
+      "ece": 0.1128,
+      "positives": 840,
+      "alerts": 1629
+     },
+     "3600": {
+      "precision": 0.6945,
+      "recall": 1.0,
+      "f1": 0.8197,
+      "average_precision": 0.9942,
+      "ece": 0.1245,
+      "positives": 1680,
+      "alerts": 2419
+     },
+     "ttc_mae_sec": 458.1333,
+     "ttc_n": 1680,
+     "event_recall": 1.0,
+     "events": 14,
+     "lead_time_sec": 3600.0
+    }
+   },
+   "demo_disrupted": {
+    "deterministic_cascade": {
+     "n_samples": 20034,
+     "900": {
+      "precision": 0.38,
+      "recall": 0.7533,
+      "f1": 0.5052,
+      "average_precision": 0.3152,
+      "ece": null,
+      "positives": 450,
+      "alerts": 892
+     },
+     "1800": {
+      "precision": 0.5565,
+      "recall": 0.7556,
+      "f1": 0.6409,
+      "average_precision": 0.5129,
+      "ece": null,
+      "positives": 900,
+      "alerts": 1222
+     },
+     "3600": {
+      "precision": 0.6696,
+      "recall": 0.4692,
+      "f1": 0.5518,
+      "average_precision": 0.4369,
+      "ece": null,
+      "positives": 1771,
+      "alerts": 1241
+     },
+     "ttc_mae_sec": 435.5222,
+     "ttc_n": 831,
+     "event_recall": 0.8667,
+     "events": 15,
+     "lead_time_sec": 2010.0
+    },
+    "hx_cascade_v3": {
+     "n_samples": 20034,
+     "900": {
+      "precision": 0.8851,
+      "recall": 0.9756,
+      "f1": 0.9281,
+      "average_precision": 0.9901,
+      "ece": 0.0077,
+      "positives": 450,
+      "alerts": 496
+     },
+     "1800": {
+      "precision": 0.8494,
+      "recall": 0.99,
+      "f1": 0.9143,
+      "average_precision": 0.9925,
+      "ece": 0.0122,
+      "positives": 900,
+      "alerts": 1049
+     },
+     "3600": {
+      "precision": 0.9393,
+      "recall": 0.952,
+      "f1": 0.9456,
+      "average_precision": 0.9932,
+      "ece": 0.0185,
+      "positives": 1771,
+      "alerts": 1795
+     },
+     "ttc_mae_sec": 75.3339,
+     "ttc_n": 1686,
+     "event_recall": 1.0,
+     "events": 15,
+     "lead_time_sec": 3508.0
+    },
+    "hx_cascade_v2": {
+     "n_samples": 20034,
+     "900": {
+      "precision": 0.4446,
+      "recall": 0.9711,
+      "f1": 0.6099,
+      "average_precision": 0.9518,
+      "ece": 0.0792,
+      "positives": 450,
+      "alerts": 983
+     },
+     "1800": {
+      "precision": 0.5559,
+      "recall": 1.0,
+      "f1": 0.7146,
+      "average_precision": 0.9822,
+      "ece": 0.1091,
+      "positives": 900,
+      "alerts": 1619
+     },
+     "3600": {
+      "precision": 0.7457,
+      "recall": 1.0,
+      "f1": 0.8543,
+      "average_precision": 0.9925,
+      "ece": 0.1183,
+      "positives": 1771,
+      "alerts": 2375
+     },
+     "ttc_mae_sec": 493.6076,
+     "ttc_n": 1771,
+     "event_recall": 1.0,
+     "events": 15,
+     "lead_time_sec": 3542.0
+    }
+   }
+  },
+  "pooled": {
+   "deterministic_cascade": {
+    "n_samples": 40129,
+    "900": {
+     "precision": 0.3609,
+     "recall": 0.7517,
+     "f1": 0.4877,
+     "average_precision": 0.291,
+     "ece": null,
+     "positives": 870,
+     "alerts": 1812
+    },
+    "1800": {
+     "precision": 0.5281,
+     "recall": 0.7506,
+     "f1": 0.62,
+     "average_precision": 0.4578,
+     "ece": null,
+     "positives": 1740,
+     "alerts": 2473
+    },
+    "3600": {
+     "precision": 0.6334,
+     "recall": 0.461,
+     "f1": 0.5336,
+     "average_precision": 0.3956,
+     "ece": null,
+     "positives": 3451,
+     "alerts": 2512
+    },
+    "ttc_mae_sec": 430.9868,
+    "ttc_n": 1591,
+    "event_recall": 0.8621,
+    "events": 29,
+    "lead_time_sec": 2007.6
+   },
+   "hx_cascade_v3": {
+    "n_samples": 40129,
+    "900": {
+     "precision": 0.8656,
+     "recall": 0.977,
+     "f1": 0.9179,
+     "average_precision": 0.9892,
+     "ece": 0.008,
+     "positives": 870,
+     "alerts": 982
+    },
+    "1800": {
+     "precision": 0.8287,
+     "recall": 0.9925,
+     "f1": 0.9032,
+     "average_precision": 0.9918,
+     "ece": 0.0126,
+     "positives": 1740,
+     "alerts": 2084
+    },
+    "3600": {
+     "precision": 0.9211,
+     "recall": 0.9574,
+     "f1": 0.9389,
+     "average_precision": 0.9926,
+     "ece": 0.0204,
+     "positives": 3451,
+     "alerts": 3587
+    },
+    "ttc_mae_sec": 89.3971,
+    "ttc_n": 3304,
+    "event_recall": 1.0,
+    "events": 29,
+    "lead_time_sec": 3552.4138
+   },
+   "hx_cascade_v2": {
+    "n_samples": 40129,
+    "900": {
+     "precision": 0.4293,
+     "recall": 0.977,
+     "f1": 0.5965,
+     "average_precision": 0.9539,
+     "ece": 0.08,
+     "positives": 870,
+     "alerts": 1980
+    },
+    "1800": {
+     "precision": 0.5357,
+     "recall": 1.0,
+     "f1": 0.6977,
+     "average_precision": 0.9819,
+     "ece": 0.111,
+     "positives": 1740,
+     "alerts": 3248
+    },
+    "3600": {
+     "precision": 0.7199,
+     "recall": 1.0,
+     "f1": 0.8371,
+     "average_precision": 0.9931,
+     "ece": 0.1214,
+     "positives": 3451,
+     "alerts": 4794
+    },
+    "ttc_mae_sec": 476.3382,
+    "ttc_n": 3451,
+    "event_recall": 1.0,
+    "events": 29,
+    "lead_time_sec": 3570.0
+   }
+  }
+ }
+}

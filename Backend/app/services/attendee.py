@@ -595,7 +595,7 @@ def apply_nudge_response(engine: Any, nudge: dict, accepted: bool) -> dict:
         elif src:
             a.setdefault("avoid", set()).add(src)
             change["avoid_entity_id"] = src
-    engine.record_compliance(accepted)
+    engine.record_compliance(accepted, segment_id=a.get("segment_id"))
     change["compliance"] = engine.current_compliance()
     return change
 

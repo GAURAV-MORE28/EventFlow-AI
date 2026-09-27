@@ -112,6 +112,29 @@ class CascadePrediction(Base):
     source: Mapped[str] = mapped_column(Text, nullable=False)
     steps: Mapped[list] = mapped_column(JSON, nullable=False)
     total_downstream_failures: Mapped[int] = mapped_column(Integer, nullable=False)
+    # Model whose probabilities annotate the steps (`confidence`); null when none did.
+    model_version: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+
+class MLNodePrediction(Base):
+    """The cascade model's per-entity output every cycle, in every gnn_mode that
+    calls it (shadow included). Joined with `entity_state` on (entity_id,
+    sim_time) this is the evidence for evaluating the model on live runs."""
+
+    __tablename__ = "ml_node_prediction"
+    __table_args__ = (Index("ix_ml_node_prediction_entity_time", "entity_id", "sim_time"),)
+
+    prediction_id: Mapped[int] = mapped_column(AutoId, primary_key=True, autoincrement=True)
+    entity_id: Mapped[str] = mapped_column(Text, ForeignKey("entity.entity_id"), nullable=False)
+    sim_time: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    model_version: Mapped[str | None] = mapped_column(Text, nullable=True)
+    gnn_mode: Mapped[str] = mapped_column(Text, nullable=False)
+    p_fail_900: Mapped[float | None] = mapped_column(Float, nullable=True)
+    p_fail_1800: Mapped[float | None] = mapped_column(Float, nullable=True)
+    p_fail_3600: Mapped[float | None] = mapped_column(Float, nullable=True)
+    ttc_sec: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    calibrated: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    topology_match: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
 
 
 class Intervention(Base):
