@@ -1,0 +1,18 @@
+services:
+  - type: web
+    name: eventflow-backend
+    runtime: python
+    plan: free
+    rootDir: Backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9
+      - key: EVENTFLOW_CONFIG
+        value: config.yaml
+      # Set this to your deployed frontend's exact origin once you have it,
+      # e.g. https://eventflow-ai.vercel.app (no trailing slash, comma-separate
+      # multiple origins). Without it only localhost is allowed.
+      - key: EVENTFLOW_ALLOWED_ORIGINS
+        value: ""

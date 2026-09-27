@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import logging
+import os
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -85,10 +86,18 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# The frontend runs on Vite's dev server; allow it plus any localhost port.
+# The frontend runs on Vite's dev server (any localhost port) plus, in a real
+# deployment, whatever origin it's hosted on — EVENTFLOW_ALLOWED_ORIGINS is a
+# comma-separated list of exact origins (e.g. "https://eventflow.vercel.app").
+_extra_origins = [
+    origin.strip()
+    for origin in os.environ.get("EVENTFLOW_ALLOWED_ORIGINS", "").split(",")
+    if origin.strip()
+]
 app.add_middleware(
     CORSMiddleware,
     allow_origin_regex=r"http://(localhost|127\.0\.0\.1)(:\d+)?",
+    allow_origins=_extra_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
