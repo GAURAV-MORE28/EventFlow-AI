@@ -38,6 +38,34 @@
           "default": false,
           "title": "Ml Enhanced",
           "type": "boolean"
+        },
+        "confidence_source": {
+          "anyOf": [
+            {
+              "enum": [
+                "deterministic",
+                "gnn"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Confidence Source"
+        },
+        "confidence_model_version": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Confidence Model Version"
         }
       },
       "required": [

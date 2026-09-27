@@ -221,3 +221,74 @@ def swap_criterion(results: dict[str, Any], candidate: str, baseline: str = "det
         "recall_3600_at_least_%.2f" % min_recall: (c["3600"]["recall"] or 0) >= min_recall,
     }
     return {"candidate": candidate, "baseline": baseline, "checks": checks, "passes": all(checks.values())}
+
+
+def swap_gate(eval_json: dict[str, Any], shadow: dict[str, Any] | None, reproduce: dict[str, Any] | None,
+              model_version: str, limits: dict[str, float], budget_ms: float) -> dict[str, Any]:
+    """The Phase 4 gate for moving a cascade model from `shadow` to `annotate`.
+
+    Evidence, all bound to `model_version` (`<name>@<sha8>` of the loaded bundle):
+      eval_json  the bundle's eval.json — held-out test MAPS (never seen in
+                 training, selection or calibration)
+      shadow     scripts/cascade_swap_eval.py shadow — a full simulated event on
+                 the live map through the real engine, scored from the saved
+                 per-cycle predictions
+      reproduce  scripts/cascade_swap_eval.py reproduce — eval.json re-derived
+                 through the serving adapter, and a sample of test maps re-simulated
+
+    On both the held-out maps and the shadow event the model must beat the
+    deterministic cascade on 3600 s precision, lead time and time-to-critical
+    error (03 §4.3), reach `min_precision` / `min_recall` at 3600 s (03 §4.4) and
+    keep ECE below `max_ece` at every horizon. The shadow run must also have no
+    fallback cycles and a p95 in-cycle latency inside the cascade budget.
+
+    The shadow run is also scored per run by the online evaluator (what /metrics
+    shows operators; same claim definition, but crossings of the published state
+    rather than ground truth) and must beat the deterministic cascade on precision
+    and meet both floors there too. Evidence only — the swap is a human decision."""
+    name = model_version.split("@")[0]
+    checks: dict[str, bool] = {}
+
+    def compare(prefix: str, results: dict[str, Any]) -> None:
+        m, b = (results.get(name) or {}), (results.get("deterministic_cascade") or {})
+        m3, b3 = m.get("3600") or {}, b.get("3600") or {}
+        num = lambda v: v is not None and v == v  # noqa: E731
+        checks[f"{prefix}.precision_above_deterministic"] = (num(m3.get("precision")) and num(b3.get("precision"))
+                                                              and m3["precision"] > b3["precision"])
+        checks[f"{prefix}.lead_time_above_deterministic"] = (num(m.get("lead_time_sec")) and num(b.get("lead_time_sec"))
+                                                              and m["lead_time_sec"] > b["lead_time_sec"])
+        checks[f"{prefix}.ttc_error_below_deterministic"] = (num(m.get("ttc_mae_sec")) and num(b.get("ttc_mae_sec"))
+                                                              and m["ttc_mae_sec"] < b["ttc_mae_sec"])
+        checks[f"{prefix}.precision_at_least_{limits['min_precision']}"] = (num(m3.get("precision"))
+                                                                             and m3["precision"] >= limits["min_precision"])
+        checks[f"{prefix}.recall_at_least_{limits['min_recall']}"] = (num(m3.get("recall"))
+                                                                       and m3["recall"] >= limits["min_recall"])
+        eces = [(m.get(str(h)) or {}).get("ece") for h in HORIZONS]
+        checks[f"{prefix}.ece_below_{limits['max_ece']}"] = all(num(e) and e < limits["max_ece"] for e in eces)
+
+    test = (eval_json.get("test") or {}).get("results") or {}
+    compare("heldout_maps", {k: v.get("point") or {} for k, v in test.items()})
+
+    checks["shadow.present_for_this_model"] = bool(shadow) and shadow.get("model_version") == model_version
+    if checks["shadow.present_for_this_model"]:
+        compare("shadow", shadow["offline"]["pooled"])
+        runs = shadow.get("runs") or []
+        checks["shadow.no_fallback_cycles"] = bool(runs) and all(r["model_fallback_cycles"] == 0 for r in runs)
+        checks["shadow.latency_p95_within_budget"] = bool(runs) and all(
+            (r["latency_ms"]["model_in_cycle"]["p95"] or 1e9) <= budget_ms for r in runs)
+    checks["reproduce.present_for_this_model"] = bool(reproduce) and reproduce.get("model_version") == model_version
+    if checks["reproduce.present_for_this_model"]:
+        checks["reproduce.serving_path_matches_eval_json"] = bool(reproduce["serving_path"]["passes"])
+        checks["reproduce.resimulated_maps_match"] = bool(reproduce["resimulation"]["passes"])
+
+    if checks["shadow.present_for_this_model"]:
+        for r in shadow.get("runs") or []:
+            online = r.get("online") or {}
+            m, b = online.get("model") or {}, online.get("deterministic_cascade") or {}
+            prefix = f"shadow_online.{r['label']}"
+            checks[f"{prefix}.precision_above_deterministic"] = m.get("precision", 0.0) > b.get("precision", 1.0)
+            checks[f"{prefix}.precision_at_least_{limits['min_precision']}"] = (
+                m.get("precision", 0.0) >= limits["min_precision"])
+            checks[f"{prefix}.recall_at_least_{limits['min_recall']}"] = m.get("recall", 0.0) >= limits["min_recall"]
+    return {"model_version": model_version, "limits": limits, "checks": checks,
+            "failed": sorted(k for k, v in checks.items() if not v), "passes": all(checks.values())}

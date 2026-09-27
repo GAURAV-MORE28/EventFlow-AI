@@ -383,8 +383,8 @@ This mirrors the fallback strategy in the strategy report. **Every consumer must
 
 | Component | Degraded state | How it is signalled | Consumer behaviour |
 |---|---|---|---|
-| TSFM forecaster | Falls back to `local_model`, then `persistence` | `forecast.source` field | Show source badge. No error. |
-| Cascade model | Published cascades are always the deterministic flow cascade; the model only annotates it (`gnn_mode: annotate`) or runs in shadow. Unavailable model → `gnn_mode: "off"` | `/health.modules.cascade.gnn_mode`, `model_ready`; `cascade.ml_enhanced`, `step.confidence = null` | Identical rendering. No error. |
+| TSFM forecaster | Falls back to `local_model`, then `persistence` (as built: no TSFM ships; the source is `local_model`, a gated LightGBM correction of `twin_model`, else `twin_model`; see `03 §2.3`) | `forecast.source` field | Show source badge. No error. |
+| Cascade model | Published cascades are always the deterministic flow cascade; the model only annotates it (`gnn_mode: annotate`) or runs in shadow. Unavailable model → `gnn_mode: "off"`. A graph outside the model's training distribution (`03 §4.5` OOD guard) → the model is skipped for that cycle | `/health.modules.cascade.gnn_mode`, `model_ready`, `fallback_reason`; `cascade.ml_enhanced`, `step.confidence = null` | Identical rendering. No error. |
 | Equilibrium solver non-convergence | `converged: false`, `verdict: "UNSTABLE"` | Certificate fields | Show red badge, reason reads "Did not converge within iteration cap." |
 | EnKF assimilation | `twin_fidelity.assimilated_rmse` present but `improvement_pct` may be low | Numeric | Chart still renders. |
 | LLM Commander | Returns cached scripted answer | `commander.response.is_cached: true` | Small "cached" chip. |
@@ -437,7 +437,9 @@ Every item is a new enum value or a new optional field; nothing was renamed, rem
 | §2.3 `EntityState` | `inflow_per_min`, `outflow_per_min`, `queue_people` (null = not modelled for the entity type) |
 | §2.4 `Forecast.baseline_comparison` | Defined precisely: the producing `source`'s 900 s point vs the value observed 900 s later, against persistence over the same interval, per entity; `null` until 10 such forecasts have been validated |
 | §2.5 `CascadeResult` | `ml_enhanced` (bool). `CascadeStep`: `source_entity_id`, `utilisation_before`, `utilisation_after`, `flow_change_people`, `reason`, `confidence` |
-| §2.5 `CascadeStep.confidence` | The cascade model's failure probability for the step's entity at the first horizon ≥ `eta_sec` (3600 s beyond that). `null` unless `gnn_mode` is `annotate` and the model saw this topology. Uncalibrated unless `/health` reports a calibrated model. Never derived from utilisation arithmetic |
+| §2.5 `CascadeStep.confidence` | The cascade model's failure probability for the step's entity at the first horizon ≥ `eta_sec` (3600 s beyond that). `null` unless `gnn_mode` is `annotate` and the model's out-of-distribution guard accepted the graph (`03 §4.5`: its training topology, and features inside its training range). Uncalibrated unless `/health` reports a calibrated model. Never derived from utilisation arithmetic |
 | §2.5 `CascadeResult.source` | Always the producer of the cascade structure (`"deterministic"`); ML annotation is signalled by `ml_enhanced`, not by `source` |
+| §2.5 `CascadeResult.confidence_source`, `confidence_model_version` *(additive)* | The producer of `step.confidence` (`"gnn"`) and its `<model>@<sha8>`; both `null` when no step is annotated. Same on every cascade path: `/cascade/active`, `/cascade/{entity_id}`, `/simulate` results |
 | §2.7 `Intervention` | `evaluation` (simulated effect before proposal), `live_effect` (live vs do-nothing world while executing) |
+| `01 §3.1` `/health.modules.cascade.fallback_reason` *(additive)* | Why the latest cycle ran without the loaded cascade model (its OOD guard refused the graph); `null` when the model was used |
 

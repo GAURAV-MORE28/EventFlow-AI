@@ -78,7 +78,8 @@ Backpressure rule (from the strategy report): **skip the forecast refresh before
   "modules": {
     "forecaster": { "ready": true,  "active_source": "tsfm" },
     "cascade":    { "ready": true,  "active_source": "deterministic",
-                    "gnn_mode": "shadow", "model_version": "hx_cascade_v2@745b2205", "model_ready": true },
+                    "gnn_mode": "annotate", "model_version": "hx_cascade_v3@1ff98e87", "model_ready": true,
+                    "fallback_reason": null },
     "twin":       { "ready": true,  "ensemble_size": 20 },
     "equilibrium":{ "ready": true },
     "commander":  { "ready": true }
@@ -91,6 +92,10 @@ Frontend polls this once on mount to decide which panels to enable.
 (always equal to `/cascade/active.source`). `gnn_mode` (`off` | `shadow` |
 `annotate`), `model_version` and `model_ready` describe the cascade model
 (03 §4.5); `ready` refers to the published cascade, which does not need the model.
+*(additive)* `fallback_reason` (string | null): why the latest cycle ran without the
+loaded model — its out-of-distribution guard refused the graph (03 §4.5), e.g.
+`"topology_hash_mismatch: ..."`, `"features_out_of_range: ..."`,
+`"embedding_distance: ..."`; `null` when the model was used (or is not loaded).
 
 ---
 
@@ -368,7 +373,7 @@ The judging/KPI panel. Every value carries its baseline.
   },
   "twin": {
     "rmse":              { "value": 41.2, "baseline": 118.7, "baseline_name": "uncorrected_abm", "improvement_pct": 65.3 },
-    "ensemble_coverage": { "value": 0.91, "target_range": [0.85, 0.95] }
+    "ensemble_coverage": { "value": 0.93, "target_range": [0.85, 0.95] }
   },
   "decision": {
     "peak_utilisation_reduction_pct": { "value": 22.4, "baseline_name": "do_nothing_counterfactual" },
@@ -486,6 +491,18 @@ propose_action(intervention_id)     // QUEUES ONLY — never executes
 { "nudge_id": "ndg_4412", "status": "accepted", "compliance_recorded": true }
 ```
 Accepted/declined responses feed the observed compliance rate, which the equilibrium solver uses to refine elasticities within the run.
+Concretely (`services/compliance.py`), each answer is a Bernoulli trial for the answering
+attendee's segment, and two Beta-Binomial posteriors are kept over the answers (each prior
+worth `compliance.prior_strength` = 10 pseudo-answers):
+- **pooled**, prior mean `interventions.default_compliance`: the compliance the simulator
+  applies to active interventions and candidate evaluation runs at;
+- **per segment**, prior mean the segment's `compliance_base_rate` (`00 §2.10`): passed to
+  `EquilibriumSolver.certify()` as that segment's `compliance_base_rate`, on the live
+  path and in What-If. The published `Segment` (`/event`) keeps its stated prior.
+
+`/metrics.operations` reports `attendee_compliance` (pooled, `sample_size` = answers) and
+`compliance_<segment_id>` (posterior mean; `baseline` = the segment prior, `baseline_name:
+"segment_prior"`). Answers are cleared on reset.
 
 ---
 

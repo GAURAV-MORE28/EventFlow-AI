@@ -267,6 +267,7 @@
     "event": {
       "anyOf": [
         {
+          "additionalProperties": true,
           "type": "object"
         },
         {

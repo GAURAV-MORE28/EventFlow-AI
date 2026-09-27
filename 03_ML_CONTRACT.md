@@ -109,6 +109,26 @@ len(history) < warm_start_after_points (40) and tsfm_enabled
 otherwise            → source="local_model"   (LightGBM / small GRU trained in-run)
 ```
 
+**As built (Phase 5).** No TSFM weights ship. In the engine the twin's `model_prior` is
+always present, so the served ladder is `persistence` (fewer than 2 readings) →
+`twin_model` → `local_model` when a forecast-correction bundle is configured:
+
+- `twin_model`: the twin's plan projection, re-based to the forecast's instant (the
+  engine reuses one projection for `model_refresh_cycles`; it carries `computed_at` and a
+  60 s `path`, and is read `age` seconds along it), plus the decaying live-gap correction.
+- `local_model`: `ML/forecast_correction.py` — LightGBM quantile models (5/50/95 %) of the
+  twin model's residual at each horizon, trained on runs logged through the real engine
+  (`Backend/scripts/forecast_dataset.py`, `Backend/scripts/train_forecast_correction.py`);
+  the forecast is twin + q50 with q05/q95 as the 90 % band, trained offline, not in-run.
+  It is loaded only from a verified bundle whose eval.json gate (`forecaster.correction_gate`)
+  passed: beat `twin_model` (not persistence) on 1800 s error and time-to-critical error on
+  held-out maps, be no worse on the demo scenario, and have a demo time-to-critical error
+  ≤ 180 s. Served: `forecast_correction_v2` (`ML/evaluation/results/forecast_correction_v2.json`;
+  v1, trained before the path/age fixes, failed at 355 s). `/health` reports it as
+  `modules.forecaster.model_version` / `model_ready`; without it the twin model is served.
+- The reference's damped-trend model also reports `local_model`, but only for a caller that
+  passes no `model_prior`; the engine never does.
+
 **Grounded in the research:** Chronos-Bolt is the right zero-shot choice — a distilled variant reported as up to 250× faster and 20× more memory-efficient than Chronos-T5, which is what makes CPU inference viable inside a 300ms budget.
 
 **Mandatory honesty requirement:** `baseline_comparison` is computed on a rolling window and returned **always**, even when the model loses to persistence. Benchmark work shows TSFMs can be beaten by a naïve persistence baseline in sparse/out-of-distribution regimes, and a mega-event surge *is* out-of-distribution. Reporting this is a credibility gain in the demo, not a weakness. **Never suppress an unfavourable `improvement_pct`.**
@@ -119,6 +139,11 @@ critical = config.thresholds.critical_utilisation   # 0.90
 Interpolate linearly between forecast points.
 Return the first crossing in seconds, or None if no crossing within max(horizons_sec).
 ```
+**As built:** when the forecast has a dense trajectory (`twin_model` / `local_model`: the
+twin's 60 s path, shifted by the correction interpolated between horizons), the crossing is
+found on that path, not between the three published points — a surge that crosses and
+falls back between horizons is caught, and the time is resolved to the path step. The
+critical line is the entity's own (`thresholds.by_type`).
 This single field is the demo's hero number. Its correctness matters more than forecast MAE.
 
 ### 2.5 Evaluation
@@ -126,7 +151,22 @@ This single field is the demo's hero number. Its correctness matters more than f
 |---|---|---|
 | MAE @1800s | persistence | ≥25% reduction |
 | `time_to_critical_sec` absolute error | — | ≤180s on the demo scenario |
-| Cold-start MAE (first 2h) | untrained LSTM | decisive win; report vs persistence honestly |
+
+Time-to-critical error is measured over entities below their critical line that truly
+cross within 3600 s: `|min(predicted, 3600) − true|`, with a missing prediction counted as
+3600 (so never predicting a crossing cannot improve it). On the demo scenario (the live map,
+plain and with seeded disruptions; never trained on), against simulator ground truth:
+
+| | MAE @1800 s | time-to-critical error (mean / median) | crossings predicted |
+|---|---|---|---|
+| persistence | 0.099 | 1767 s / 1770 s | 1 % |
+| `twin_model`, three-point interpolation on a stale projection (before Phase 5) | 0.0073 | 371 s / 130 s | 86 % |
+| `twin_model` (dense, age-aligned) | 0.0049 | 86 s / 26 s | 97 % |
+| `local_model` (`forecast_correction_v2`, served) | **0.0030** | **56 s / 25 s** | 98.5 % |
+
+On the 30 held-out test maps: MAE @1800 s 0.0152 vs 0.0186 (twin), time-to-critical 403 s
+vs 447 s (misses on unfamiliar maps dominate the mean; median 32 s vs 45 s). The 90 % band
+covers 87 % of outcomes there (90 % on the demo scenario). In simulation only.
 
 ---
 
@@ -228,6 +268,15 @@ Toggling on **resets the uncorrected copy to the current corrected state**, so d
 | State RMSE @30 sim-min | uncorrected ABM | **≥50% reduction** |
 | Ensemble 90% coverage | — | 0.85–0.95 |
 
+**Coverage, as measured** *(additive)*: the share of entities whose true count lies inside the
+ensemble's mean ± 1.645σ right after analysis, pooled over the last `twin.coverage_window`
+(20) cycles; reported as `/metrics.twin.ensemble_coverage`. σ is the ensemble's own spread,
+with no floor (an earlier floor at the observation-noise scale was wider than the sensors'
+whole error range, so the rate read 1.0 whatever the spread). The filter's observation noise
+is the simulator's sensor model: readings are truth × (1 + U(−1.5 %, +1.5 %)), so
+`obs_noise_rel` = 0.0082 (the Gaussian σ whose 90 % interval equals that uniform's) and
+`obs_noise_var` = 1 (whole people). Measured on the demo run: 0.93 (seed 42), 0.93 (seed 7).
+
 ---
 
 ## 4. `CascadePredictor`
@@ -258,6 +307,7 @@ class CascadePredictor:
     def node_risk(self, node_state, edges, generated_at=None) -> dict:
         """{"source": "gnn"|"deterministic", "model_version": str|None, "generated_at": str,
             "calibrated": bool, "topology_match": bool|None,
+            "fallback_reason": str|None, "ood": dict,        # (additive) §4.5 OOD guard
             "nodes": {entity_id: {"p_fail_900", "p_fail_1800", "p_fail_3600": float, "ttc_sec": int}}}"""
     def node_risk_fallback(self, node_state, edges, generated_at=None) -> dict:
         """Same shape, source="deterministic", nodes={}."""
@@ -266,7 +316,21 @@ class CascadePredictor:
             "topology_hash", "calibrated", "trained_on", "evaluated_outputs", "error"}"""
 ```
 
+**One propagator** *(additive)*. `predict` / `predict_all` / `fallback` are kept for the
+interface, but there is one cascade algorithm: `Backend/app/services/cascade_flow.py`,
+which builds every published cascade. The reference (`app/ml_reference/cascade.py`)
+delegates to it; `ML/cascade.py` (which may not import `Backend/`, §0) builds no cascades —
+its `predict` / `fallback` return an empty `CascadeResult` (`steps: []`) and `predict_all`
+returns `[]`; the model is read only through `node_risk`. The two former copies of the
+§4.2 propagator (one per class) are gone.
+
 ### 4.2 Deterministic propagator — **BUILD THIS FIRST**
+
+*As built: the propagator is `Backend/app/services/cascade_flow.py`. It follows the
+idea below with the physics of the simulator: a root's overflow above its critical line is
+split over every outbound people edge in proportion to `transfer_coefficient`, and a
+downstream entity passes on only what exceeds its own line. The pseudo-code is the original
+design.*
 
 This is the fallback that guarantees a demo exists. It is also, per the strategy report, still a novel *domain* contribution even without the GNN, because the contribution is the heterogeneous cross-domain graph, not the learning method.
 
@@ -344,7 +408,7 @@ edge). The cascade model contributes per-entity failure probabilities only, thro
 | Mode | Model called | Published cascades | Persisted |
 |---|---|---|---|
 | `shadow` (default) | yes | unchanged: `confidence = null`, `ml_enhanced = false` | `ml_node_prediction` every cycle |
-| `annotate` | yes | `confidence` = `p_fail_h` at the first horizon ≥ the step's `eta_sec`; never on a topology the model was not trained on (`topology_match == false`) | same |
+| `annotate` | yes | `confidence` = `p_fail_h` at the first horizon ≥ the step's `eta_sec`; never on a graph the OOD guard refuses (below) | same |
 | `off` | no | unchanged | — |
 
 A model that is not loaded (bundle missing or failing verification) forces `off`.
@@ -357,16 +421,38 @@ SHA-256 (`ML/manifest.py`); no filename guessing. `model_version` =
 match, `ready()` is False and the backend runs without the model. The manifest also
 records the training topology's hash; `node_risk()` reports `topology_match`.
 
+**Out-of-distribution guard** *(additive, `config.cascade.ood_guard`)*. `node_risk()` does not
+score a graph the model has no evidence for; it returns `node_risk_fallback()` with a
+`fallback_reason`, the backend logs it once and reports it as
+`/health.modules.cascade.fallback_reason`, and that cycle's cascades carry no `confidence`:
+- the bundle names a training topology (`manifest.topology_hash`, v2) and this graph is not
+  it → `"topology_hash_mismatch: ..."`;
+- the bundle ships `ood_stats.json` (v3: train-map feature ranges and embedding
+  distribution) and, over the scored entities (cascade-relevant types not already over their
+  line — the population trained and evaluated on), any feature lies outside the train range
+  by more than `range_tolerance` (0.05) of that range → `"features_out_of_range: ..."`, or
+  more than `max_embedding_frac` (0.5) of them sit beyond the train embeddings' p99 distance
+  → `"embedding_distance: ..."`.
+Every `node_risk()` result carries the `ood` diagnostics (`checked`, `scored_entities`,
+`out_of_range_entities`, `out_of_range_features`, `embedding_beyond_p99_frac`). Measured for
+hx_cascade_v3 on its 57 held-out test runs and 8 live-map runs: no entity out of range, at
+most 35 % beyond the embedding p99, so the guard never refuses the data v3 was validated on
+(`scripts/cascade_swap_eval.py reproduce` re-scores every test snapshot with it on and
+aborts on any fallback). `ood_guard.enabled: false` turns it off.
+
 **Calibration.** `calibration.json` = `{"temperature": {"900": T, "1800": T, "3600": T}}`;
 probabilities are `sigmoid(logit / T)`. Without it, `calibrated` is false and
 probabilities must not be read as frequencies.
 
 **Online evaluation** (backend, `prediction_eval.py`), one definition for every
-predictor: an alert is "this gate/road/station/emergency post, not over its critical
-line now, will cross it within 3600 s" (model: `p_fail_3600 ≥ gnn_min_probability`;
-published cascade: a step projected critical). Precision is over closed alerts,
-recall over actual crossings, lead time from first alert to crossing. Reported in
-`/metrics` as `cascade_*` and `gnn_*`.
+predictor, the same as the offline evaluation (`ML/evaluation/cascade_eval.py`): every
+cycle each flag is a claim "this gate/road/station/emergency post, not over its critical
+line now, will cross it within 3600 s" (model: `p_fail_3600 ≥` the bundle's eval.json
+operating point, else `gnn_min_probability`; published cascade: a step projected
+critical). Precision is over resolved claims (confirmed by a crossing within 3600 s,
+or a false alarm when the 3600 s pass); recall over actual crossings (caught = a claim
+in the 3600 s before); lead time from the earliest such claim to the crossing.
+`precision_n` counts claims. Reported in `/metrics` as `cascade_*` and `gnn_*`.
 
 ---
 
@@ -383,7 +469,8 @@ class EquilibriumSolver:
         intervention: dict,              # Intervention dict (pre-certificate)
         node_state: dict[str, dict],
         edges: list[dict],
-        segments: list[dict],            # Segment dicts (SHARED §2.10)
+        segments: list[dict],            # Segment dicts (SHARED §2.10); compliance_base_rate is the
+                                         # posterior from nudge answers (01 §3.12), not the stated prior
     ) -> dict:                           # Certificate (SHARED §2.6)
         ...
 
@@ -624,14 +711,20 @@ cascade:
   use_gnn: false
   max_depth: 4
   propagation_threshold: 0.15
-  gnn_artifact: "ML/artifacts/hx_cascade_v2"   # (1.1.0) verified bundle; replaces gnn_checkpoint
-  gnn_mode: shadow                             # (1.1.0) off | shadow | annotate (§4.5)
+  gnn_artifact: "ML/artifacts/hx_cascade_v3"   # (1.1.0) verified bundle; replaces gnn_checkpoint
+  gnn_mode: annotate                           # (1.1.0) off | shadow | annotate (§4.5)
   gnn_min_probability: 0.6                     # alert threshold for online evaluation / annotation
+  ood_guard:                                   # (additive) §4.5
+    enabled: true
+    range_tolerance: 0.05
+    max_embedding_frac: 0.5
 
 twin:
   ensemble_size: 20
   inflation_factor: 1.05
-  obs_noise_var: 25.0
+  obs_noise_var: 1.0             # (additive) the simulator's sensor model, see §3.6
+  obs_noise_rel: 0.0082          # (additive)
+  coverage_window: 20            # (additive) cycles pooled into ensemble_coverage
   process_noise_var: 9.0
   drift_mode_enabled: false
 

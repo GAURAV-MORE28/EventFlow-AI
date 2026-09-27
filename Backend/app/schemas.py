@@ -264,6 +264,10 @@ class CascadeResult(Base):
     max_depth: int
     steps: list[CascadeStep]
     ml_enhanced: bool = False
+    # Additive (1.2.0): the producer of `step.confidence` ("gnn" in gnn_mode
+    # annotate) and its `<model>@<sha8>`; null when no step carries a confidence.
+    confidence_source: Optional[CascadeSource] = None
+    confidence_model_version: Optional[str] = None
 
 
 class ActiveCascadesResponse(Base):
@@ -466,6 +470,9 @@ class ModuleHealth(Base):
     # whether its verified bundle loaded (False -> gnn_mode "off").
     model_version: Optional[str] = None
     model_ready: Optional[bool] = None
+    # cascade only: why the latest cycle ran without the loaded model (its
+    # out-of-distribution guard, e.g. "topology_hash_mismatch: ..."); None = used.
+    fallback_reason: Optional[str] = None
 
 
 class HealthResponse(Base):

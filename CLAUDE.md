@@ -53,8 +53,9 @@ npm run validate:mocks   # AJV-validates every mock against contracts/schemas/*.
 ```bash
 cd Backend
 pip install -r requirements.txt
+pip install -r requirements-ml.txt  # optional: torch/PyG (cascade GNN), LightGBM (forecast correction)
 python run.py                       # http://localhost:8000, OpenAPI docs at /docs
-python -m pytest tests/ -q          # 126 tests (temp DB via tests/conftest.py)
+python -m pytest tests/ -q          # 197 tests, ~11 min (temp DB via tests/conftest.py)
 python -m pytest tests/test_contract.py::test_name -q     # single test
 ```
 No DB/Redis setup required — SQLite (`Backend/eventflow.db`) and an in-process cache are the
@@ -151,8 +152,10 @@ charts. Three routes (`App.jsx`): `/` Command Centre, `/attendee` PWA, `/metrics
 
 ## ML workstream
 
-`ML/` holds trained models (HX-Cascade GNN `cascade.py` + checkpoint, optionally a LightGBM
-forecaster). To swap one in: add `ML/<module>.py` exporting the contract class; the registry
+`ML/` holds trained models: the HX-Cascade GNN (`cascade.py` + bundle) and the forecast correction
+(`forecast_correction.py` + `ML/artifacts/forecast_correction_v2/`; LightGBM quantile models of the
+twin model's residual, served as `local_model` only from a bundle whose eval.json passed
+`forecaster.correction_gate`; `correction_artifact: null` serves the twin model). To swap one in: add `ML/<module>.py` exporting the contract class; the registry
 picks it up with zero backend changes and `/health` starts reporting the new `active_source`.
 `ML/README.md` has the per-module constructor signatures and the `03 §0` rules (no I/O after
 `__init__`, no imports from `Backend/`, every module exposes `.fallback()` with the same return
@@ -162,15 +165,22 @@ units, casing) or Pydantic rejects the output in `app/schemas.py` before it hits
 
 Per `RUNNING.md`, `RiskScorer`, `AnomalyDetector`, `EquilibriumSolver.certify()`,
 `InterventionOptimiser`, and `SyntheticGenerator` are contractually *arithmetic, not ML* and are
-"real" in `ml_reference/`. `Forecaster` there is the twin-model forecast (the nominal world's projection plus a decaying
-live-gap correction; trend reference without it); `CascadePredictor` is the real R-GCN
-(bundle `ML/artifacts/hx_cascade_v2/` — `model.pt`, `feature_norm.json`, `eval.json`, bound by
-SHA-256 in `manifest.json`; retrained on flow-simulator scenarios by `Backend/scripts/train_cascade.py`,
-which writes new bundles the same way). A bundle that fails verification is not loaded.
-Published cascades always come from the deterministic `services/cascade_flow.py`;
-`cascade.gnn_mode` decides what the R-GCN does: `shadow` (default — predictions kept in
-`store.cascade_ml`, never published), `annotate` (non-root steps get `confidence`) or `off`.
-`/health` reports the published `active_source` plus `gnn_mode`.
+"real" in `ml_reference/`. `Forecaster` there is the twin-model forecast (the nominal world's 60 s projection, re-based to
+its age, plus a decaying live-gap correction; time-to-critical found on that dense path; trend
+reference without it), optionally corrected by the gated LightGBM bundle. `CascadePredictor` in
+`ML/cascade.py` is the HX-Cascade GNN (bundle `ML/artifacts/hx_cascade_v3/` — `model.pt`,
+`feature_norm.json`, `eval.json`, `calibration.json`, `ood_stats.json`, bound by SHA-256 in
+`manifest.json`; trained on random maps by `ML/training/train_v3.py`). A bundle that fails
+verification is not loaded. It only *scores* (`node_risk()`); there is exactly one propagator,
+`services/cascade_flow.py`, which builds every published cascade (`ml_reference/cascade.py`
+delegates to it; `ML/cascade.py`'s `predict`/`fallback` return no steps). `cascade.gnn_mode`
+decides what the GNN does: `shadow` (predictions kept in `store.cascade_ml`, never published),
+`annotate` (as configured — non-root steps get `confidence`; allowed only while
+`tests/test_cascade_swap_gate.py` passes) or `off`. Its out-of-distribution guard
+(`cascade.ood_guard`) skips the model on a graph outside its training data (other map hash,
+features outside `ood_stats.json`); `/health` reports `active_source`, `gnn_mode` and that
+`fallback_reason`. torch/PyG/LightGBM are optional (`requirements-ml.txt`); without them the
+registry serves the references.
 
 Pluggable sources live in `Backend/app/providers/`: `geo.py` (travel times; synthetic by default,
 OSRM/Google via env vars, cached with timeout/retry/fallback) and `data.py` (topology/hotels/events;

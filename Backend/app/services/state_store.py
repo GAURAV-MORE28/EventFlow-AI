@@ -128,7 +128,8 @@ class StateStore:
         # rollout of the same scenario — populated in
         # Engine._maybe_generate_interventions, read in metrics.build_metrics.
         self.certificates_scored: list[bool] = []
-        self.observed_compliance: list[bool] = []
+        # nudge answers, oldest first: {segment_id, accepted} (services/compliance.py)
+        self.observed_compliance: list[dict] = []
 
         # Consecutive cycles each entity has spent at/above the critical line
         # (feeds the risk scorer's persistence escalation).

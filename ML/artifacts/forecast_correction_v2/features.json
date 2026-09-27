@@ -1,0 +1,39 @@
+{
+ "feature_names": [
+  "last",
+  "prior_now",
+  "gap",
+  "twin_900",
+  "twin_1800",
+  "twin_3600",
+  "plan_delta_900",
+  "plan_delta_1800",
+  "plan_delta_3600",
+  "twin_headroom_900",
+  "twin_headroom_1800",
+  "twin_headroom_3600",
+  "d1",
+  "d2",
+  "d5",
+  "d10",
+  "d20",
+  "d40",
+  "slope10",
+  "std10",
+  "log_capacity",
+  "critical",
+  "headroom",
+  "history_frac"
+ ],
+ "horizons_sec": [
+  900,
+  1800,
+  3600
+ ],
+ "quantiles": [
+  0.05,
+  0.5,
+  0.95
+ ],
+ "target": "true utilisation at t+h minus the twin-model forecast at h"
+}

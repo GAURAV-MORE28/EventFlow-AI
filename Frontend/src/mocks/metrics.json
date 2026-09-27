@@ -45,40 +45,85 @@
     "attendee_compliance": {
       "value": 0.6,
       "baseline": 0.6,
-      "baseline_name": "configured_prior"
+      "baseline_name": "configured_prior",
+      "sample_size": 0
+    },
+    "compliance_price_sensitive": {
+      "value": 0.55,
+      "baseline": 0.55,
+      "baseline_name": "segment_prior",
+      "sample_size": 0
+    },
+    "compliance_time_sensitive": {
+      "value": 0.48,
+      "baseline": 0.48,
+      "baseline_name": "segment_prior",
+      "sample_size": 0
+    },
+    "compliance_accessibility_constrained": {
+      "value": 0.35,
+      "baseline": 0.35,
+      "baseline_name": "segment_prior",
+      "sample_size": 0
+    },
+    "compliance_group": {
+      "value": 0.42,
+      "baseline": 0.42,
+      "baseline_name": "segment_prior",
+      "sample_size": 0
+    },
+    "compliance_premium": {
+      "value": 0.3,
+      "baseline": 0.3,
+      "baseline_name": "segment_prior",
+      "sample_size": 0
     }
   },
   "prediction": {
     "forecast_mae": {
-      "value": 0.0043,
+      "value": 0.0034,
       "baseline": 0.051,
       "baseline_name": "persistence",
-      "improvement_pct": 91.6
+      "improvement_pct": 93.3
     },
     "cascade_lead_time_sec": {
-      "value": 0.0,
+      "value": 1800.0,
       "baseline": 0.0,
       "baseline_name": "threshold_rule",
-      "sample_size": 0
+      "sample_size": 1
     },
     "cascade_precision": {
-      "value": 0.0,
-      "sample_size": 4
+      "value": 1.0,
+      "sample_size": 60
     },
     "cascade_recall": {
-      "value": 0.0,
-      "sample_size": 0
+      "value": 1.0,
+      "sample_size": 1
+    },
+    "gnn_lead_time_sec": {
+      "value": 3600.0,
+      "baseline": 0.0,
+      "baseline_name": "threshold_rule",
+      "sample_size": 1
+    },
+    "gnn_precision": {
+      "value": 0.968,
+      "sample_size": 124
+    },
+    "gnn_recall": {
+      "value": 1.0,
+      "sample_size": 1
     }
   },
   "twin": {
     "rmse": {
-      "value": 29.4,
+      "value": 36.07,
       "baseline": 2479.32,
       "baseline_name": "uncorrected_abm",
-      "improvement_pct": 98.8
+      "improvement_pct": 98.5
     },
     "ensemble_coverage": {
-      "value": 1.0,
+      "value": 0.933,
       "target_range": [
         0.85,
         0.95
@@ -99,18 +144,18 @@
       "baseline_name": "naive_optimiser_would_approve"
     },
     "certificate_accuracy_pct": {
-      "value": 32.0,
+      "value": 34.5,
       "target": 85.0,
       "baseline_name": "twin_branch_ground_truth"
     },
     "convergence_rate_pct": {
-      "value": 100.0,
+      "value": 93.9,
       "target": 85.0
     }
   },
   "system": {
     "cycle_latency_ms": {
-      "value": 118.0,
+      "value": 203.0,
       "target": 2000.0
     },
     "commander_ungrounded_rate": {

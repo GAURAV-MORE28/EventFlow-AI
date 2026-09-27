@@ -61,7 +61,9 @@ async def health() -> S.HealthResponse:
         cycle_number=store.cycle_number,
         modules={
             "forecaster": S.ModuleHealth(
-                ready=registry.forecaster.ready(), active_source=store.active_forecast_source
+                ready=registry.forecaster.ready(), active_source=store.active_forecast_source,
+                # the forecast-correction bundle, when configured (forecaster.correction_artifact)
+                **(registry.forecaster.model_info() if hasattr(registry.forecaster, "model_info") else {}),
             ),
             "cascade": S.ModuleHealth(
                 # The published cascade (deterministic flow) is always available;
@@ -186,8 +188,12 @@ async def cascade(entity_id: str) -> S.CascadeResult:
 
     with engine.world_lock:
         closed = set(engine.generator.closed_entities()) if hasattr(engine.generator, "closed_entities") else set()
-    result = cascade_for(entity_id, store.node_state_for_ml(), store.edges, engine.config.thresholds_for,
-                         engine.config.raw.get("cascade", {}), store.sim_time, closed)
+    node_state = store.node_state_for_ml()
+    # This cycle's model output was computed on exactly this state.
+    ml = store.cascade_ml if store.cascade_ml and store.cascade_ml.get("generated_at") == store.sim_time else "compute"
+    result = cascade_for(entity_id, node_state, store.edges, engine.config.thresholds_for,
+                         engine.config.raw.get("cascade", {}), store.sim_time, closed,
+                         **engine.cascade_annotation(node_state, ml))
     return S.CascadeResult(**result)
 
 

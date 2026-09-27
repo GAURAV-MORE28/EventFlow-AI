@@ -6,7 +6,7 @@
   "modules": {
     "forecaster": {
       "ready": true,
-      "active_source": "twin_model"
+      "active_source": "local_model"
     },
     "cascade": {
       "ready": true,

@@ -71,6 +71,18 @@
           ],
           "default": null,
           "title": "Model Ready"
+        },
+        "fallback_reason": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Fallback Reason"
         }
       },
       "required": [

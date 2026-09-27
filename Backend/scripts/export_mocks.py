@@ -25,6 +25,7 @@ from app.db.base import create_all  # noqa: E402
 from app.db.seed import seed_topology  # noqa: E402
 from app.api import routes as R  # noqa: E402
 from app.services import accommodation as ACC  # noqa: E402
+from app.services.cascade_flow import cascade_for  # noqa: E402
 from app.services.attendee import build_journey, issue_nudges, public_nudge  # noqa: E402
 from app.services.commander import Commander  # noqa: E402
 from app.services.engine import Engine, set_engine  # noqa: E402
@@ -121,8 +122,9 @@ async def build(out: Path, cycles: int) -> None:
 
     # The demo chain, explicitly — not whichever cascade happened to be first.
     deepest = max(store.cascades.values(), key=lambda c: (c["max_depth"], c["total_downstream_failures"]), default=None)
-    demo_cascade = deepest or engine.registry.cascade.predict(
-        "metro_b", store.node_state_for_ml(), store.edges, generated_at=store.sim_time
+    demo_cascade = deepest or cascade_for(
+        "metro_b", store.node_state_for_ml(), store.edges, engine.config.thresholds_for,
+        engine.config.raw.get("cascade", {}), store.sim_time, **engine.cascade_annotation(store.node_state_for_ml()),
     )
     write(out, "cascade_metro_b.json", demo_cascade)
     write(out, "cascades_active.json", engine.cascade_payload())

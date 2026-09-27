@@ -55,9 +55,9 @@ def build_metrics(engine: Any) -> dict[str, Any]:
     persistence_mae = round(_mean(store.forecast_errors["persistence"][-200:]), 4)
 
     # Measured online by `prediction_eval.OnlineEvaluator`, one definition for
-    # every predictor: an alert is "this gate/road/station/emergency post will
-    # cross its critical line within 3600s"; precision is over closed alerts,
-    # recall over actual crossings. `cascade_*` is the published (deterministic)
+    # every predictor: each cycle's flag is a claim "this gate/road/station/
+    # emergency post will cross its critical line within 3600s"; precision is
+    # over resolved claims, recall over actual crossings. `cascade_*` is the published (deterministic)
     # cascade; `gnn_*` the cascade model, including in shadow mode. In-simulation
     # only, never presented as field validity (03 §8.4).
     det = store.online_eval.summary("deterministic_cascade")
@@ -122,8 +122,14 @@ def build_metrics(engine: Any) -> dict[str, Any]:
         },
         "attendee_compliance": {"value": engine.current_compliance(),
                                 "baseline": float(engine.icfg.get("default_compliance", 0.6)),
-                                "baseline_name": "configured_prior"},
+                                "baseline_name": "configured_prior",
+                                "sample_size": len(store.observed_compliance)},
     }
+    # Per segment: the posterior the equilibrium solver certifies with, against
+    # the segment's stated prior (00 §2.10 `compliance_base_rate`).
+    for sid, post in engine.compliance.by_segment(store.observed_compliance).items():
+        operations[f"compliance_{sid}"] = {"value": post["mean"], "baseline": post["prior"],
+                                           "baseline_name": "segment_prior", "sample_size": post["answers"]}
 
     return {
         "sim_time": store.sim_time,

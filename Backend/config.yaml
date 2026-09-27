@@ -27,6 +27,13 @@ forecaster:
   warm_start_after_points: 40
   model_refresh_cycles: 4       # how often the twin-model projection behind forecasts is recomputed
   device: "cpu"
+  # Forecast correction (ML/forecast_correction.py): LightGBM quantile models of the
+  # twin model's residual, served as source "local_model". Loaded only from a
+  # verified bundle whose eval.json gate passed (scripts/train_forecast_correction.py);
+  # null serves the twin model. v2 passed (ML/evaluation/results/forecast_correction_v2.json).
+  correction_artifact: "ML/artifacts/forecast_correction_v2"
+  correction_gate:
+    ttc_max_error_sec: 180      # 03 §2.5, on the demo scenario
 
 cascade:
   use_gnn: true
@@ -34,25 +41,52 @@ cascade:
   propagation_threshold: 0.15
   # Verified model bundle (manifest.json binds model.pt, feature_norm.json, eval.json
   # by sha256; a mismatch means the model is not loaded and gnn_mode reads "off").
-  gnn_artifact: "ML/artifacts/hx_cascade_v2"
+  gnn_artifact: "ML/artifacts/hx_cascade_v3"
   # What the loaded GNN is allowed to do. The cascade itself is always the
   # deterministic flow cascade (services/cascade_flow.py).
   #   shadow   - the model runs every cycle, its predictions are kept for
-  #              evaluation, nothing published or decided uses them (default:
-  #              v2 has not passed the 03 §4.3 held-out-topology swap criterion)
+  #              evaluation, nothing published or decided uses them (default;
+  #              a model leaves shadow only through `swap_gate` below)
   #   annotate - model probabilities are attached to cascade steps as `confidence`
+  #              on every cascade path (live, /cascade/{id}, What-If)
   #   off      - the model is not called
-  gnn_mode: shadow
+  # annotate: hx_cascade_v3 passed `swap_gate` (Phase 4; evidence in ML/evaluation/results/)
+  gnn_mode: annotate
   # Output hygiene: a cascade is only useful if an operator can read it.
   max_roots: 5              # most severe roots per cycle
   max_steps: 8              # downstream steps kept per cascade (highest probability first)
   gnn_min_probability: 0.6  # GNN steps below this are not reported as failures
+                            # (alerts use the bundle's own eval.json operating point when it has one)
+  # 03 §4.3/§4.4 swap gate (tests/test_cascade_swap_gate.py, evidence from
+  # scripts/cascade_swap_eval.py): `annotate` is allowed only for a bundle that
+  # passes it on held-out maps AND in a full-event shadow run.
+  swap_gate:
+    min_precision: 0.75     # at the 3600 s horizon (03 §4.4)
+    min_recall: 0.70
+    max_ece: 0.05           # expected calibration error, every horizon
   exclude_root_types: ["hotel"]  # room occupancy does not propagate as crowd flow
+  # Out-of-distribution guard (ML/cascade.py): the model is not used for a graph
+  # that is not its training map (bundles with a topology_hash), or whose scored
+  # entities leave the bundle's ood_stats.json. The reason is logged and shown
+  # in /health.modules.cascade.fallback_reason. Measured on hx_cascade_v3's
+  # 57 held-out test runs and 8 live-map runs: 0 out-of-range entities, at most
+  # 35% of scored entities beyond the train p99 embedding distance.
+  ood_guard:
+    enabled: true
+    range_tolerance: 0.05       # slack beyond the train min/max, as a share of that range
+    max_embedding_frac: 0.5     # refuse when more scored entities than this sit beyond train p99
 
 twin:
   ensemble_size: 20
   inflation_factor: 1.05
-  obs_noise_var: 25.0
+  # Observation noise the filter assumes = the simulator's sensor model
+  # (generator: reading x (1 + U(-1.5%, +1.5%)), counts in whole people):
+  # obs_noise_rel is the Gaussian sigma whose 90% interval matches that uniform's
+  # (0.9 x 1.5% / 1.645); obs_noise_var ~ integer rounding. Measured 90% ensemble
+  # coverage on the demo run: 0.93 (seed 42), 0.93 (seed 7); target 0.85-0.95 (03 §3.6).
+  obs_noise_var: 1.0
+  obs_noise_rel: 0.0082
+  coverage_window: 20           # cycles pooled into the reported coverage
   process_noise_var: 9.0
   drift_mode_enabled: false
 
@@ -117,6 +151,11 @@ interventions:
   max_live_proposals: 8
   min_relief_pct: 1.0           # candidates simulated below this relief are not proposed
   default_compliance: 0.6       # before any attendee has answered a nudge
+
+# Compliance estimates from nudge answers (app/services/compliance.py): a
+# Beta-Binomial posterior pooled (simulator) and per segment (equilibrium solver).
+compliance:
+  prior_strength: 10            # pseudo-answers behind each prior mean
 
 # Visitor demand and movement (SyntheticGenerator flow model).
 demand:

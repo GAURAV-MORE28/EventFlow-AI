@@ -50,6 +50,7 @@
           "type": "string"
         },
         "args": {
+          "additionalProperties": true,
           "title": "Args",
           "type": "object"
         },

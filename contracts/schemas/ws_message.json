@@ -14,6 +14,7 @@
       "type": "integer"
     },
     "payload": {
+      "additionalProperties": true,
       "title": "Payload",
       "type": "object"
     }

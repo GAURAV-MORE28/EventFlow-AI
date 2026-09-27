@@ -74,13 +74,22 @@ const LABELS = {
   interventions_settled: 'Interventions Settled',
   mean_realised_relief_pct: 'Mean Realised Relief',
   attendee_compliance: 'Attendee Compliance',
+  compliance_price_sensitive: 'Compliance · Price sensitive',
+  compliance_time_sensitive: 'Compliance · Time sensitive',
+  compliance_accessibility_constrained: 'Compliance · Accessibility constrained',
+  compliance_group: 'Compliance · Group',
+  compliance_premium: 'Compliance · Premium',
 };
 
 const COUNTS = new Set([
   'critical_locations', 'queued_people', 'late_entries', 'unmet_room_requests', 'rooms_available',
   'saturated_hotels', 'visitors_redirected', 'interventions_settled', 'unstable_interventions_caught',
 ]);
-const RATIOS = new Set(['capacity_utilisation', 'peak_congestion', 'attendee_compliance', 'ensemble_coverage']);
+const RATIOS = new Set([
+  'capacity_utilisation', 'peak_congestion', 'attendee_compliance', 'ensemble_coverage',
+  'compliance_price_sensitive', 'compliance_time_sensitive', 'compliance_accessibility_constrained',
+  'compliance_group', 'compliance_premium',
+]);
 
 /** Formatting is per-metric because the units genuinely differ. */
 function formatValue(key, metric) {

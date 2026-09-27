@@ -29,6 +29,7 @@
           "type": "string"
         },
         "params": {
+          "additionalProperties": true,
           "title": "Params",
           "type": "object"
         },

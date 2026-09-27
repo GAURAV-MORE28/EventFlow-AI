@@ -45,6 +45,7 @@ from ..ws.manager import MANAGER
 from .events import EventSchedule
 from .prediction_eval import SCORED_TYPES
 from .cascade_flow import build_cascades, horizon_probabilities, ml_confidence
+from .compliance import ComplianceEstimator
 from .state_store import StateStore
 
 log = logging.getLogger("eventflow.cycle")
@@ -53,7 +54,6 @@ log = logging.getLogger("eventflow.cycle")
 TRAJECTORY_OFFSETS = [0, 300, 600, 900, 1200, 1800]
 MIN_WALL_SLEEP = 0.2
 ROOT_COOLDOWN_CYCLES = 10
-PRIOR_COMPLIANCE_WEIGHT = 10.0
 
 
 class Engine:
@@ -322,14 +322,18 @@ class Engine:
         # cascade or are only kept for evaluation (shadow).
         mode = self.cascade_ml_mode()
         risk = await self._cascade_node_risk(node_state, sim_time) if mode != "off" else None
+        reason = (risk or {}).get("fallback_reason")
+        if reason != (store.cascade_ml or {}).get("fallback_reason"):
+            if reason:
+                log.warning("cascade model not used from cycle %s: %s", store.cycle_number, reason)
+            else:
+                log.info("cascade model back in use from cycle %s", store.cycle_number)
         store.cascade_ml = None if risk is None else {"mode": mode, **risk}
-        annotate = (mode == "annotate" and risk is not None and risk["source"] == "gnn"
-                    and risk.get("topology_match") is not False)   # never annotate a map the model has not seen
+        annotation = self.cascade_annotation(node_state, risk)
         with self.world_lock:
             closed = set(self.generator.closed_entities()) if hasattr(self.generator, "closed_entities") else set()
         cascades = build_cascades(node_state, store.edges, self.config.thresholds_for,
-                                  self.config.raw.get("cascade", {}), sim_time, closed,
-                                  horizon_probabilities(risk) if annotate else None)
+                                  self.config.raw.get("cascade", {}), sim_time, closed, **annotation)
         new_cascades = self._apply_cascades(cascades)
 
         # Re-score risk now that cascade exposure is known, so `cascading` is real.
@@ -533,14 +537,23 @@ class Engine:
             clone = self.nominal.clone()
         now = clone.utilisation()
         points: dict[str, dict[int, float]] = {e: {} for e in now}
+        # The whole trajectory, one sample per step: the forecaster finds
+        # time_to_critical on it, and reads it `age` seconds along while this
+        # projection is reused, so it runs `refresh` cycles past the last horizon.
+        path: dict[str, list[float]] = {e: [] for e in now}
         elapsed, step = 0, 60
-        for h in horizons:
-            while elapsed < h:
-                clone.tick(step)
-                elapsed += step
-            for e, u in clone.utilisation().items():
-                points[e][h] = u
-        prior = {e: {"now": now[e], "points": points[e]} for e in now}
+        while elapsed < horizons[-1] + refresh * self.sim_dt:
+            clone.tick(step)
+            elapsed += step
+            u = clone.utilisation()
+            for e in now:
+                path[e].append(u[e])
+            for h in horizons:
+                if h - step < elapsed <= h:
+                    for e in now:
+                        points[e][h] = u[e]
+        prior = {e: {"now": now[e], "points": points[e], "path": path[e], "path_step_sec": step,
+                     "computed_at": self.store.sim_time} for e in now}
         self._prior_cache = (key, prior)
         return prior
 
@@ -713,6 +726,27 @@ class Engine:
                   and getattr(cascade, "active_source", lambda: "deterministic")() == "gnn")
         return mode if loaded else "off"
 
+    def cascade_annotation(self, node_state: dict[str, dict], risk: dict | str | None = "compute") -> dict[str, Any]:
+        """`confidence` / `model_version` keyword arguments for `cascade_flow`, the
+        same for every cascade path (live cycle, on demand, What-If): the model's
+        calibrated per-horizon probabilities in `gnn_mode: annotate`, nothing
+        otherwise. `risk` is a `node_risk()` result for exactly `node_state`;
+        by default the model is run on it (What-If states are not the live one)."""
+        if self.cascade_ml_mode() != "annotate":
+            return {}
+        if risk == "compute":
+            cascade = self.registry.cascade
+            try:
+                risk = cascade.node_risk(node_state, self.store.edges, self.store.sim_time)
+            except Exception:
+                log.exception("cascade.node_risk failed; cascade published without confidence")
+                risk = None
+        # never annotate a map the model has not seen (00 §2.5)
+        if not risk or risk.get("source") != "gnn" or risk.get("topology_match") is False:
+            return {}
+        probabilities = horizon_probabilities(risk)
+        return {"confidence": probabilities, "model_version": risk.get("model_version")} if probabilities else {}
+
     async def _cascade_node_risk(self, node_state: dict[str, dict], sim_time: str) -> dict:
         """The cascade model's per-entity risk (`node_risk`, 03 §4 addendum); a drop-in
         without it is read through its `predict_all` cascades (3600s probability only)."""
@@ -740,7 +774,9 @@ class Engine:
         cascade = self.registry.cascade
         info = cascade.model_info() if hasattr(cascade, "model_info") else {}
         return {"model_version": info.get("model_version"),
-                "model_ready": bool(info.get("ready", cascade.ready())) if info else None}
+                "model_ready": bool(info.get("ready", cascade.ready())) if info else None,
+                # why the last cycle ran without the model (OOD guard), else None
+                "fallback_reason": (self.store.cascade_ml or {}).get("fallback_reason")}
 
     def _apply_cascades(self, cascades: list[dict]) -> list[dict]:
         store = self.store
@@ -770,7 +806,9 @@ class Engine:
             if s["predicted_band"] == "critical" and s["entity_id"] in over}}
         ml = store.cascade_ml
         if ml and ml.get("source") == "gnn":
-            threshold = float(self.config.raw.get("cascade", {}).get("gnn_min_probability", 0.6))
+            cascade = self.registry.cascade
+            threshold = (float(cascade.alert_threshold(3600)) if hasattr(cascade, "alert_threshold")
+                         else float(self.config.raw.get("cascade", {}).get("gnn_min_probability", 0.6)))
             alerts["gnn"] = {e for e, row in (ml.get("nodes") or {}).items()
                              if e in over and (row.get("p_fail_3600") or 0.0) >= threshold}
         store.online_eval.update(store.cycle_number, self.sim_dt, over, alerts)
@@ -789,13 +827,21 @@ class Engine:
         return {e: v / peak for e, v in counts.items()}
 
     # --- step 8 -----------------------------------------------------------------------------------
+    @property
+    def compliance(self) -> ComplianceEstimator:
+        """Beta-Binomial compliance estimates over the nudge answers (services/compliance.py)."""
+        return ComplianceEstimator(self.store.segments, float(self.icfg.get("default_compliance", 0.6)),
+                                   float(self.config.raw.get("compliance", {}).get("prior_strength", 10.0)))
+
     def current_compliance(self) -> float:
         """Share of visitors expected to follow an instruction: the configured
-        prior, updated by every attendee nudge answer (Bayesian-style average)."""
-        prior = float(self.icfg.get("default_compliance", 0.6))
-        answers = self.store.observed_compliance
-        return round((prior * PRIOR_COMPLIANCE_WEIGHT + sum(1 for a in answers if a))
-                     / (PRIOR_COMPLIANCE_WEIGHT + len(answers)), 4)
+        prior updated by every attendee nudge answer (pooled over segments)."""
+        return self.compliance.pooled(self.store.observed_compliance)["mean"]
+
+    def solver_segments(self) -> list[dict]:
+        """Segments for the equilibrium solver, each segment's compliance rate
+        refined by its own attendees' nudge answers (01 §3.12)."""
+        return self.compliance.solver_segments(self.store.observed_compliance)
 
     def optimiser_context(self) -> dict[str, Any]:
         from .accommodation import cluster_availability
@@ -896,7 +942,7 @@ class Engine:
                 candidate,
                 node_state,
                 store.edges,
-                store.segments,
+                self.solver_segments(),
             )
             candidate["certificate"] = certificate
             candidate["created_at"] = sim_time
@@ -1004,8 +1050,8 @@ class Engine:
         self.world_changed()
         return {"branch_id": f"cf_{item['intervention_id']}", "compliance": compliance}
 
-    def record_compliance(self, accepted: bool) -> float:
-        self.store.observed_compliance.append(bool(accepted))
+    def record_compliance(self, accepted: bool, segment_id: str | None = None) -> float:
+        self.store.observed_compliance.append({"segment_id": segment_id, "accepted": bool(accepted)})
         c = self.current_compliance()
         with self.world_lock:
             for w in self._all_worlds():

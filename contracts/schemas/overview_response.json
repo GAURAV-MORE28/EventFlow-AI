@@ -223,6 +223,7 @@
       "$ref": "#/$defs/StateSummary"
     },
     "operations": {
+      "additionalProperties": true,
       "title": "Operations",
       "type": "object"
     },

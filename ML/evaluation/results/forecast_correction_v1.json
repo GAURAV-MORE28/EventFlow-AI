@@ -1,0 +1,263 @@
+{
+ "model_version": "forecast_correction_v1",
+ "gate": {
+  "checks": {
+   "test.mae_1800_below_twin_model": true,
+   "test.ttc_error_below_twin_model": true,
+   "demo.mae_1800_not_above_twin_model": true,
+   "demo.ttc_error_not_above_twin_model": true,
+   "demo.ttc_error_at_most_180s": false
+  },
+  "passes": false,
+  "limits": {
+   "ttc_max_error_sec": 180.0
+  }
+ },
+ "results": {
+  "val": {
+   "rows": 117392,
+   "ttc_rows": 7718,
+   "persistence": {
+    "mae_900": 0.04799,
+    "mae_1800": 0.08526,
+    "mae_3600": 0.14055,
+    "mae_1800_vs_observed": 0.08539,
+    "ttc_error_sec": 1815.7,
+    "ttc_error_median_sec": 1830.0,
+    "ttc_detected": 0.014,
+    "false_ttc_rate": 0.0005
+   },
+   "twin_model": {
+    "mae_900": 0.01004,
+    "mae_1800": 0.01141,
+    "mae_3600": 0.01322,
+    "mae_1800_vs_observed": 0.01255,
+    "ttc_error_sec": 555.7,
+    "ttc_error_median_sec": 190.5,
+    "ttc_detected": 0.767,
+    "false_ttc_rate": 0.001
+   },
+   "model": {
+    "mae_900": 0.00708,
+    "mae_1800": 0.00905,
+    "mae_3600": 0.01187,
+    "mae_1800_vs_observed": 0.0107,
+    "ttc_error_sec": 535.9,
+    "ttc_error_median_sec": 177.0,
+    "ttc_detected": 0.776,
+    "false_ttc_rate": 0.0008,
+    "coverage_90": {
+     "900": 0.89,
+     "1800": 0.894,
+     "3600": 0.889
+    },
+    "band_width_90": {
+     "900": 0.0272,
+     "1800": 0.0356,
+     "3600": 0.0443
+    }
+   }
+  },
+  "test": {
+   "rows": 234784,
+   "ttc_rows": 18015,
+   "persistence": {
+    "mae_900": 0.04909,
+    "mae_1800": 0.08826,
+    "mae_3600": 0.1491,
+    "mae_1800_vs_observed": 0.08736,
+    "ttc_error_sec": 1786.3,
+    "ttc_error_median_sec": 1800.0,
+    "ttc_detected": 0.009,
+    "false_ttc_rate": 0.0007
+   },
+   "twin_model": {
+    "mae_900": 0.01635,
+    "mae_1800": 0.02032,
+    "mae_3600": 0.02319,
+    "mae_1800_vs_observed": 0.0199,
+    "ttc_error_sec": 651.0,
+    "ttc_error_median_sec": 232.0,
+    "ttc_detected": 0.714,
+    "false_ttc_rate": 0.002
+   },
+   "model": {
+    "mae_900": 0.01176,
+    "mae_1800": 0.01632,
+    "mae_3600": 0.02108,
+    "mae_1800_vs_observed": 0.01635,
+    "ttc_error_sec": 623.3,
+    "ttc_error_median_sec": 210.0,
+    "ttc_detected": 0.724,
+    "false_ttc_rate": 0.0016,
+    "coverage_90": {
+     "900": 0.873,
+     "1800": 0.873,
+     "3600": 0.867
+    },
+    "band_width_90": {
+     "900": 0.0355,
+     "1800": 0.0467,
+     "3600": 0.0562
+    }
+   }
+  },
+  "demo_scenario": {
+   "rows": 15544,
+   "ttc_rows": 1219,
+   "persistence": {
+    "mae_900": 0.05394,
+    "mae_1800": 0.09937,
+    "mae_3600": 0.15136,
+    "mae_1800_vs_observed": 0.09956,
+    "ttc_error_sec": 1767.4,
+    "ttc_error_median_sec": 1770.0,
+    "ttc_detected": 0.009,
+    "false_ttc_rate": 0.0
+   },
+   "twin_model": {
+    "mae_900": 0.00648,
+    "mae_1800": 0.00731,
+    "mae_3600": 0.00709,
+    "mae_1800_vs_observed": 0.0087,
+    "ttc_error_sec": 371.1,
+    "ttc_error_median_sec": 130.0,
+    "ttc_detected": 0.856,
+    "false_ttc_rate": 0.0
+   },
+   "model": {
+    "mae_900": 0.00407,
+    "mae_1800": 0.00528,
+    "mae_3600": 0.00633,
+    "mae_1800_vs_observed": 0.007,
+    "ttc_error_sec": 354.6,
+    "ttc_error_median_sec": 116.0,
+    "ttc_detected": 0.873,
+    "false_ttc_rate": 0.0002,
+    "coverage_90": {
+     "900": 0.858,
+     "1800": 0.897,
+     "3600": 0.91
+    },
+    "band_width_90": {
+     "900": 0.0236,
+     "1800": 0.0337,
+     "3600": 0.0434
+    }
+   }
+  },
+  "demo": {
+   "rows": 7772,
+   "ttc_rows": 600,
+   "persistence": {
+    "mae_900": 0.05328,
+    "mae_1800": 0.098,
+    "mae_3600": 0.14818,
+    "mae_1800_vs_observed": 0.09824,
+    "ttc_error_sec": 1764.1,
+    "ttc_error_median_sec": 1770.0,
+    "ttc_detected": 0.007,
+    "false_ttc_rate": 0.0
+   },
+   "twin_model": {
+    "mae_900": 0.0053,
+    "mae_1800": 0.00518,
+    "mae_3600": 0.00452,
+    "mae_1800_vs_observed": 0.00663,
+    "ttc_error_sec": 349.8,
+    "ttc_error_median_sec": 131.5,
+    "ttc_detected": 0.87,
+    "false_ttc_rate": 0.0
+   },
+   "model": {
+    "mae_900": 0.0032,
+    "mae_1800": 0.00359,
+    "mae_3600": 0.00392,
+    "mae_1800_vs_observed": 0.00536,
+    "ttc_error_sec": 331.9,
+    "ttc_error_median_sec": 121.0,
+    "ttc_detected": 0.888,
+    "false_ttc_rate": 0.0001,
+    "coverage_90": {
+     "900": 0.866,
+     "1800": 0.903,
+     "3600": 0.915
+    },
+    "band_width_90": {
+     "900": 0.0213,
+     "1800": 0.0315,
+     "3600": 0.0423
+    }
+   }
+  },
+  "demo_disrupted": {
+   "rows": 7772,
+   "ttc_rows": 619,
+   "persistence": {
+    "mae_900": 0.0546,
+    "mae_1800": 0.10075,
+    "mae_3600": 0.15455,
+    "mae_1800_vs_observed": 0.10087,
+    "ttc_error_sec": 1770.5,
+    "ttc_error_median_sec": 1770.0,
+    "ttc_detected": 0.011,
+    "false_ttc_rate": 0.0
+   },
+   "twin_model": {
+    "mae_900": 0.00765,
+    "mae_1800": 0.00944,
+    "mae_3600": 0.00966,
+    "mae_1800_vs_observed": 0.01078,
+    "ttc_error_sec": 391.8,
+    "ttc_error_median_sec": 128.0,
+    "ttc_detected": 0.843,
+    "false_ttc_rate": 0.0
+   },
+   "model": {
+    "mae_900": 0.00495,
+    "mae_1800": 0.00697,
+    "mae_3600": 0.00874,
+    "mae_1800_vs_observed": 0.00863,
+    "ttc_error_sec": 376.6,
+    "ttc_error_median_sec": 104.0,
+    "ttc_detected": 0.858,
+    "false_ttc_rate": 0.0002,
+    "coverage_90": {
+     "900": 0.851,
+     "1800": 0.89,
+     "3600": 0.904
+    },
+    "band_width_90": {
+     "900": 0.0259,
+     "1800": 0.036,
+     "3600": 0.0445
+    }
+   }
+  }
+ },
+ "latency_ms": {
+  "p50": 79.52,
+  "p95": 89.91,
+  "forecast_budget_ms": 300.0
+ },
+ "splits": {
+  "train": {
+   "rows": 469800,
+   "runs": 60
+  },
+  "val": {
+   "rows": 117392,
+   "runs": 15
+  },
+  "test": {
+   "rows": 234784,
+   "runs": 30
+  },
+  "demo": {
+   "rows": 15544,
+   "runs": 2
+  }
+ },
+ "definitions": "see Backend/scripts/train_forecast_correction.py; truth = simulator ground truth; demo_scenario = the two live-map runs pooled (demo: plain, demo_disrupted: seeded disruptions), never trained on",
+ "in_simulation_only": true
+}

@@ -49,6 +49,7 @@
       "title": "Parent Id"
     },
     "meta": {
+      "additionalProperties": true,
       "title": "Meta",
       "type": "object"
     }

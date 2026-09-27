@@ -11,6 +11,7 @@ applied on every forecast step.
 from __future__ import annotations
 
 import logging
+from collections import deque
 from typing import Any
 
 import numpy as np
@@ -31,7 +32,7 @@ class AssimilatedTwin:
         self.seed = int(self.config.get("seed", 42))
         # Relative noise models (fractions of capacity / of the reading).
         self.process_noise_rel = float(self.config.get("process_noise_rel", 0.004))
-        self.obs_noise_rel = float(self.config.get("obs_noise_rel", 0.012))
+        self.obs_noise_rel = float(self.config.get("obs_noise_rel", 0.0082))
         self.relaxation = float(self.config.get("relaxation", 0.05))
 
         self.entity_ids: list[str] = []
@@ -44,6 +45,9 @@ class AssimilatedTwin:
         self._branch_counter = 0
         self._unobserved_mask: np.ndarray = np.zeros(0)
         self.last_coverage: float | None = None
+        # 90% coverage pooled over the last `coverage_window` cycles (one cycle is
+        # ~67 entities, too few for a stable rate): (hits, total) per cycle.
+        self._coverage: deque[tuple[int, int]] = deque(maxlen=int(self.config.get("coverage_window", 20)))
 
     # --- setup --------------------------------------------------------------
     def initialise(self, entity_ids: list[str], capacities: dict[str, float], counts: dict[str, float]) -> None:
@@ -58,6 +62,8 @@ class AssimilatedTwin:
         flows = np.zeros((n, self.m))
         self._X = np.vstack([np.maximum(members, 0.0), flows])
         self._X_uncorrected = None
+        self._coverage.clear()
+        self.last_coverage = None
         self._unobserved_mask = np.zeros(n)
 
     def ready(self) -> bool:
@@ -150,12 +156,14 @@ class AssimilatedTwin:
         without a reading this cycle keeps its forecast — last valid state plus
         the process model's tendency."""
         n = self.n
-        index = {e: i for i, e in enumerate(self.entity_ids)}
         mask = np.ones(n)
         denom = max(self.m - 1, 1)
-        for e, y in observations.items():
-            i = index.get(e)
-            if i is None or not np.isfinite(y):
+        # In the ensemble's own entity order, not the caller's dict order: each
+        # reading draws from the shared RNG, so iterating `observations` made the
+        # run depend on how the dict was built (set order, i.e. PYTHONHASHSEED).
+        for i, e in enumerate(self.entity_ids):
+            y = observations.get(e)
+            if y is None or not np.isfinite(y):
                 continue
             mask[i] = 0.0
             xi = self._X[i]
@@ -197,9 +205,11 @@ class AssimilatedTwin:
 
         counts = self._X[:self.n]
         spread = float(np.mean(counts.std(axis=1) / np.maximum(self.capacities, 1.0)))
-        # Measured 90% interval coverage: how often truth falls inside mean ± 1.645σ
-        # (floored at the observation-noise scale so a tight ensemble is not
-        # penalised for sensor noise it cannot see).
+        # Measured 90% interval coverage: how often truth falls inside the
+        # ensemble's mean ± 1.645σ, pooled over the last `coverage_window` cycles.
+        # No floor on σ: one at the observation-noise scale (1.645 x 1.2%) was
+        # wider than the sensors' whole error range (±1.5%), so every observed
+        # entity counted as covered and the rate read 1.0 whatever the spread.
         if truth:
             index = {e: i for i, e in enumerate(self.entity_ids)}
             hits, total = 0, 0
@@ -208,10 +218,12 @@ class AssimilatedTwin:
                 i = index.get(e)
                 if i is None:
                     continue
-                half = 1.645 * max(sd[i], self.obs_noise_rel * max(float(v), 1.0))
-                hits += int(abs(mean[i] - float(v)) <= half)
+                hits += int(abs(mean[i] - float(v)) <= 1.645 * sd[i])
                 total += 1
-            self.last_coverage = round(hits / total, 3) if total else None
+            if total:
+                self._coverage.append((hits, total))
+            pooled = sum(t for _, t in self._coverage)
+            self.last_coverage = round(sum(h for h, _ in self._coverage) / pooled, 3) if pooled else None
 
         fidelity = {
             "sim_time": sim_time,

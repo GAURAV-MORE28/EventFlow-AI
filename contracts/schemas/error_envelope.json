@@ -12,6 +12,7 @@
           "type": "string"
         },
         "detail": {
+          "additionalProperties": true,
           "title": "Detail",
           "type": "object"
         }

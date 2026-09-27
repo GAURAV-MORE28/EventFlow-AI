@@ -11,7 +11,9 @@ on:
     branches: ["**"]
 
 jobs:
-  backend:
+  # The product without the trained models (no torch / PyG / LightGBM): every
+  # module on its reference implementation. Model tests skip themselves.
+  backend-core:
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -22,6 +24,22 @@ jobs:
         with:
           python-version: "3.12"
       - run: pip install -r requirements.txt
+      - run: python -m pytest tests/ -q
+
+  # With the trained models. torch comes from the CPU wheel index first, so
+  # requirements-ml.txt finds it satisfied instead of pulling the CUDA build.
+  backend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: Backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install torch==2.10.0 --index-url https://download.pytorch.org/whl/cpu
+      - run: pip install -r requirements-ml.txt
       - run: python -m pytest tests/ -q
       - run: python -m scripts.export_schemas --out ../contracts/schemas
       - uses: actions/upload-artifact@v4

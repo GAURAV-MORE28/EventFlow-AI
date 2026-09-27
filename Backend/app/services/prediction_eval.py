@@ -2,14 +2,22 @@
 
 The event is physical and the same one the cascade model is trained on
 (`scripts/train_cascade.py` labels): an entity of a scored type crossing its
-critical utilisation line. Each predictor raises *alerts*: "this entity, not
-over its line now, will cross it". An alert stays open until:
+critical utilisation line. Every cycle, each predictor flags entities; each
+flag of an entity not over its line now is a *claim*: "this entity will cross
+within `horizon_sec`". A claim is resolved when
 
-  * the entity crosses within `horizon_sec`      -> confirmed (lead time recorded)
-  * `horizon_sec` passes without a crossing      -> false alarm
+  * the entity crosses within `horizon_sec` of it  -> confirmed
+  * `horizon_sec` passes without a crossing        -> false alarm
 
-    precision = confirmed / (confirmed + false alarms)
-    recall    = crossings with an open alert / all crossings
+    precision = confirmed claims / resolved claims
+    recall    = crossings with a claim in the `horizon_sec` before them / all crossings
+    lead time = crossing - earliest claim in that window (so at most `horizon_sec`)
+
+This is the per-snapshot definition of the offline evaluation
+(`ML/evaluation/cascade_eval.py`). Claims are judged one by one on purpose: an
+alert first raised a little more than one horizon before its crossing is one
+wrong claim, not a wrong alert followed by a short-lead right one, and a
+predictor cannot buy precision by keeping every entity flagged.
 
 Crossings are counted per predictor only while that predictor is active, so a
 model that is switched off is not charged with misses. In simulation only —
@@ -28,12 +36,13 @@ class OnlineEvaluator:
         self.reset()
 
     def reset(self) -> None:
-        self._open: dict[str, dict[str, int]] = {}
+        # predictor -> entity -> cycles of its unresolved claims (ascending)
+        self._pending: dict[str, dict[str, list[int]]] = {}
         self._stats: dict[str, dict[str, Any]] = {}
         self._was_over: dict[str, bool] = {}
 
     def _predictor(self, name: str) -> dict[str, Any]:
-        self._open.setdefault(name, {})
+        self._pending.setdefault(name, {})
         return self._stats.setdefault(name, {"confirmed": 0, "false_alarms": 0, "caught": 0, "missed": 0,
                                              "lead_times_sec": []})
 
@@ -44,31 +53,34 @@ class OnlineEvaluator:
         window = max(1, self.horizon_sec // max(cycle_sec, 1))
         for name in alerts:
             self._predictor(name)
-        # 1. crossings resolve open alerts (or are misses)
+        # 1. crossings confirm the claims made on the entity within the window
         for eid, over in over_line.items():
             if over and not self._was_over.get(eid, False):
                 for name in alerts:
                     stats = self._stats[name]
-                    first = self._open[name].pop(eid, None)
-                    if first is not None:
-                        stats["confirmed"] += 1
+                    claims = [c for c in self._pending[name].pop(eid, []) if cycle - c <= window]
+                    if claims:
+                        stats["confirmed"] += len(claims)
                         stats["caught"] += 1
-                        stats["lead_times_sec"].append((cycle - first) * cycle_sec)
+                        stats["lead_times_sec"].append((cycle - claims[0]) * cycle_sec)
                         del stats["lead_times_sec"][:-200]
                     else:
                         stats["missed"] += 1
-        # 2. alerts whose horizon passed without a crossing
-        for name, open_ in self._open.items():
-            for eid, first in list(open_.items()):
-                if cycle - first >= window:
-                    self._stats[name]["false_alarms"] += 1
-                    del open_[eid]
-        # 3. new alerts (an entity already over its line is not a prediction)
+        # 2. claims whose window passed without a crossing
+        for name, pending in self._pending.items():
+            for eid, claims in list(pending.items()):
+                expired = sum(1 for c in claims if cycle - c >= window)
+                if expired:
+                    self._stats[name]["false_alarms"] += expired
+                    del claims[:expired]
+                if not claims:
+                    del pending[eid]
+        # 3. this cycle's claims (an entity already over its line is not a prediction)
         for name, flagged in alerts.items():
-            open_ = self._open[name]
+            pending = self._pending[name]
             for eid in flagged:
-                if eid in over_line and not over_line[eid] and eid not in open_:
-                    open_[eid] = cycle
+                if eid in over_line and not over_line[eid]:
+                    pending.setdefault(eid, []).append(cycle)
         self._was_over = dict(over_line)
 
     def summary(self, name: str) -> dict[str, Any]:
@@ -84,5 +96,5 @@ class OnlineEvaluator:
             "recall_n": events,
             "lead_time_sec": round(sum(leads) / len(leads), 0) if leads else 0.0,
             "lead_time_n": len(leads),
-            "open_alerts": len(self._open.get(name, {})),
+            "open_alerts": len(self._pending.get(name, {})),
         }

@@ -11,6 +11,7 @@ analysis, simulated interventions, what-if analysis and attendee guidance.
 # Terminal 1
 cd Backend
 pip install -r requirements.txt
+pip install -r requirements-ml.txt   # optional: the trained models (torch, PyG, LightGBM; CPU)
 python run.py                    # http://localhost:8000, API docs at /docs
 
 # Terminal 2
@@ -158,8 +159,8 @@ schedule and the hotel catalogue persist.
 |---|---|
 | City model (`SyntheticGenerator`) | Deterministic flow model: schedule-driven demand, hotel bookings, route choice, queues, spill, egress; seeded |
 | Digital twin | Real EnKF with localised analysis and a process model |
-| Forecaster | Twin-model forecast: the digital twin's plan projection corrected by the live gap (trend reference without it). Not a learned model. `baseline_comparison` scores the model that produced the forecast: its 900 s point vs what was observed 900 s later, against persistence |
-| Cascade | Deterministic flow cascade (`services/cascade_flow.py`) produces every published cascade (`source: "deterministic"`). The HX-Cascade R-GCN (`ML/cascade.py`, bundle `ML/artifacts/hx_cascade_v2/`, retrained on 80 flow-simulator scenarios with `python -m scripts.train_cascade`) runs in **shadow mode** (`cascade.gnn_mode: shadow`): it predicts every cycle but nothing published or decided uses it. Why: its evaluation (`ML/artifacts/hx_cascade_v2/eval.json`) uses 20 held-out scenarios on the *same* map, not held-out topologies, and compares against a forecast-threshold rule, not the deterministic propagator (03 §4.3). It beats that rule on average precision at every horizon, but its precision at the deployed 0.6 threshold is lower than the rule's and below 0.75 at 900 s and 1800 s. `gnn_mode: annotate` attaches its probabilities to cascade steps as `confidence`; `/health` reports the mode and `model_version`. Its live precision, recall and lead time are on `/metrics` as `gnn_*`, next to the published cascade's `cascade_*`, and every prediction is stored in `ml_node_prediction` |
+| Forecaster | Twin-model forecast: the digital twin's plan projection, read at its age, corrected by the live gap; time-to-critical found on the dense projected path. With LightGBM installed, the gated correction bundle `ML/artifacts/forecast_correction_v2/` corrects it (`source: "local_model"`; 03 §2.3); otherwise `source: "twin_model"`. `baseline_comparison` scores the model that produced the forecast: its 900 s point vs what was observed 900 s later, against persistence |
+| Cascade | Deterministic flow cascade (`services/cascade_flow.py`, the one propagator) produces every published cascade (`source: "deterministic"`). The HX-Cascade v3 GNN (`ML/cascade.py`, bundle `ML/artifacts/hx_cascade_v3/`, trained on random maps, evaluated on held-out maps against that propagator) runs in `gnn_mode: annotate`: its calibrated per-entity failure probabilities are attached to cascade steps as `confidence` (evidence: `ML/evaluation/results/`, gate: `tests/test_cascade_swap_gate.py`). Its out-of-distribution guard skips the model on a graph outside its training data and says why in `/health.modules.cascade.fallback_reason`. Without torch it is off and cascades are unchanged apart from `confidence = null`. Live precision, recall and lead time are on `/metrics` as `gnn_*`, next to the published cascade's `cascade_*`; every prediction is stored in `ml_node_prediction` |
 | Risk, anomaly | Arithmetic by design (explainable) |
 | Optimiser | Rule templates with executable actions; relief measured by simulation |
 | Equilibrium certificate | Fixed-point best-response solver |

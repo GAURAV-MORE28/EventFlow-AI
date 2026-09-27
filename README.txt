@@ -73,13 +73,18 @@ EventFlow-AI/
     vite.config.js
 
   ML/
-    cascade.py            HX-Cascade GNN (2-layer R-GCN) loader + inference
+    cascade.py            HX-Cascade GNN loader + per-entity risk (node_risk),
+                          with an out-of-distribution guard; builds no cascades
+    forecast_correction.py  LightGBM quantile correction of the twin forecast
     manifest.py           Model bundle manifest (sha256 binding) helpers
-    artifacts/hx_cascade_v2/  Bundle in use (config cascade.gnn_artifact):
-                          model.pt, feature_norm.json, eval.json (held-out
-                          scenarios on the training map), manifest.json
-    hx_cascade.pt, feature_norm.json, *.parquet, topology_meta_FINAL.pkl,
-    swap_decision_v1.json  v1 artifacts (32-entity map); not used at runtime
+    models/, features/, training/, evaluation/, data/, kaggle/
+                          v3 network, feature builder, training, evaluation,
+                          map randomiser, Kaggle notebooks
+    artifacts/hx_cascade_v3/  Cascade bundle in use (config cascade.gnn_artifact),
+                          evaluated on held-out random maps
+    artifacts/hx_cascade_v2/  Previous cascade bundle (comparison only)
+    artifacts/forecast_correction_v2/  Forecast-correction bundle in use
+    evaluation/results/   Swap-gate and forecast-gate evidence
 
   contracts/
     schemas/              JSON Schemas auto-exported from backend Pydantic models
@@ -185,7 +190,8 @@ Backend
   - httpx 0.28 (async HTTP for local LLM, optional)
   - websockets 14 (WS broadcast)
   - python-dotenv 1.0 (.env file loader)
-  - PyTorch 2.10 + torch_geometric 2.8 (HX-Cascade GNN inference, CPU)
+  - Optional (requirements-ml.txt): PyTorch 2.10 + torch_geometric 2.8
+    (HX-Cascade GNN inference, CPU), LightGBM 4.6 (forecast correction)
   - pytest 8.3 (31 backend tests)
 
 Database
@@ -234,7 +240,10 @@ Prerequisites: Node.js 18+, Python 3.11+
 
 Backend setup:
   cd Backend
-  pip install -r requirements.txt
+  pip install -r requirements.txt       # runs the whole product
+  pip install -r requirements-ml.txt    # optional: the trained models
+  (Linux: install the CPU torch wheel first, or pip pulls the CUDA build:
+   pip install torch==2.10.0 --index-url https://download.pytorch.org/whl/cpu)
 
 Frontend setup:
   cd Frontend
@@ -321,8 +330,9 @@ TROUBLESHOOTING
 "Log warning: ml.cascade found at ML/cascade.py but failed to import"
   PyTorch 2.10 and torch_geometric 2.8 are needed for the HX-Cascade GNN.
   Without them the backend still starts and runs; /health then reports
-  cascade gnn_mode "off". Install them:
-    pip install torch==2.10.0 torch_geometric==2.8.0.post1
+  cascade gnn_mode "off". Install them (with LightGBM for the forecast
+  correction):
+    pip install -r requirements-ml.txt
   These are CPU-only; no GPU or CUDA is required.
 
 "First 30-45 seconds show no interventions (live mode)"

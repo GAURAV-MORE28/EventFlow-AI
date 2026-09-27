@@ -82,7 +82,8 @@ def _confidence_at(confidence: dict[str, Any], entity_id: str, eta_sec: int) -> 
 
 def build_cascade(root: str, node_state: dict[str, dict], out_edges: dict[str, list[dict]],
                   lines: Callable[[str], tuple[float, float]], closed: set[str], max_depth: int,
-                  max_steps: int, generated_at: str, confidence: dict[str, Any] | None = None) -> dict:
+                  max_steps: int, generated_at: str, confidence: dict[str, Any] | None = None,
+                  model_version: str | None = None) -> dict:
     confidence = confidence or {}
     rs = node_state[root]
     r_warn, r_crit = lines(rs.get("entity_type", ""))
@@ -164,12 +165,15 @@ def build_cascade(root: str, node_state: dict[str, dict], out_edges: dict[str, l
         "total_downstream_failures": len(steps) - 1,
         "max_depth": max((s["depth"] for s in steps), default=0),
         "steps": steps, "ml_enhanced": bool(confidence),
+        # Who produced `step.confidence` (`source` stays the producer of the structure, 00 §2.5).
+        "confidence_source": "gnn" if confidence else None,
+        "confidence_model_version": model_version if confidence else None,
     }
 
 
 def build_cascades(node_state: dict[str, dict], edges: list[dict], lines: Callable[[str], tuple[float, float]],
                    cfg: dict[str, Any], generated_at: str, closed: set[str] | None = None,
-                   confidence: dict[str, Any] | None = None) -> list[dict]:
+                   confidence: dict[str, Any] | None = None, model_version: str | None = None) -> list[dict]:
     closed = set(closed or set())
     out_edges: dict[str, list[dict]] = {}
     for e in edges:
@@ -177,18 +181,19 @@ def build_cascades(node_state: dict[str, dict], edges: list[dict], lines: Callab
     roots = select_roots(node_state, lines, set(cfg.get("exclude_root_types", ["hotel"])), closed,
                          int(cfg.get("max_roots", 5)))
     return [build_cascade(r, node_state, out_edges, lines, closed, int(cfg.get("max_depth", 4)),
-                          int(cfg.get("max_steps", 8)), generated_at, confidence) for r in roots]
+                          int(cfg.get("max_steps", 8)), generated_at, confidence, model_version) for r in roots]
 
 
 def cascade_for(root: str, node_state: dict[str, dict], edges: list[dict],
                 lines: Callable[[str], tuple[float, float]], cfg: dict[str, Any], generated_at: str,
-                closed: set[str] | None = None) -> dict:
+                closed: set[str] | None = None, confidence: dict[str, Any] | None = None,
+                model_version: str | None = None) -> dict:
     """The cascade from one chosen entity (on demand, or a what-if's worst point)."""
     out_edges: dict[str, list[dict]] = {}
     for e in edges:
         out_edges.setdefault(e["src_entity_id"], []).append(e)
     return build_cascade(root, node_state, out_edges, lines, set(closed or set()), int(cfg.get("max_depth", 4)),
-                         int(cfg.get("max_steps", 8)), generated_at)
+                         int(cfg.get("max_steps", 8)), generated_at, confidence, model_version)
 
 
 def ml_confidence(ml_cascades: list[dict] | None) -> dict[str, float]:

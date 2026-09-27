@@ -1,0 +1,867 @@
+{
+ "model_version": "hx_cascade_v3@1ff98e87",
+ "dataset": {
+  "path": "data\\cascade_v3_small",
+  "source_commit": "d52c93e85c71230e83d0ac80b8e016e1593b8fdb",
+  "seed": 7
+ },
+ "serving_path": {
+  "what": "every test-split snapshot through ML/cascade.py node_risk(), scored with ML/evaluation/cascade_eval.py and compared with eval.json test point metrics",
+  "runs": 40,
+  "maps": 10,
+  "tolerance": {
+   "rate": 0.01,
+   "sec": 5.0
+  },
+  "seconds": 11.1,
+  "passes": true,
+  "predictors": {
+   "deterministic_cascade": {
+    "match": true,
+    "metrics": [
+     {
+      "metric": "900.precision",
+      "reproduced": 0.2506,
+      "eval_json": 0.2506,
+      "tolerance": 0.01,
+      "match": true
+     },
+     {
+      "metric": "900.recall",
+      "reproduced": 0.5588,
+      "eval_json": 0.5588,
+      "tolerance": 0.01,
+      "match": true
+     },
+     {
+      "metric": "900.average_precision",
+      "reproduced": 0.1522,
+      "eval_json": 0.1522,
+      "tolerance": 0.01,
+      "match": true
+     },
+     {
+      "metric": "1800.precision",
+      "reproduced": 0.3711,
+      "eval_json": 0.3711,
+      "tolerance": 0.01,
+      "match": true
+     },
+     {
+      "metric": "1800.recall",
+      "reproduced": 0.5303,
+      "eval_json": 0.5303,
+      "tolerance": 0.01,
+      "match": true
+     },
+     {
+      "metric": "1800.average_precision",
+      "reproduced": 0.2338,
+      "eval_json": 0.2338,
+      "tolerance": 0.01,
+      "match": true
+     },
+     {
+      "metric": "3600.precision",
+      "reproduced": 0.4345,
+      "eval_json": 0.4345,
+      "tolerance": 0.01,
+      "match": true
+     },
+     {
+      "metric": "3600.recall",
+      "reproduced": 0.3311,
+      "eval_json": 0.3311,
+      "tolerance": 0.01,
+      "match": true
+     },
+     {
+      "metric": "3600.average_precision",
+      "reproduced": 0.2483,
+      "eval_json": 0.2483,
+      "tolerance": 0.01,
+      "match": true
+     },
+     {
+      "metric": "ttc_mae_sec",
+      "reproduced": 452.5351,
+      "eval_json": 452.5351,
+      "tolerance": 5.0,
+      "match": true
+     },
+     {
+      "metric": "event_recall",
+      "reproduced": 0.6616,
+      "eval_json": 0.6616,
+      "tolerance": 0.01,
+      "match": true
+     },
+     {
+      "metric": "lead_time_sec",
+      "reproduced": 1709.8859,
+      "eval_json": 1709.8859,
+      "tolerance": 5.0,
+      "match": true
+     }
+    ]
+   },
+   "forecast_rule": {
+    "match": true,
+    "metrics": [
+     {
+      "metric": "900.precision",
+      "reproduced": 0.9305,
+      "eval_json": 0.9305,
+      "tolerance": 0.01,
+      "match": true
+     },
+     {
+      "metric": "900.recall",
+      "reproduced": 0.6954,
+      "eval_json": 0.6954,
+      "tolerance": 0.01,
+      "match": true
+     },
+     {
+      "metric": "900.average_precision",
+      "reproduced": 0.8169,
+      "eval_json": 0.8169,
+      "tolerance": 0.01,
+      "match": true
+     },
+     {
+      "metric": "1800.precision",
+      "reproduced": 0.9209,
+      "eval_json": 0.9209,
+      "tolerance": 0.01,
+      "match": true
+     },
+     {
+      "metric": "1800.recall",
+      "reproduced": 0.723,
+      "eval_json": 0.723,
+      "tolerance": 0.01,
+      "match": true
+     },
+     {
+      "metric": "1800.average_precision",
+      "reproduced": 0.8336,
+      "eval_json": 0.8336,
+      "tolerance": 0.01,
+      "match": true
+     },
+     {
+      "metric": "3600.precision",
+      "reproduced": 0.932,
+      "eval_json": 0.932,
+      "tolerance": 0.01,
+      "match": true
+     },
+     {
+      "metric": "3600.recall",
+      "reproduced": 0.6998,
+      "eval_json": 0.6998,
+      "tolerance": 0.01,
+      "match": true
+     },
+     {
+      "metric": "3600.average_precision",
+      "reproduced": 0.8467,
+      "eval_json": 0.8467,
+      "tolerance": 0.01,
+      "match": true
+     },
+     {
+      "metric": "ttc_mae_sec",
+      "reproduced": 210.2387,
+      "eval_json": 210.2387,
+      "tolerance": 5.0,
+      "match": true
+     },
+     {
+      "metric": "event_recall",
+      "reproduced": 0.8553,
+      "eval_json": 0.8553,
+      "tolerance": 0.01,
+      "match": true
+     },
+     {
+      "metric": "lead_time_sec",
+      "reproduced": 2917.5441,
+      "eval_json": 2917.5441,
+      "tolerance": 5.0,
+      "match": true
+     }
+    ]
+   },
+   "hx_cascade_v2": {
+    "match": true,
+    "metrics": [
+     {
+      "metric": "900.precision",
+      "reproduced": 0.3143,
+      "eval_json": 0.3143,
+      "tolerance": 0.01,
+      "match": true
+     },
+     {
+      "metric": "900.recall",
+      "reproduced": 0.8018,
+      "eval_json": 0.8018,
+      "tolerance": 0.01,
+      "match": true
+     },
+     {
+      "metric": "900.average_precision",
+      "reproduced": 0.6702,
+      "eval_json": 0.6702,
+      "tolerance": 0.01,
+      "match": true
+     },
+     {
+      "metric": "900.ece",
+      "reproduced": 0.092,
+      "eval_json": 0.092,
+      "tolerance": 0.01,
+      "match": true
+     },
+     {
+      "metric": "1800.precision",
+      "reproduced": 0.4468,
+      "eval_json": 0.4468,
+      "tolerance": 0.01,
+      "match": true
+     },
+     {
+      "metric": "1800.recall",
+      "reproduced": 0.8533,
+      "eval_json": 0.8533,
+      "tolerance": 0.01,
+      "match": true
+     },
+     {
+      "metric": "1800.average_precision",
+      "reproduced": 0.7595,
+      "eval_json": 0.7595,
+      "tolerance": 0.01,
+      "match": true
+     },
+     {
+      "metric": "1800.ece",
+      "reproduced": 0.117,
+      "eval_json": 0.117,
+      "tolerance": 0.01,
+      "match": true
+     },
+     {
+      "metric": "3600.precision",
+      "reproduced": 0.6211,
+      "eval_json": 0.6211,
+      "tolerance": 0.01,
+      "match": true
+     },
+     {
+      "metric": "3600.recall",
+      "reproduced": 0.8354,
+      "eval_json": 0.8354,
+      "tolerance": 0.01,
+      "match": true
+     },
+     {
+      "metric": "3600.average_precision",
+      "reproduced": 0.8156,
+      "eval_json": 0.8156,
+      "tolerance": 0.01,
+      "match": true
+     },
+     {
+      "metric": "3600.ece",
+      "reproduced": 0.1224,
+      "eval_json": 0.1224,
+      "tolerance": 0.01,
+      "match": true
+     },
+     {
+      "metric": "ttc_mae_sec",
+      "reproduced": 586.0703,
+      "eval_json": 586.0703,
+      "tolerance": 5.0,
+      "match": true
+     },
+     {
+      "metric": "event_recall",
+      "reproduced": 0.922,
+      "eval_json": 0.922,
+      "tolerance": 0.01,
+      "match": true
+     },
+     {
+      "metric": "lead_time_sec",
+      "reproduced": 2960.2183,
+      "eval_json": 2960.2183,
+      "tolerance": 5.0,
+      "match": true
+     }
+    ]
+   },
+   "hx_cascade_v3": {
+    "match": true,
+    "metrics": [
+     {
+      "metric": "900.precision",
+      "reproduced": 0.7968,
+      "eval_json": 0.7968,
+      "tolerance": 0.01,
+      "match": true
+     },
+     {
+      "metric": "900.recall",
+      "reproduced": 0.7809,
+      "eval_json": 0.7809,
+      "tolerance": 0.01,
+      "match": true
+     },
+     {
+      "metric": "900.average_precision",
+      "reproduced": 0.8395,
+      "eval_json": 0.8395,
+      "tolerance": 0.01,
+      "match": true
+     },
+     {
+      "metric": "900.ece",
+      "reproduced": 0.0046,
+      "eval_json": 0.0046,
+      "tolerance": 0.01,
+      "match": true
+     },
+     {
+      "metric": "1800.precision",
+      "reproduced": 0.7962,
+      "eval_json": 0.7962,
+      "tolerance": 0.01,
+      "match": true
+     },
+     {
+      "metric": "1800.recall",
+      "reproduced": 0.822,
+      "eval_json": 0.822,
+      "tolerance": 0.01,
+      "match": true
+     },
+     {
+      "metric": "1800.average_precision",
+      "reproduced": 0.8625,
+      "eval_json": 0.8625,
+      "tolerance": 0.01,
+      "match": true
+     },
+     {
+      "metric": "1800.ece",
+      "reproduced": 0.0056,
+      "eval_json": 0.0056,
+      "tolerance": 0.01,
+      "match": true
+     },
+     {
+      "metric": "3600.precision",
+      "reproduced": 0.8931,
+      "eval_json": 0.8931,
+      "tolerance": 0.01,
+      "match": true
+     },
+     {
+      "metric": "3600.recall",
+      "reproduced": 0.8,
+      "eval_json": 0.8,
+      "tolerance": 0.01,
+      "match": true
+     },
+     {
+      "metric": "3600.average_precision",
+      "reproduced": 0.8818,
+      "eval_json": 0.8818,
+      "tolerance": 0.01,
+      "match": true
+     },
+     {
+      "metric": "3600.ece",
+      "reproduced": 0.01,
+      "eval_json": 0.01,
+      "tolerance": 0.01,
+      "match": true
+     },
+     {
+      "metric": "ttc_mae_sec",
+      "reproduced": 138.9765,
+      "eval_json": 138.9759,
+      "tolerance": 5.0,
+      "match": true
+     },
+     {
+      "metric": "event_recall",
+      "reproduced": 0.8918,
+      "eval_json": 0.8918,
+      "tolerance": 0.01,
+      "match": true
+     },
+     {
+      "metric": "lead_time_sec",
+      "reproduced": 2976.3047,
+      "eval_json": 2976.3047,
+      "tolerance": 5.0,
+      "match": true
+     }
+    ]
+   }
+  }
+ },
+ "resimulation": {
+  "what": "sample test maps simulated again from their recorded seeds: ground truth and the deterministic cascade must be identical, and each predictor's metrics on the regenerated runs must match its metrics on the stored ones",
+  "note": "sensor readings / twin estimates differ slightly from the stored runs: the dataset was built before the twin stopped depending on PYTHONHASHSEED (reading order drew different noise per process); runs are now bit-identical across processes",
+  "maps": [
+   "test_0000",
+   "test_0001",
+   "test_0002"
+  ],
+  "runs": [
+   {
+    "run": "test_0000__s0.npz",
+    "truth_equal": true,
+    "input_max_abs_diff": {
+     "util": 0.0037,
+     "forecasts": 1.2034,
+     "fc_ttc": 1439.0,
+     "flow": 468.20001,
+     "det_eta": 260.0,
+     "det_score": 0.99
+    }
+   },
+   {
+    "run": "test_0000__s1.npz",
+    "truth_equal": true,
+    "input_max_abs_diff": {
+     "util": 0.0104,
+     "forecasts": 1.2514,
+     "fc_ttc": 1094.0,
+     "flow": 823.80029,
+     "det_eta": 483.0,
+     "det_score": 0.99
+    }
+   },
+   {
+    "run": "test_0000__s2.npz",
+    "truth_equal": true,
+    "input_max_abs_diff": {
+     "util": 0.0093,
+     "forecasts": 0.5284,
+     "fc_ttc": 1396.0,
+     "flow": 334.8999,
+     "det_eta": 537.0,
+     "det_score": 0.99
+    }
+   },
+   {
+    "run": "test_0000__s3.npz",
+    "truth_equal": true,
+    "input_max_abs_diff": {
+     "util": 0.0054,
+     "forecasts": 0.4891,
+     "fc_ttc": 1582.0,
+     "flow": 261.3999,
+     "det_eta": 439.0,
+     "det_score": 0.99
+    }
+   },
+   {
+    "run": "test_0001__s0.npz",
+    "truth_equal": true,
+    "input_max_abs_diff": {
+     "util": 0.0079,
+     "forecasts": 0.813,
+     "fc_ttc": 1914.0,
+     "flow": 138.8,
+     "det_eta": 342.0,
+     "det_score": 0.99
+    }
+   },
+   {
+    "run": "test_0001__s1.npz",
+    "truth_equal": true,
+    "input_max_abs_diff": {
+     "util": 0.008,
+     "forecasts": 0.8962,
+     "fc_ttc": 1395.0,
+     "flow": 94.2,
+     "det_eta": 285.0,
+     "det_score": 0.99
+    }
+   },
+   {
+    "run": "test_0001__s2.npz",
+    "truth_equal": true,
+    "input_max_abs_diff": {
+     "util": 0.0404,
+     "forecasts": 0.9821,
+     "fc_ttc": 2520.0,
+     "flow": 121.8,
+     "det_eta": 479.0,
+     "det_score": 0.99
+    }
+   },
+   {
+    "run": "test_0001__s3.npz",
+    "truth_equal": true,
+    "input_max_abs_diff": {
+     "util": 0.0037,
+     "forecasts": 0.9122,
+     "fc_ttc": 1400.0,
+     "flow": 111.5,
+     "det_eta": 934.0,
+     "det_score": 0.99
+    }
+   },
+   {
+    "run": "test_0002__s0.npz",
+    "truth_equal": true,
+    "input_max_abs_diff": {
+     "util": 0.0054,
+     "forecasts": 0.2388,
+     "fc_ttc": 942.0,
+     "flow": 620.40002,
+     "det_eta": 638.0,
+     "det_score": 0.99
+    }
+   },
+   {
+    "run": "test_0002__s1.npz",
+    "truth_equal": true,
+    "input_max_abs_diff": {
+     "util": 0.0127,
+     "forecasts": 0.5474,
+     "fc_ttc": 3153.0,
+     "flow": 640.6001,
+     "det_eta": 360.0,
+     "det_score": 0.99
+    }
+   },
+   {
+    "run": "test_0002__s2.npz",
+    "truth_equal": true,
+    "input_max_abs_diff": {
+     "util": 0.004,
+     "forecasts": 0.2482,
+     "fc_ttc": 926.0,
+     "flow": 321.59998,
+     "det_eta": 681.0,
+     "det_score": 0.99
+    }
+   },
+   {
+    "run": "test_0002__s3.npz",
+    "truth_equal": true,
+    "input_max_abs_diff": {
+     "util": 0.0073,
+     "forecasts": 0.2552,
+     "fc_ttc": 1222.0,
+     "flow": 308.20001,
+     "det_eta": 526.0,
+     "det_score": 0.99
+    }
+   }
+  ],
+  "metrics": {
+   "hx_cascade_v3": {
+    "match": false,
+    "metrics": [
+     {
+      "metric": "900.precision",
+      "reproduced": 0.8104,
+      "eval_json": 0.8242,
+      "tolerance": 0.01,
+      "match": false
+     },
+     {
+      "metric": "900.recall",
+      "reproduced": 0.8647,
+      "eval_json": 0.8566,
+      "tolerance": 0.01,
+      "match": true
+     },
+     {
+      "metric": "900.average_precision",
+      "reproduced": 0.9071,
+      "eval_json": 0.9049,
+      "tolerance": 0.01,
+      "match": true
+     },
+     {
+      "metric": "900.ece",
+      "reproduced": 0.0085,
+      "eval_json": 0.007,
+      "tolerance": 0.01,
+      "match": true
+     },
+     {
+      "metric": "1800.precision",
+      "reproduced": 0.8241,
+      "eval_json": 0.8388,
+      "tolerance": 0.01,
+      "match": false
+     },
+     {
+      "metric": "1800.recall",
+      "reproduced": 0.9036,
+      "eval_json": 0.9036,
+      "tolerance": 0.01,
+      "match": true
+     },
+     {
+      "metric": "1800.average_precision",
+      "reproduced": 0.9311,
+      "eval_json": 0.9292,
+      "tolerance": 0.01,
+      "match": true
+     },
+     {
+      "metric": "1800.ece",
+      "reproduced": 0.0094,
+      "eval_json": 0.0076,
+      "tolerance": 0.01,
+      "match": true
+     },
+     {
+      "metric": "3600.precision",
+      "reproduced": 0.9314,
+      "eval_json": 0.934,
+      "tolerance": 0.01,
+      "match": true
+     },
+     {
+      "metric": "3600.recall",
+      "reproduced": 0.8937,
+      "eval_json": 0.8891,
+      "tolerance": 0.01,
+      "match": true
+     },
+     {
+      "metric": "3600.average_precision",
+      "reproduced": 0.9505,
+      "eval_json": 0.949,
+      "tolerance": 0.01,
+      "match": true
+     },
+     {
+      "metric": "3600.ece",
+      "reproduced": 0.0095,
+      "eval_json": 0.0082,
+      "tolerance": 0.01,
+      "match": true
+     },
+     {
+      "metric": "ttc_mae_sec",
+      "reproduced": 133.1624,
+      "eval_json": 121.291,
+      "tolerance": 5.0,
+      "match": false
+     },
+     {
+      "metric": "event_recall",
+      "reproduced": 0.9735,
+      "eval_json": 0.9618,
+      "tolerance": 0.01,
+      "match": false
+     },
+     {
+      "metric": "lead_time_sec",
+      "reproduced": 3016.6767,
+      "eval_json": 3037.9817,
+      "tolerance": 5.0,
+      "match": false
+     }
+    ]
+   },
+   "deterministic_cascade": {
+    "match": false,
+    "metrics": [
+     {
+      "metric": "900.precision",
+      "reproduced": 0.2266,
+      "eval_json": 0.2284,
+      "tolerance": 0.01,
+      "match": true
+     },
+     {
+      "metric": "900.recall",
+      "reproduced": 0.4867,
+      "eval_json": 0.4867,
+      "tolerance": 0.01,
+      "match": true
+     },
+     {
+      "metric": "900.average_precision",
+      "reproduced": 0.1248,
+      "eval_json": 0.1265,
+      "tolerance": 0.01,
+      "match": true
+     },
+     {
+      "metric": "1800.precision",
+      "reproduced": 0.3449,
+      "eval_json": 0.3476,
+      "tolerance": 0.01,
+      "match": true
+     },
+     {
+      "metric": "1800.recall",
+      "reproduced": 0.4671,
+      "eval_json": 0.4702,
+      "tolerance": 0.01,
+      "match": true
+     },
+     {
+      "metric": "1800.average_precision",
+      "reproduced": 0.2052,
+      "eval_json": 0.2075,
+      "tolerance": 0.01,
+      "match": true
+     },
+     {
+      "metric": "3600.precision",
+      "reproduced": 0.3919,
+      "eval_json": 0.3883,
+      "tolerance": 0.01,
+      "match": true
+     },
+     {
+      "metric": "3600.recall",
+      "reproduced": 0.2923,
+      "eval_json": 0.2883,
+      "tolerance": 0.01,
+      "match": true
+     },
+     {
+      "metric": "3600.average_precision",
+      "reproduced": 0.2408,
+      "eval_json": 0.2393,
+      "tolerance": 0.01,
+      "match": true
+     },
+     {
+      "metric": "ttc_mae_sec",
+      "reproduced": 344.5417,
+      "eval_json": 351.7854,
+      "tolerance": 5.0,
+      "match": false
+     },
+     {
+      "metric": "event_recall",
+      "reproduced": 0.6353,
+      "eval_json": 0.6324,
+      "tolerance": 0.01,
+      "match": true
+     },
+     {
+      "metric": "lead_time_sec",
+      "reproduced": 1663.0556,
+      "eval_json": 1637.4419,
+      "tolerance": 5.0,
+      "match": false
+     }
+    ]
+   },
+   "forecast_rule": {
+    "match": false,
+    "metrics": [
+     {
+      "metric": "900.precision",
+      "reproduced": 0.9804,
+      "eval_json": 0.9507,
+      "tolerance": 0.01,
+      "match": false
+     },
+     {
+      "metric": "900.recall",
+      "reproduced": 0.8081,
+      "eval_json": 0.7572,
+      "tolerance": 0.01,
+      "match": false
+     },
+     {
+      "metric": "900.average_precision",
+      "reproduced": 0.8991,
+      "eval_json": 0.891,
+      "tolerance": 0.01,
+      "match": true
+     },
+     {
+      "metric": "1800.precision",
+      "reproduced": 0.9812,
+      "eval_json": 0.9586,
+      "tolerance": 0.01,
+      "match": false
+     },
+     {
+      "metric": "1800.recall",
+      "reproduced": 0.8511,
+      "eval_json": 0.8089,
+      "tolerance": 0.01,
+      "match": false
+     },
+     {
+      "metric": "1800.average_precision",
+      "reproduced": 0.9218,
+      "eval_json": 0.9128,
+      "tolerance": 0.01,
+      "match": true
+     },
+     {
+      "metric": "3600.precision",
+      "reproduced": 0.9841,
+      "eval_json": 0.971,
+      "tolerance": 0.01,
+      "match": false
+     },
+     {
+      "metric": "3600.recall",
+      "reproduced": 0.8782,
+      "eval_json": 0.815,
+      "tolerance": 0.01,
+      "match": false
+     },
+     {
+      "metric": "3600.average_precision",
+      "reproduced": 0.9412,
+      "eval_json": 0.9347,
+      "tolerance": 0.01,
+      "match": true
+     },
+     {
+      "metric": "ttc_mae_sec",
+      "reproduced": 74.2249,
+      "eval_json": 205.456,
+      "tolerance": 5.0,
+      "match": false
+     },
+     {
+      "metric": "event_recall",
+      "reproduced": 0.9471,
+      "eval_json": 0.9324,
+      "tolerance": 0.01,
+      "match": false
+     },
+     {
+      "metric": "lead_time_sec",
+      "reproduced": 3024.0373,
+      "eval_json": 2980.8833,
+      "tolerance": 5.0,
+      "match": false
+     }
+    ]
+   }
+  },
+  "seconds": 446.1,
+  "passes": false
+ },
+ "passes": false
+}

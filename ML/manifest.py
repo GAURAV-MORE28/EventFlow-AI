@@ -50,17 +50,18 @@ def sha256_file(path: Path) -> str:
     return h.hexdigest()
 
 
-def load_manifest(bundle_dir: Path) -> dict[str, Any]:
-    """Read and verify a bundle. Raises ManifestError on any mismatch."""
+def load_manifest(bundle_dir: Path, required: tuple[str, ...] = ("model.pt", "feature_norm.json")) -> dict[str, Any]:
+    """Read and verify a bundle. Raises ManifestError on any mismatch. `required`:
+    files the manifest must list (the default is the cascade bundle's pair)."""
     bundle_dir = Path(bundle_dir)
     path = bundle_dir / MANIFEST
     if not path.exists():
         raise ManifestError(f"no {MANIFEST} in {bundle_dir}")
     manifest = json.loads(path.read_text(encoding="utf-8"))
     files = manifest.get("files") or {}
-    for required in ("model.pt", "feature_norm.json"):
-        if required not in files:
-            raise ManifestError(f"{MANIFEST} does not list {required}")
+    for name in required:
+        if name not in files:
+            raise ManifestError(f"{MANIFEST} does not list {name}")
     for name, meta in files.items():
         f = bundle_dir / name
         if not f.exists():

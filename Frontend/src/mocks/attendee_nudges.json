@@ -1,9 +1,9 @@
 {
   "nudges": [
     {
-      "nudge_id": "ndg_27df9",
+      "nudge_id": "ndg_e45df",
       "attendee_id": "att_demo_1",
-      "intervention_id": "int_deebf",
+      "intervention_id": "int_3d5db",
       "headline": "Use Metro D Station instead of Metro C Station",
       "body": "Metro C Station is congested. Metro D Station is quieter. Rs 50 credit.",
       "tradeoff": {

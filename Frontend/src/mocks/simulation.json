@@ -76,11 +76,13 @@
         "utilisation_after": 0.9024,
         "flow_change_people": 56.0,
         "reason": "Gate 1 is at or forecast over its critical line (90% of capacity); 56 people above the line must go elsewhere.",
-        "confidence": null,
+        "confidence": 0.0322,
         "step_index": 0
       }
     ],
-    "ml_enhanced": false
+    "ml_enhanced": true,
+    "confidence_source": "gnn",
+    "confidence_model_version": "hx_cascade_v3@1ff98e87"
   },
   "candidate_interventions": [
     {

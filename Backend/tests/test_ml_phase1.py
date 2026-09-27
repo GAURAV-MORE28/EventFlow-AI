@@ -103,7 +103,10 @@ def test_node_risk_flags_a_topology_it_was_not_trained_on():
     state = _state(topo)
     first = next(iter(state))
     state[first]["nominal_capacity"] = float(state[first]["nominal_capacity"]) * 2
-    assert cp.node_risk(state, topo["edges"])["topology_match"] is False
+    risk = cp.node_risk(state, topo["edges"])
+    # Phase 6: the OOD guard refuses the map instead of scoring it
+    assert risk["topology_match"] is False and risk["source"] == "deterministic" and risk["nodes"] == {}
+    assert risk["fallback_reason"].startswith("topology_hash_mismatch")
 
 
 @needs_bundle
@@ -135,6 +138,30 @@ def test_online_evaluator_scores_alerts_and_crossings():
     assert (s["recall"], s["recall_n"]) == (0.5, 2)
     assert (s["lead_time_sec"], s["lead_time_n"]) == (90, 1)
     assert s["open_alerts"] == 0
+
+
+def test_online_evaluator_judges_each_claim_of_an_early_alert():
+    """An alert raised 2 cycles more than one horizon before its crossing and
+    held until then: 2 wrong claims, 10 right ones, lead capped at the horizon;
+    not one false alarm plus a short-lead catch."""
+    ev = OnlineEvaluator(horizon_sec=300)           # 10 cycles
+    for t in range(12):                             # flagged at cycles 0..11
+        ev.update(t, 30, {"a": False}, {"p": {"a"}})
+    ev.update(12, 30, {"a": True}, {"p": set()})    # crosses at 12
+    s = ev.summary("p")
+    assert (s["precision"], s["precision_n"]) == (round(10 / 12, 3), 12)
+    assert (s["recall"], s["lead_time_sec"]) == (1.0, 300)
+
+
+def test_online_evaluator_does_not_reward_flagging_everything():
+    ev = OnlineEvaluator(horizon_sec=300)
+    ids = [f"e{i}" for i in range(10)]
+    for t in range(40):
+        over = {e: (e == "e0" and t == 30) for e in ids}   # one crossing in 40 cycles
+        ev.update(t, 30, over, {"all": set(ids)})
+    s = ev.summary("all")
+    assert s["recall"] == 1.0
+    assert s["precision"] < 0.1
 
 
 def test_inactive_predictor_is_not_charged_with_misses():

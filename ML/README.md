@@ -1,8 +1,14 @@
 # ML
 
 This folder is where the **trained** models go — the ones you're building on
-Kaggle (HX-Cascade GNN, and the LightGBM warm-start forecaster if you train it;
-Chronos-Bolt needs no training, just the weights).
+Kaggle (HX-Cascade GNN; Chronos-Bolt needs no training, just the weights). The
+forecast-correction model (`forecast_correction.py`) is trained locally by
+`Backend/scripts/train_forecast_correction.py` and served only if its bundle passes
+`forecaster.correction_gate` (03 §2.3); v2 (`artifacts/forecast_correction_v2/`) is served.
+
+The trained models need extra packages: `pip install -r Backend/requirements-ml.txt`
+(torch + PyG for the cascade GNN, LightGBM for the forecast correction; CPU only).
+Without them every module runs its reference implementation.
 
 **You do not need to write any backend-integration code.** The backend already
 runs a full deterministic reference implementation of every module in
@@ -21,8 +27,8 @@ name. The registry imports it as `ML.<file>.<Class>`:
 | File | Class | Constructor gets |
 |---|---|---|
 | `forecaster.py` | `Forecaster` | `{seed, critical_utilisation, risk_bands, horizons_sec, tsfm_model, tsfm_enabled, warm_start_after_points, device, step_sec}` |
-| `cascade.py` | `CascadePredictor` | `{seed, critical_utilisation, risk_bands, use_gnn, max_depth, propagation_threshold, gnn_artifact, gnn_mode, gnn_min_probability}` |
-| `twin.py` | `AssimilatedTwin` | `{seed, ensemble_size, inflation_factor, obs_noise_var, process_noise_var, drift_mode_enabled}` |
+| `cascade.py` | `CascadePredictor` | `{seed, critical_utilisation, warning_utilisation, risk_bands, thresholds_by_type, use_gnn, gnn_artifact, gnn_mode, gnn_min_probability, ood_guard, ...}` |
+| `twin.py` | `AssimilatedTwin` | `{seed, ensemble_size, inflation_factor, obs_noise_var, obs_noise_rel, process_noise_var, coverage_window, drift_mode_enabled}` |
 | `equilibrium.py` | `EquilibriumSolver` | `{seed, max_iterations, convergence_tol, damping, compliance_sweep, alpha, beta, sigmoid_k}` |
 | `optimiser.py` | `InterventionOptimiser` | `{seed, max_candidates, min_feasibility, weights}` |
 | `risk.py` | `RiskScorer` | `{seed, weights, risk_bands}` |
@@ -34,11 +40,13 @@ module exactly — same method names, same return dict shape (key names, units,
 casing), and a working `.fallback(...)`. `Backend/app/ml_reference/*.py` is a
 complete, working reference for every one of these; copy its shape.
 
-**Most likely path for this project:** only `cascade.py` needs to change. Once
-HX-Cascade beats the deterministic propagator on held-out topologies (03 §4.3
-swap criterion), drop it in here, flip `use_gnn: true` in `Backend/config.yaml`,
-and the backend's `active_source` field switches from `"deterministic"` to
-`"gnn"` automatically — no other file changes.
+**The cascade module scores, it does not build cascades.** Every published
+cascade comes from the backend's one propagator (`Backend/app/services/cascade_flow.py`).
+`cascade.py` exposes `node_risk()` (per-entity failure probability at 900 / 1800 /
+3600 s, time-to-critical); its `predict` / `predict_all` / `fallback` keep the
+03 §4.1 interface and return no steps. A new cascade model replaces the bundle
+(`cascade.gnn_artifact`), not the propagator, and reaches `gnn_mode: annotate` only
+through the swap gate (`tests/test_cascade_swap_gate.py`, 03 §4.3).
 
 ## Model bundles
 
@@ -49,6 +57,14 @@ A trained model ships as `ML/artifacts/<version>/` with `model.pt`,
 `cascade.gnn_artifact` at the directory. A bundle that fails verification is not
 loaded; `/health` then reports `gnn_mode: "off"` and `model_ready: false`. How the
 backend uses the model (`shadow` / `annotate` / `off`) is 03 §4.5.
+
+**Out-of-distribution guard.** A loaded model still is not used on a graph it has
+no evidence for: a bundle with a `topology_hash` (v2) refuses any other map, and a
+bundle with `ood_stats.json` (v3) refuses a graph whose scored entities leave the
+train feature ranges or sit mostly beyond the train embeddings' p99 distance
+(`cascade.ood_guard`). `node_risk()` then returns its fallback with a
+`fallback_reason`, which `/health.modules.cascade.fallback_reason` shows (03 §4.5).
+`train_v3.py` writes `ood_stats.json` into every v3 bundle.
 
 ## Rules (03_ML_CONTRACT.md §0 — non-negotiable)
 

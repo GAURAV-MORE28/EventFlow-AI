@@ -5,7 +5,7 @@
 The v1 checkpoint was trained on data from the old per-entity curve generator,
 which has no flow between entities. This script generates training data from
 the current simulator (the same physics the live product runs), trains the same
-2-layer R-GCN architecture (`ML/cascade.py::HXCascade`) with forecast features
+2-layer R-GCN architecture (`ML/models/hx_cascade.py::HXCascade`) with forecast features
 added, and evaluates it on held-out scenarios against a transparent rule
 baseline ("the node's own forecast crosses its critical line").
 
@@ -40,7 +40,7 @@ from app.topology import build_topology  # noqa: E402
 
 REPO = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO))
-from ML.cascade import HXCascade  # noqa: E402
+from ML.models.hx_cascade import HXCascade  # noqa: E402
 
 HORIZONS = [900, 1800, 3600]
 TYPES = ["venue", "zone", "transport_node", "transport_route", "road", "hotel", "parking", "gate", "emergency_facility"]

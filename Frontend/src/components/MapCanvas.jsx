@@ -251,6 +251,26 @@ export default function MapCanvas() {
       .filter(Boolean);
   }, [whatIfOverlay, graph.edges, nodesById]);
 
+  // Model probabilities on the what-if cascade's steps, when it was annotated.
+  const whatIfLabels = useMemo(() => {
+    const steps = whatIfOverlay?.result?.cascade?.steps || [];
+    return steps
+      .filter((step) => step.confidence != null)
+      .map((step) => {
+        const node = nodesById[step.entity_id];
+        if (!node) return null;
+        return { position: [node.lon, node.lat], text: percent(step.confidence) };
+      })
+      .filter(Boolean);
+  }, [whatIfOverlay, nodesById]);
+
+  // Which model produced the probabilities on screen (00 §2.5 `confidence_source`).
+  const confidenceModel =
+    (cascade?.confidence_source === 'gnn' && cascade.confidence_model_version) ||
+    (whatIfOverlay?.result?.cascade?.confidence_source === 'gnn' &&
+      whatIfOverlay.result.cascade.confidence_model_version) ||
+    null;
+
   const actionTargetIds = useMemo(() => {
     const ids = new Set();
     for (const a of executedActions) a.targetIds.forEach((id) => ids.add(id));
@@ -333,7 +353,9 @@ export default function MapCanvas() {
         if (!node) return null;
         return {
           position: [node.lon, node.lat],
-          text: minutes(step.eta_sec),
+          // The cascade model's calibrated probability, when it annotated this
+          // step (gnn_mode annotate); rendered as given, never derived here.
+          text: step.confidence == null ? minutes(step.eta_sec) : `${minutes(step.eta_sec)} · ${percent(step.confidence)}`,
           isRoot: step.depth === 0,
         };
       })
@@ -560,6 +582,20 @@ export default function MapCanvas() {
       getHeight: 0.35,
       widthUnits: 'pixels',
     }),
+    new TextLayer({
+      id: 'whatif-confidence',
+      data: whatIfLabels,
+      getPosition: (d) => d.position,
+      getText: (d) => d.text,
+      getSize: 11,
+      getColor: [15, 23, 42, 230],
+      getPixelOffset: [0, -22],
+      getTextAnchor: 'middle',
+      fontWeight: 700,
+      background: true,
+      getBackgroundColor: [...WHATIF_RGB, 200],
+      backgroundPadding: [4, 2],
+    }),
     // Rings mark the entities an action is acting on. Pulsing, hollow, on top —
     // so "THIS is the target" always reads, without hiding the dot or its label.
     new ScatterplotLayer({
@@ -743,6 +779,11 @@ export default function MapCanvas() {
             <span className="text-slate-400">Estimated</span>
           </div>
         </div>
+        {confidenceModel && (
+          <div className="mt-1 text-slate-400" title="Calibrated probability that the step's entity crosses its critical line by its ETA">
+            <span className="font-mono text-slate-300">12 min · 87%</span> = ETA · model probability ({confidenceModel.split('@')[0]})
+          </div>
+        )}
       </div>
 
       {/* Selected Entity Tracking Pill */}

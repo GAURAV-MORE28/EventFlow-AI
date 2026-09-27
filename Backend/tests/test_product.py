@@ -611,7 +611,8 @@ def test_gnn_uses_forecast_features_when_the_checkpoint_has_them():
     import json
     from pathlib import Path
 
-    import torch
+    torch = pytest.importorskip("torch")   # optional: requirements-ml.txt
+    pytest.importorskip("torch_geometric")
 
     ml = Path(__file__).resolve().parents[2] / "ML"
     bundle = ml / "artifacts" / "hx_cascade_v2"

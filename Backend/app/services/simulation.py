@@ -144,7 +144,8 @@ class SimulationRegistry:
 
             closed = set(scen_start.closed_entities()) if hasattr(scen_start, "closed_entities") else set()
             cascade = cascade_for(worst, end_state, store.edges, engine.config.thresholds_for,
-                                  engine.config.raw.get("cascade", {}), store.sim_time, closed)
+                                  engine.config.raw.get("cascade", {}), store.sim_time, closed,
+                                  **engine.cascade_annotation(end_state))
             raw = engine.registry.optimiser.generate(
                 {"root_entity_id": worst, "cascade": cascade, "node_state": end_state, "edges": store.edges,
                  "sim_time": store.sim_time, **engine.optimiser_context()},
@@ -160,7 +161,7 @@ class SimulationRegistry:
             min_relief = float(engine.icfg.get("min_relief_pct", 1.0))
             raw = [c for c in raw if c.get("evaluation") is None or c["estimated_relief_pct"] >= min_relief]
             for c in raw:
-                c["certificate"] = engine.registry.equilibrium.certify(c, end_state, store.edges, store.segments)
+                c["certificate"] = engine.registry.equilibrium.certify(c, end_state, store.edges, engine.solver_segments())
                 c["created_at"] = store.sim_time
                 c["expires_at"] = shift(store.sim_time, c.pop("_ttl_sec", 900))
             candidates = engine.registry.optimiser.rank(raw)
