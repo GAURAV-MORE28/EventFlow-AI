@@ -1,18 +1,11 @@
 services:
   - type: web
     name: eventflow-backend
-    runtime: python
-    # Real ML inference (torch/torch_geometric/lightgbm) needs more than the
-    # free tier's 512MB RAM; "starter" (~$7/mo) is the smallest paid plan
-    # that reliably holds it. Drop back to `free` + requirements.txt-only
-    # build if you want the deterministic fallback instead of paid hosting.
+    runtime: docker
     plan: starter
     rootDir: Backend
-    buildCommand: pip install --index-url https://download.pytorch.org/whl/cpu torch==2.10.0 && pip install -r requirements-ml.txt
-    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    dockerfilePath: ./Dockerfile
     envVars:
-      - key: PYTHON_VERSION
-        value: 3.11.9
       - key: EVENTFLOW_CONFIG
         value: config.yaml
       # Set this to your deployed frontend's exact origin once you have it,
