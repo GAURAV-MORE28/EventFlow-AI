@@ -353,7 +353,7 @@ export default function VenueSetup() {
   const [blueprint, setBlueprint] = useState(null);
   const [reveal, setReveal] = useState(0);
   const [saved, setSaved] = useState([]);
-  const [ev, setEv] = useState({ name: '', expected_attendance: '', start_time: '', end_time: '' });
+  const [ev, setEv] = useState({ name: '', expected_attendance: '', lodging_pct: '', start_time: '', end_time: '' });
   const [activating, setActivating] = useState(false);
 
   useEffect(() => {
@@ -430,6 +430,7 @@ export default function VenueSetup() {
       const evBody = {};
       if (ev.name) evBody.name = ev.name;
       if (ev.expected_attendance) evBody.expected_attendance = Number(ev.expected_attendance);
+      if (ev.lodging_pct !== '') evBody.lodging_share = Number(ev.lodging_pct) / 100;
       if (ev.start_time) evBody.start_time = `${ev.start_time}:00Z`;
       if (ev.end_time) evBody.end_time = `${ev.end_time}:00Z`;
       const info = await api.activateBlueprint(id, { event: evBody });
@@ -619,7 +620,10 @@ export default function VenueSetup() {
                       placeholder={`${integer(Math.round((venueNode?.nominal_capacity || 0) * 0.85))} (85%)`}
                       onChange={(e) => setEv({ ...ev, expected_attendance: e.target.value })} />
                   </label>
-                  <span />
+                  <label>Need a hotel room (%)
+                    <input aria-label="Lodging share percent" type="number" min="0" max="100" className={`${INPUT} mt-1 w-full`} value={ev.lodging_pct}
+                      placeholder="default" onChange={(e) => setEv({ ...ev, lodging_pct: e.target.value })} />
+                  </label>
                   <label>Start (UTC)
                     <input type="datetime-local" className={`${INPUT} mt-1 w-full`} value={ev.start_time} onChange={(e) => setEv({ ...ev, start_time: e.target.value })} />
                   </label>

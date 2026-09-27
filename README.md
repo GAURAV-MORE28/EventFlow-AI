@@ -127,3 +127,16 @@ additive (`Entity.subtype/capacity_source/capacity_confidence/provenance`, `Grap
 distance_m/via_entity_ids/provenance`, edge type `connects_to`, `GraphResponse.world`, blueprint
 and venue endpoints) and exported to `contracts/schemas/`. See `RUNNING.md` and
 `PHASE2_BLUEPRINT_VALIDATION_REPORT.md`.
+
+## Accommodation (Phase A)
+
+Hotels are a bounded resource:
+- **Capacity:** each hotel's rooms come from OSM (`capacity:rooms` / `rooms`), are derived from
+  OSM beds, or are an estimate. Every count carries `rooms_source` + `rooms_confidence`.
+- **Demand:** only an event's `lodging_share` (default 0.25, per-event override) needs a room.
+  Guests check in before the event and check out after it.
+- **Allocation:** deterministic and capacity-limited. Free rooms, saturation and unmet demand are
+  first-class API values.
+
+The changes are additive (`HotelProperty`, `HotelSummary`, `LodgingEvent`, `EventView`, event
+requests). See `RUNNING.md` ("Accommodation") and `PHASEA_ACCOMMODATION_VALIDATION_REPORT.md`.

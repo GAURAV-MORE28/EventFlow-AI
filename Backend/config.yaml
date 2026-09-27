@@ -124,12 +124,18 @@ demand:
   sensor_dropout_rate: 0.03     # per-cycle probability an observed sensor misses a reading
 
 hospitality:
-  saturation_threshold: 0.95    # property occupancy at/above which it is saturated
-  limited_threshold: 0.85
+  # Accommodation demand (people -> rooms). Only a share of an event's attendees
+  # need a room: lodging_guests = attendance x lodging_share (the event's own
+  # `lodging_share`, else default_lodging_share); rooms = guests / guests_per_room.
+  # Everyone else (and any lodging guest who finds no room) travels from home.
+  default_lodging_share: 0.25
   guests_per_room: 2.2
-  room_need_share: 0.34         # out-of-town attendees who need a room (others are day trips)
-  prebooked_share: 0.55         # share of room demand already booked at sim start
-  booking_window_min: 180       # remaining bookings arrive over this window
+  # Check-in window: [start - check_in_lead_min, start]; check-out window:
+  # [end + check_out_lag_min, end + check_out_lag_min + check_out_window_min].
+  check_in_lead_min: 180
+  check_out_lag_min: 120
+  check_out_window_min: 120
+  tight_free_share: 0.10        # a property with <= 10% of its rooms free is TIGHT (status "limited"); 0 free = saturated
 
 projection:
   horizon_sec: 5400
@@ -232,6 +238,9 @@ events:
     end_time: "2026-09-04T18:30:00Z"
     expected_attendance: 70000
     out_of_town_share: 0.30
+    # Demo events keep their previous effective hotel demand
+    # (out_of_town_share x the former room_need_share 0.34), now explicit.
+    lodging_share: 0.102
   - event_id: "evt_fanfest"
     name: "Fan Festival"
     category: "festival"
@@ -240,6 +249,7 @@ events:
     end_time: "2026-09-04T19:30:00Z"
     expected_attendance: 5500
     out_of_town_share: 0.10
+    lodging_share: 0.034
   - event_id: "evt_expo"
     name: "Tech Expo Day 2"
     category: "conference"
@@ -248,6 +258,7 @@ events:
     end_time: "2026-09-04T17:00:00Z"
     expected_attendance: 14000
     out_of_town_share: 0.40
+    lodging_share: 0.136
 
 event:
   event_id: "evt_demo"

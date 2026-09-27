@@ -140,6 +140,94 @@
           "default": 0,
           "title": "Remaining Demand",
           "type": "integer"
+        },
+        "lodging_share": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Lodging Share"
+        },
+        "lodging_share_effective": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Lodging Share Effective"
+        },
+        "lodging_share_source": {
+          "anyOf": [
+            {
+              "enum": [
+                "event",
+                "default"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Lodging Share Source"
+        },
+        "lodging_guests": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Lodging Guests"
+        },
+        "local_guests": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Local Guests"
+        },
+        "lodging_allocated_guests": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Lodging Allocated Guests"
+        },
+        "lodging_unmet_guests": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Lodging Unmet Guests"
         }
       },
       "required": [

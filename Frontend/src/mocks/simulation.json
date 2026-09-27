@@ -2,39 +2,40 @@
   "baseline": {
     "peak_utilisation": 1.6156,
     "peak_entity_id": "road_5",
-    "load_variance": 0.0325,
-    "critical_count": 6,
-    "avg_utilisation": 0.5511,
-    "transport_pressure": 0.6269,
-    "road_pressure": 0.5332,
-    "venue_pressure": 0.6546,
-    "hotel_pressure": 0.8744,
-    "queued_people": 2719.7,
-    "late_entries": 8670.5,
-    "rooms_unmet": 0.3,
-    "unmet_demand": 8671.2,
-    "avg_travel_time_sec": 1034.3
+    "load_variance": 0.0326,
+    "critical_count": 5,
+    "avg_utilisation": 0.544,
+    "transport_pressure": 0.6334,
+    "road_pressure": 0.5132,
+    "venue_pressure": 0.6666,
+    "hotel_pressure": 0.9121,
+    "queued_people": 2416.4,
+    "late_entries": 8976.7,
+    "rooms_unmet": 0.0,
+    "unmet_demand": 8976.7,
+    "avg_travel_time_sec": 1034.1
   },
   "scenario": {
     "peak_utilisation": 1.6153,
     "peak_entity_id": "road_6",
     "load_variance": 0.0324,
     "critical_count": 8,
-    "avg_utilisation": 0.5566,
-    "transport_pressure": 0.6269,
-    "road_pressure": 0.5856,
-    "venue_pressure": 0.5856,
-    "hotel_pressure": 0.8744,
-    "queued_people": 3393.1,
-    "late_entries": 7801.9,
-    "rooms_unmet": 0.3,
-    "unmet_demand": 7802.6,
-    "avg_travel_time_sec": 1050.1
+    "avg_utilisation": 0.5524,
+    "transport_pressure": 0.6334,
+    "road_pressure": 0.5717,
+    "venue_pressure": 0.5931,
+    "hotel_pressure": 0.9121,
+    "queued_people": 3205.5,
+    "late_entries": 7982.8,
+    "rooms_unmet": 0.0,
+    "unmet_demand": 7982.8,
+    "avg_travel_time_sec": 1051.4
   },
   "delta": {
     "peak_utilisation_pct": -0.0,
-    "load_variance_pct": -0.3,
+    "load_variance_pct": -0.6,
     "new_critical_entities": [
+      "emergency_south",
       "gate_1",
       "road_10",
       "road_12"
@@ -44,110 +45,45 @@
     ],
     "metrics": {
       "peak_utilisation": -0.0003,
-      "load_variance": -0.0001,
-      "avg_utilisation": 0.0055,
+      "load_variance": -0.0002,
+      "avg_utilisation": 0.0084,
       "transport_pressure": 0.0,
-      "road_pressure": 0.0524,
-      "venue_pressure": -0.069,
+      "road_pressure": 0.0585,
+      "venue_pressure": -0.0735,
       "hotel_pressure": 0.0,
-      "queued_people": 673.4,
-      "late_entries": -868.6,
+      "queued_people": 789.1,
+      "late_entries": -993.9,
       "rooms_unmet": 0.0,
-      "unmet_demand": -868.6,
-      "avg_travel_time_sec": 15.8
+      "unmet_demand": -993.9,
+      "avg_travel_time_sec": 17.3
     }
   },
   "cascade": {
-    "root_entity_id": "gate_1",
+    "root_entity_id": "emergency_south",
     "source": "deterministic",
     "generated_at": "2026-09-04T15:20:00Z",
     "total_downstream_failures": 0,
     "max_depth": 0,
     "steps": [
       {
-        "entity_id": "gate_1",
+        "entity_id": "emergency_south",
         "predicted_band": "critical",
         "eta_sec": 0,
         "failure_probability": 0.99,
         "via_edge_id": null,
         "depth": 0,
         "source_entity_id": null,
-        "utilisation_before": 0.0184,
-        "utilisation_after": 0.9024,
-        "flow_change_people": 56.0,
-        "reason": "Gate 1 is at or forecast over its critical line (90% of capacity); 56 people above the line must go elsewhere.",
+        "utilisation_before": 0.4049,
+        "utilisation_after": 0.9236,
+        "flow_change_people": 3.1,
+        "reason": "South Emergency Post is at or forecast over its critical line (92% of capacity); 3 people above the line must go elsewhere.",
         "confidence": null,
         "step_index": 0
       }
     ],
     "ml_enhanced": false
   },
-  "candidate_interventions": [
-    {
-      "intervention_id": "int_4b73a",
-      "intervention_type": "stagger_entry",
-      "status": "proposed",
-      "target_entity_ids": [
-        "gate_1"
-      ],
-      "triggered_by_entity_id": "gate_1",
-      "title": "Stagger entry at Gate 1",
-      "description": "Ask 35% of arrivals for these gates (group and price-sensitive ticket holders first) to arrive 12 minutes later, with a food-and-drink credit for doing so.",
-      "estimated_relief_pct": 9.1,
-      "estimated_cost_paise": 180000,
-      "estimated_delay_sec": 720,
-      "feasibility": 0.85,
-      "rank_score": 0.0287,
-      "certificate": {
-        "certificate_id": "cert_a828",
-        "intervention_id": "int_4b73a",
-        "verdict": "UNSTABLE",
-        "converged": true,
-        "iterations": 1,
-        "post_nudge_variance": 0.0718,
-        "baseline_variance": 0.0718,
-        "max_zone_utilisation": 0.9355,
-        "max_zone_entity_id": "stadium_main",
-        "oscillation_risk": false,
-        "compliance_sensitivity": 0.0,
-        "reason": "Redistribution increases load variance from 0.072 to 0.072.",
-        "compliance_sweep": [
-          {
-            "compliance_rate": 0.4,
-            "max_utilisation": 0.9355,
-            "verdict": "UNSTABLE"
-          },
-          {
-            "compliance_rate": 0.6,
-            "max_utilisation": 0.9355,
-            "verdict": "UNSTABLE"
-          },
-          {
-            "compliance_rate": 0.9,
-            "max_utilisation": 0.9355,
-            "verdict": "UNSTABLE"
-          }
-        ]
-      },
-      "created_at": "2026-09-04T15:20:00Z",
-      "expires_at": "2026-09-04T15:35:00Z",
-      "evaluation": {
-        "horizon_sec": 1800,
-        "compliance": 0.6,
-        "root_entity_id": "gate_1",
-        "root_peak_before": 0.9024,
-        "root_peak_after": 0.82,
-        "network_peak_before": 1.6147,
-        "network_peak_after": 1.6147,
-        "critical_before": 8,
-        "critical_after": 7,
-        "new_critical_entities": [],
-        "people_redirected": 1250,
-        "travel_time_delta_sec": -7.5,
-        "rooms_unmet_delta": 0.0
-      }
-    }
-  ],
+  "candidate_interventions": [],
   "top_changes": [
     {
       "entity_id": "gate_5",
@@ -160,90 +96,90 @@
       "entity_id": "road_12",
       "display_name": "Arterial 12",
       "entity_type": "road",
-      "baseline_peak": 0.3252,
-      "scenario_peak": 1.2276
+      "baseline_peak": 0.3117,
+      "scenario_peak": 1.1328
     },
     {
       "entity_id": "road_10",
       "display_name": "Arterial 10",
       "entity_type": "road",
-      "baseline_peak": 0.4587,
-      "scenario_peak": 1.2647
+      "baseline_peak": 0.447,
+      "scenario_peak": 1.1785
+    },
+    {
+      "entity_id": "road_6",
+      "display_name": "Arterial 6",
+      "entity_type": "road",
+      "baseline_peak": 0.9905,
+      "scenario_peak": 1.6153
     },
     {
       "entity_id": "road_5",
       "display_name": "Arterial 5",
       "entity_type": "road",
       "baseline_peak": 1.6156,
-      "scenario_peak": 1.0729
-    },
-    {
-      "entity_id": "road_6",
-      "display_name": "Arterial 6",
-      "entity_type": "road",
-      "baseline_peak": 1.1444,
-      "scenario_peak": 1.6153
+      "scenario_peak": 1.0034
     },
     {
       "entity_id": "road_9",
       "display_name": "Arterial 9",
       "entity_type": "road",
-      "baseline_peak": 0.6769,
+      "baseline_peak": 0.5795,
       "scenario_peak": 0.2663
     },
     {
       "entity_id": "road_4",
       "display_name": "Arterial 4",
       "entity_type": "road",
-      "baseline_peak": 0.7871,
-      "scenario_peak": 0.4704
-    },
-    {
-      "entity_id": "gate_3",
-      "display_name": "Gate 3",
-      "entity_type": "gate",
-      "baseline_peak": 0.0951,
-      "scenario_peak": 0.256
-    },
-    {
-      "entity_id": "gate_1",
-      "display_name": "Gate 1",
-      "entity_type": "gate",
-      "baseline_peak": 0.7422,
-      "scenario_peak": 0.9024
+      "baseline_peak": 0.7039,
+      "scenario_peak": 0.4706
     },
     {
       "entity_id": "gate_2",
       "display_name": "Gate 2",
       "entity_type": "gate",
-      "baseline_peak": 0.1028,
-      "scenario_peak": 0.2592
+      "baseline_peak": 0.0999,
+      "scenario_peak": 0.2647
+    },
+    {
+      "entity_id": "gate_3",
+      "display_name": "Gate 3",
+      "entity_type": "gate",
+      "baseline_peak": 0.0955,
+      "scenario_peak": 0.2513
+    },
+    {
+      "entity_id": "gate_4",
+      "display_name": "Gate 4",
+      "entity_type": "gate",
+      "baseline_peak": 0.0958,
+      "scenario_peak": 0.2335
     }
   ],
   "timeline": [
     {
       "offset_sec": 0,
-      "baseline_peak": 1.1357,
-      "scenario_peak": 1.1357
+      "baseline_peak": 1.1072,
+      "scenario_peak": 1.1072
     },
     {
       "offset_sec": 300,
       "baseline_peak": 1.1455,
-      "scenario_peak": 1.1577
+      "scenario_peak": 1.1405
     },
     {
       "offset_sec": 600,
       "baseline_peak": 1.1419,
-      "scenario_peak": 1.2026
+      "scenario_peak": 1.1447
     },
     {
       "offset_sec": 900,
-      "baseline_peak": 1.3739,
+      "baseline_peak": 1.2408,
       "scenario_peak": 1.5867
     },
     {
       "offset_sec": 1200,
-      "baseline_peak": 1.6149,
+      "baseline_peak": 1.5695,
       "scenario_peak": 1.5877
     },
     {
@@ -268,18 +204,18 @@
     },
     {
       "offset_sec": 2700,
-      "baseline_peak": 1.585,
+      "baseline_peak": 1.5541,
       "scenario_peak": 1.6143
     },
     {
       "offset_sec": 3000,
-      "baseline_peak": 1.4838,
+      "baseline_peak": 1.2891,
       "scenario_peak": 1.5978
     },
     {
       "offset_sec": 3300,
       "baseline_peak": 1.1553,
-      "scenario_peak": 1.584
+      "scenario_peak": 1.4186
     },
     {
       "offset_sec": 3600,

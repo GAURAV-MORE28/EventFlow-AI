@@ -52,7 +52,10 @@ class BlueprintService:
         self.provider = provider or OverpassProvider(self.http, list(g.get("overpass_endpoints") or []),
                                                      self.road_classes, int(g.get("timeout_sec", 60)))
         from ..topology import SEGMENTS
-        self.builder = BlueprintBuilder(dict(g.get("builder") or {}), SEGMENTS)
+        # One guests-per-room figure everywhere: the simulator's (hospitality) value.
+        builder_cfg = {**dict(g.get("builder") or {}),
+                       "guests_per_room": float((raw.get("hospitality") or {}).get("guests_per_room", 2.2))}
+        self.builder = BlueprintBuilder(builder_cfg, SEGMENTS)
         self.radius_min = float(g.get("radius_min_m", 250))
         self.radius_max = float(g.get("radius_max_m", 5000))
         self.radius_default = float(g.get("radius_default_m", 2000))
@@ -272,6 +275,7 @@ class BlueprintService:
             "end_time": ev.get("end_time") or primary["end_time"],
             "expected_attendance": int(attendance),
             "out_of_town_share": float(ev.get("out_of_town_share", 0.25)),
+            "lodging_share": ev.get("lodging_share"),
             "description": ("Attendance defaulted to 85% of the venue's " + venue_node["capacity_source"]
                             + " capacity." if attendance_default else None),
         }]

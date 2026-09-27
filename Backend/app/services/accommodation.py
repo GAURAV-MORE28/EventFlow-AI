@@ -84,8 +84,29 @@ def property_views(engine: Any, venue: str | None = None) -> list[dict[str, Any]
             "transport_forecast_utilisation": None if f1800 is None else round(float(f1800), 4),
             "venue_entity_id": venue,
             "travel_time_to_venue_sec": None if travel is None else int(travel),
+            "bed_capacity": p.get("bed_capacity"),
+            "bed_source": p.get("bed_source"),
+            "effective_guest_capacity": p.get("effective_guest_capacity"),
+            "guest_capacity_source": p.get("guest_capacity_source") or "rooms x guests_per_room",
+            "baseline_rooms_occupied": p.get("baseline_rooms_occupied"),
+            "event_rooms_occupied": p.get("event_rooms_occupied"),
+            "event_guests": p.get("event_guests"),
+            "occupancy_baseline_source": p.get("occupancy_baseline_source") or "simulated",
+            "capacity_tags": p.get("capacity_tags"),
         })
     return out
+
+
+def lodging_by_event(engine: Any) -> list[dict[str, Any]]:
+    """Each event's accommodation demand split (simulation state, people)."""
+    with engine.world_lock:
+        state = engine.generator.lodging_state() if hasattr(engine.generator, "lodging_state") else {}
+    names = {e["event_id"]: e["name"] for e in engine.events.to_generator()}
+    return [{"event_id": eid, "name": names.get(eid, eid),
+             **{k: (round(v, 1) if k.endswith("_guests") or k == "attendance" else
+                    round(v, 4) if isinstance(v, float) else v) for k, v in st.items()
+                if k not in ("requested_rooms", "allocated_rooms", "unmet_rooms", "in_house_rooms")}}
+            for eid, st in state.items()]
 
 
 def hotel_list(
@@ -136,9 +157,27 @@ def hotel_list(
             "saturated": sum(1 for v in views if v["status"] == "saturated"),
             "limited": sum(1 for v in views if v["status"] == "limited"),
             "unmet_room_requests": int(round(stats["rooms_unmet"])),
+            "effective_guest_capacity": round(sum(v["effective_guest_capacity"] or 0.0 for v in views), 1),
+            **{k: stats.get(k) for k in (
+                "attendance_total", "local_guests", "lodging_guests", "lodging_requested_guests",
+                "lodging_allocated_guests", "lodging_unmet_guests", "lodging_pending_guests",
+                "lodging_in_house_guests", "lodging_checked_out_guests")},
+            "default_lodging_share": float(get_config().raw.get("hospitality", {}).get("default_lodging_share", 0.25)),
+            "guests_per_room": float(get_config().raw.get("hospitality", {}).get("guests_per_room", 2.2)),
+            "shortage_message": _shortage_message(stats, len(views)),
         },
         "hotels": items,
+        "lodging_by_event": lodging_by_event(engine),
     }
+
+
+def _shortage_message(stats: dict, properties: int) -> str | None:
+    unmet = int(round(stats.get("lodging_unmet_guests") or 0.0))
+    if unmet <= 0:
+        return None
+    where = f"{properties} hotels" if properties else "any hotel"
+    return (f"{unmet:,} event guests could not be placed in {where} within the selected network "
+            "(simulated demand against mapped or estimated capacity).")
 
 
 def get_property(engine: Any, property_id: str, venue: str | None = None) -> dict[str, Any]:
@@ -196,10 +235,20 @@ def recommend(
         excluded_budget = len(pool) - len(within)
         pool = within
     if not pool:
+        free_any = sum(v["rooms_available"] for v in views)
+        if not views:
+            reason = "There are no hotels in the selected network."
+        elif free_any < rooms:
+            reason = (f"Every hotel in the selected network is full ({sum(1 for v in views if v['status'] == 'saturated')}"
+                      f" of {len(views)} saturated).")
+        elif excluded_budget:
+            reason = "The hotels with free rooms have no known price within the budget."
+        else:
+            reason = "No hotel with free rooms matches the accessibility / room-count requirements."
         return {
             "sim_time": store.sim_time, "destination_entity_id": venue, "options": [],
-            "explanation": "No property currently has rooms matching these requirements.",
-            "current": current,
+            "explanation": f"No room available in the selected network. {reason}",
+            "current": current, "no_availability_reason": reason,
         }
 
     prices = [v["price_per_night_paise"] for v in pool if v["price_per_night_paise"] is not None]
@@ -287,6 +336,28 @@ def saturation(engine: Any, venue: str | None = None) -> dict[str, Any]:
         rec = recommend(engine, destination_entity_id=venue, current_property_id=v["property_id"], limit=3)
         out.append({"property": v, "alternatives": rec["options"], "explanation": rec["explanation"]})
     return {"sim_time": engine.store.sim_time, "saturated": out}
+
+
+def cluster_options(engine: Any) -> dict[str, dict[str, Any]]:
+    """Per hotel cluster entity: free rooms, rooms in service, travel time to the main
+    venue, load on its transport node and mean known price — what a rebalance needs."""
+    out: dict[str, dict[str, Any]] = {}
+    for v in property_views(engine):
+        c = out.setdefault(v["cluster_entity_id"], {"free_rooms": 0, "rooms": 0, "travel_sec": [], "load": [],
+                                                    "prices": []})
+        c["free_rooms"] += v["rooms_available"]
+        c["rooms"] += v["rooms_in_service"]
+        if v["travel_time_to_venue_sec"] is not None:
+            c["travel_sec"].append(v["travel_time_to_venue_sec"])
+        c["load"].append(max(v["transport_utilisation"], v["transport_forecast_utilisation"] or 0.0))
+        if v["price_per_night_paise"] is not None:
+            c["prices"].append(v["price_per_night_paise"])
+    for c in out.values():
+        c["travel_sec"] = min(c["travel_sec"]) if c["travel_sec"] else None
+        c["load"] = max(c["load"]) if c["load"] else 0.0
+        c["price_paise"] = int(sum(c["prices"]) / len(c["prices"])) if c["prices"] else None
+        del c["prices"]
+    return out
 
 
 def cluster_availability(engine: Any) -> dict[str, int]:

@@ -73,7 +73,33 @@ the simulator (never in the schedule) only so its visitors can leave. Changing a
 schedule re-plans demand for every world that knows about it (live, nominal,
 counterfactuals; What-If clones copy the live world). A change mid-arrival
 keeps everyone already arrived and re-schedules only the remaining people.
-Out-of-town visitors book hotel rooms (allocation by price, travel time, tier).
+Accommodation (Phase A) is partial demand against bounded capacity:
+
+**Lodging share.** An event has an optional `lodging_share` (0–1, validated; otherwise
+`hospitality.default_lodging_share` = 0.25). `lodging_guests = attendance × share`; the rest are
+locals.
+
+**Rooms, check-in, check-out.** Rooms requested = requested guests / `guests_per_room` (2.2).
+Requests follow a check-in curve over [start − 180 min, start]. Check-out runs over
+[end + 120 min, end + 240 min] and releases rooms.
+
+**Allocation.** Rooms are placed deterministically, capacity-limited, by score (price when known,
+travel time, tier, free share, station load). Bookable rooms = min(rooms, beds / gpr) × the
+What-If room multiplier, minus the simulated baseline occupancy.
+
+**Ledgers.** Per event: requested = placed + unmet, and in-house = placed − checked_out. Per hotel:
+event rooms = Σ in-house. When capacity shrinks (hotel-shortage What-If / closure), unmet demand is
+released first, then displaced guests are re-placed elsewhere or become unmet.
+
+**Transport.** Only housed guests start from hotels (`hotel_origin_share = share × placed /
+requested`); unmet guests travel as locals.
+
+**Capacity metadata.** Each hotel carries `rooms_source` (`osm_capacity_rooms` > `osm_rooms` >
+`derived_from_osm_beds|capacity_beds|capacity_persons` > `derived_estimate`), `rooms_confidence`,
+`bed_capacity` / `bed_source`, `effective_guest_capacity` and the raw `capacity_tags`.
+
+**Rebalance candidates.** `accommodation_rebalance` ranks alternatives by free rooms, travel time,
+station load, then price.
 
 ## 4a. Immediate reconciliation (operator change → live state)
 
@@ -216,3 +242,11 @@ produces its output from deterministic logic.
   differs; on an uncongested route the times are (correctly) the same.
 * A What-If "peak utilisation" can be pinned at a station's physical maximum in
   both worlds; compare the other metrics in that case.
+* Hotel room counts are real only where OSM carries `rooms` / `capacity:rooms`
+  (few hotels do; e.g. 0 of 4 around Narendra Modi Stadium, 2 of 14 around
+  Wembley at 2 km). Everything else is a per-subtype estimate, labelled as such.
+  Baseline occupancy, bookings, check-in/out timing and prices are simulated.
+* Hotels outside the selected radius are not in the network; unmet demand
+  means "no room inside the selected network", not "no room in the city".
+* Stays are same-day (check-in before, check-out after the event); multi-night
+  stays and early departures are not modelled.

@@ -762,6 +762,14 @@ class EventView(Base):
     departure_window_end: Optional[str] = None
     custom_windows: bool = False
     remaining_demand: int = 0     # visitors still to come (0 once cancelled)
+    # --- accommodation demand (additive) ---
+    lodging_share: Optional[float] = None             # the event's own value; null = configured default
+    lodging_share_effective: Optional[float] = None   # what the simulation uses
+    lodging_share_source: Optional[Literal["event", "default"]] = None
+    lodging_guests: Optional[int] = None              # attendance x lodging share (people needing a room)
+    local_guests: Optional[int] = None                # everyone else (travel from home)
+    lodging_allocated_guests: Optional[int] = None    # lodging guests who got a room so far (simulated)
+    lodging_unmet_guests: Optional[int] = None        # lodging guests no hotel in the network could take
 
 
 class EventListResponse(Base):
@@ -782,6 +790,7 @@ class EventUpdateRequest(Base):
     venue_entity_id: Optional[str] = None
     category: Optional[str] = Field(default=None, max_length=40)
     description: Optional[str] = Field(default=None, max_length=500)
+    lodging_share: Optional[float] = Field(default=None, ge=0.0, le=1.0)
     arrival_window_start: Optional[str] = None     # "" clears an explicit window
     arrival_window_end: Optional[str] = None
     departure_window_start: Optional[str] = None
@@ -798,6 +807,7 @@ class EventCreateRequest(Base):
     category: str = Field(default="event", max_length=40)
     description: Optional[str] = Field(default=None, max_length=500)
     out_of_town_share: float = Field(default=0.25, ge=0.0, le=1.0)
+    lodging_share: Optional[float] = Field(default=None, ge=0.0, le=1.0)   # null = configured default
     status: Literal["scheduled", "cancelled"] = "scheduled"
     arrival_window_start: Optional[str] = None
     arrival_window_end: Optional[str] = None
@@ -856,6 +866,36 @@ class HotelProperty(Base):
     transport_forecast_utilisation: Optional[float] = None
     venue_entity_id: str
     travel_time_to_venue_sec: Optional[int] = None
+    # --- capacity + occupancy breakdown (additive) ---
+    # rooms_in_service = bookable rooms (bed-limited, after shortages) = rooms_occupied + rooms_available.
+    bed_capacity: Optional[int] = None               # mapped beds (or capacity:persons); null = not mapped
+    bed_source: Optional[str] = None
+    effective_guest_capacity: Optional[float] = None
+    guest_capacity_source: Optional[str] = None
+    baseline_rooms_occupied: Optional[float] = None  # non-event guests (simulated baseline, not observed)
+    event_rooms_occupied: Optional[float] = None     # rooms held by event guests now (simulated)
+    event_guests: Optional[float] = None
+    occupancy_baseline_source: Optional[str] = None
+    capacity_tags: Optional[dict[str, str]] = None   # the raw OSM capacity tags the value came from
+
+
+class LodgingEvent(Base):
+    """One event's accommodation demand (people). lodging = allocated + unmet + pending."""
+    event_id: str
+    name: str
+    attendance: float
+    lodging_share: float
+    lodging_share_source: Literal["event", "default"]
+    lodging_guests: float
+    local_guests: float
+    requested_guests: float
+    allocated_guests: float
+    unmet_guests: float
+    pending_guests: float
+    in_house_guests: float
+    checked_out_guests: float
+    hotel_origin_share: float
+    cancelled: bool
 
 
 class HotelSummary(Base):
@@ -867,12 +907,27 @@ class HotelSummary(Base):
     saturated: int
     limited: int
     unmet_room_requests: int
+    # --- accommodation demand aggregates (additive; people unless named rooms) ---
+    effective_guest_capacity: Optional[float] = None
+    attendance_total: Optional[float] = None
+    local_guests: Optional[float] = None
+    lodging_guests: Optional[float] = None
+    lodging_requested_guests: Optional[float] = None
+    lodging_allocated_guests: Optional[float] = None
+    lodging_unmet_guests: Optional[float] = None
+    lodging_pending_guests: Optional[float] = None
+    lodging_in_house_guests: Optional[float] = None
+    lodging_checked_out_guests: Optional[float] = None
+    default_lodging_share: Optional[float] = None
+    guests_per_room: Optional[float] = None
+    shortage_message: Optional[str] = None
 
 
 class HotelListResponse(Base):
     sim_time: str
     summary: HotelSummary
     hotels: list[HotelProperty]
+    lodging_by_event: list[LodgingEvent] = Field(default_factory=list)
 
 
 class StayRecommendationRequest(Base):
@@ -900,6 +955,7 @@ class StayRecommendationResponse(Base):
     options: list[StayOption]
     explanation: str
     current: Optional[HotelProperty] = None
+    no_availability_reason: Optional[str] = None
 
 
 class SaturatedProperty(Base):
@@ -1114,6 +1170,12 @@ class HotelPropertyRecord(Base):
     price_source: Optional[str] = None
     tier_source: Optional[str] = None
     provenance: Optional[Provenance] = None
+    bed_capacity: Optional[int] = None
+    bed_source: Optional[str] = None
+    effective_guest_capacity: Optional[float] = None
+    guest_capacity_source: Optional[str] = None
+    capacity_tags: Optional[dict[str, str]] = None
+    occupancy_baseline_source: Optional[str] = None
 
 
 class Blueprint(BlueprintHeader):
@@ -1143,6 +1205,7 @@ class ActivationEvent(Base):
     end_time: Optional[str] = None
     category: str = Field(default="event", max_length=40)
     out_of_town_share: float = Field(default=0.25, ge=0.0, le=1.0)
+    lodging_share: Optional[float] = Field(default=None, ge=0.0, le=1.0)
 
 
 class BlueprintActivateRequest(Base):

@@ -525,7 +525,7 @@ async def event_detail(event_id: str) -> S.EventView:
 
 
 EVENT_FIELDS = ("delay_sec", "start_time", "expected_attendance", "status", "end_time", "name", "venue_entity_id",
-                "category", "description", "arrival_window_start", "arrival_window_end",
+                "category", "description", "lodging_share", "arrival_window_start", "arrival_window_end",
                 "departure_window_start", "departure_window_end")
 
 

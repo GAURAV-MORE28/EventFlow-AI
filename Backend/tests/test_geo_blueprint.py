@@ -145,10 +145,12 @@ def test_dedup_clustering_capacities_and_hotels():
     assert parking["Stadium Parking"]["nominal_capacity"] == 400 and parking["Stadium Parking"]["capacity_source"] == "osm_attribute"
     assert any(n["capacity_source"] == "derived_area" for n in parking.values())
     props = {p["name"]: p for p in bp["properties"]}
-    assert props["Grand Hotel"]["rooms_total"] == 220 and props["Grand Hotel"]["rooms_source"] == "osm_attribute"
+    assert props["Grand Hotel"]["rooms_total"] == 220 and props["Grand Hotel"]["rooms_source"] == "osm_rooms"
     assert props["Grand Hotel"]["tier"] == "luxury" and props["Grand Hotel"]["price_per_night_paise"] is None
-    assert props["Quiet House"]["rooms_total"] == 9 and props["Quiet House"]["rooms_source"] == "osm_attribute_beds"
-    assert props["Backpack Inn"]["rooms_source"] == "estimated_type_default" and props["Backpack Inn"]["tier"] is None
+    # beds=18 is kept as beds; rooms are derived from it (ceil(18 / 2.2) = 9) and say so
+    assert props["Quiet House"]["rooms_total"] == 9 and props["Quiet House"]["rooms_source"] == "derived_from_osm_beds"
+    assert props["Quiet House"]["bed_capacity"] == 18 and props["Quiet House"]["rooms_confidence"] == "medium"
+    assert props["Backpack Inn"]["rooms_source"] == "derived_estimate" and props["Backpack Inn"]["tier"] is None
     hotels = {n["entity_id"]: n for n in bp["nodes"] if n["entity_type"] == "hotel"}
     assert all(hotels[p["cluster_entity_id"]]["nominal_capacity"] == p["rooms_total"] for p in bp["properties"])
 

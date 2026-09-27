@@ -44,12 +44,27 @@ class EventSchedule:
                 "original_end_time": e["end_time"],
                 "expected_attendance": int(e["expected_attendance"]),
                 "out_of_town_share": float(e.get("out_of_town_share", 0.25)),
+                "lodging_share": self._lodging(e.get("lodging_share")),
                 "status": "scheduled",
                 "description": e.get("description"),
                 "arrival_window_start": None, "arrival_window_end": None,
                 "departure_window_start": None, "departure_window_end": None,
             }
             self.events[ev["event_id"]] = ev
+
+    @staticmethod
+    def _lodging(value: Any) -> float | None:
+        """Share of attendees who need accommodation: None = use the configured default;
+        otherwise 0.0-1.0, rejected (never clamped) outside that range."""
+        if value is None:
+            return None
+        try:
+            v = float(value)
+        except (TypeError, ValueError):
+            raise ApiError("INVALID_REQUEST", "lodging_share must be a number between 0 and 1.", {"lodging_share": value})
+        if not (0.0 <= v <= 1.0) or v != v:
+            raise ApiError("INVALID_REQUEST", "lodging_share must be between 0 and 1.", {"lodging_share": value})
+        return v
 
     # --- queries -----------------------------------------------------------------
     def get(self, event_id: str) -> dict[str, Any]:
@@ -82,6 +97,14 @@ class EventSchedule:
                 "event_id", "name", "category", "venue_entity_id", "start_time", "end_time",
                 "original_start_time", "original_end_time", "expected_attendance", "out_of_town_share",
             )},
+            "lodging_share": ev.get("lodging_share"),
+            # effective accommodation demand of this event (simulation state)
+            "lodging_share_effective": live.get("lodging_share"),
+            "lodging_share_source": live.get("lodging_share_source"),
+            "lodging_guests": _int_or_none(live.get("lodging_guests")),
+            "local_guests": _int_or_none(live.get("local_guests")),
+            "lodging_allocated_guests": _int_or_none(live.get("allocated_guests")),
+            "lodging_unmet_guests": _int_or_none(live.get("unmet_guests")),
             "venue_name": venue_name or ev["venue_entity_id"],
             "status": self.phase(ev, sim_time),
             "delay_sec": delay,
@@ -174,7 +197,8 @@ class EventSchedule:
 
     def create(self, sim_time: str, *, name: str, venue_entity_id: str, start_time: str, end_time: str,
                expected_attendance: int, category: str = "event", description: str | None = None,
-               out_of_town_share: float = 0.25, status: str = "scheduled", **windows: str | None) -> dict[str, Any]:
+               out_of_town_share: float = 0.25, status: str = "scheduled", lodging_share: float | None = None,
+               **windows: str | None) -> dict[str, Any]:
         name = (name or "").strip()
         if not name:
             raise ApiError("INVALID_REQUEST", "An event needs a name.")
@@ -183,6 +207,7 @@ class EventSchedule:
             "description": description, "venue_entity_id": venue_entity_id,
             "start_time": self._utc(start_time, "start_time"), "end_time": self._utc(end_time, "end_time"),
             "expected_attendance": int(expected_attendance), "out_of_town_share": float(out_of_town_share),
+            "lodging_share": self._lodging(lodging_share),
             "status": status if status in ("scheduled", "cancelled") else "scheduled",
         }
         ev["original_start_time"], ev["original_end_time"] = ev["start_time"], ev["end_time"]
@@ -218,6 +243,7 @@ class EventSchedule:
         venue_entity_id: str | None = None,
         category: str | None = None,
         description: str | None = None,
+        lodging_share: float | None = None,
         **windows: str | None,
     ) -> dict[str, Any]:
         ev = self.get(event_id)
@@ -270,6 +296,8 @@ class EventSchedule:
             new["category"] = category.strip().lower() or "event"
         if description is not None:
             new["description"] = description
+        if lodging_share is not None:
+            new["lodging_share"] = self._lodging(lodging_share)
         if expected_attendance is not None:
             if expected_attendance < 0:
                 raise ApiError("INVALID_REQUEST", "expected_attendance must be >= 0.", {"event_id": event_id})
@@ -282,3 +310,7 @@ class EventSchedule:
         ev.clear()
         ev.update(new)
         return ev
+
+
+def _int_or_none(v: Any) -> int | None:
+    return None if v is None else int(round(float(v)))

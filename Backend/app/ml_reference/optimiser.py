@@ -246,8 +246,17 @@ class InterventionOptimiser:
 
         # accommodation_rebalance: a saturated hotel cluster and the cluster with most free rooms.
         availability: dict[str, int] = risk_context.get("hotel_availability") or {}
+        options: dict[str, dict] = risk_context.get("hotel_options") or {}
         if root_type == "hotel":
-            alts = sorted(((c, n) for c, n in availability.items() if c != root and n > 20), key=lambda x: -x[1])
+            def rank(c: str, free: int) -> tuple:
+                # Free rooms are the hard constraint (> 20); then closer to the venue, a less
+                # loaded station, and (only when known) cheaper. Deterministic tie-break on id.
+                o = options.get(c) or {}
+                travel = o.get("travel_sec") if o.get("travel_sec") is not None else 3600
+                price = o.get("price_paise")
+                return (-(min(free, 400) / 400.0) + travel / 3600.0 + max(0.0, (o.get("load") or 0.0) - 0.7)
+                        + (0.0 if price is None else price / 2_000_000.0), c)
+            alts = sorted(((c, n) for c, n in availability.items() if c != root and n > 20), key=lambda x: rank(*x))
             if alts:
                 dst, free = alts[0]
                 candidates.append(self._make(

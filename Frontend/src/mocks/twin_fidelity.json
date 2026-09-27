@@ -1,111 +1,111 @@
 {
   "sim_time": "2026-09-04T15:20:00Z",
-  "assimilated_rmse": 29.4,
-  "uncorrected_rmse": 2479.32,
-  "improvement_pct": 98.8,
+  "assimilated_rmse": 31.28,
+  "uncorrected_rmse": 2475.96,
+  "improvement_pct": 98.7,
   "ensemble_size": 20,
   "ensemble_spread": 0.0105,
   "drift_mode_enabled": true,
   "history": [
     {
       "sim_time": "2026-09-04T15:10:30Z",
-      "assimilated_rmse": 33.76,
-      "uncorrected_rmse": 2651.58
+      "assimilated_rmse": 37.57,
+      "uncorrected_rmse": 2645.76
     },
     {
       "sim_time": "2026-09-04T15:11:00Z",
-      "assimilated_rmse": 19.74,
-      "uncorrected_rmse": 2638.09
+      "assimilated_rmse": 17.95,
+      "uncorrected_rmse": 2632.06
     },
     {
       "sim_time": "2026-09-04T15:11:30Z",
-      "assimilated_rmse": 26.84,
-      "uncorrected_rmse": 2658.3
+      "assimilated_rmse": 36.49,
+      "uncorrected_rmse": 2652.34
     },
     {
       "sim_time": "2026-09-04T15:12:00Z",
-      "assimilated_rmse": 32.08,
-      "uncorrected_rmse": 2669.12
+      "assimilated_rmse": 23.35,
+      "uncorrected_rmse": 2663.35
     },
     {
       "sim_time": "2026-09-04T15:12:30Z",
-      "assimilated_rmse": 23.58,
-      "uncorrected_rmse": 2694.47
+      "assimilated_rmse": 21.33,
+      "uncorrected_rmse": 2688.68
     },
     {
       "sim_time": "2026-09-04T15:13:00Z",
-      "assimilated_rmse": 43.7,
-      "uncorrected_rmse": 2702.92
+      "assimilated_rmse": 33.38,
+      "uncorrected_rmse": 2697.28
     },
     {
       "sim_time": "2026-09-04T15:13:30Z",
-      "assimilated_rmse": 27.96,
-      "uncorrected_rmse": 2715.07
+      "assimilated_rmse": 25.22,
+      "uncorrected_rmse": 2710.03
     },
     {
       "sim_time": "2026-09-04T15:14:00Z",
-      "assimilated_rmse": 26.65,
-      "uncorrected_rmse": 2736.65
+      "assimilated_rmse": 26.16,
+      "uncorrected_rmse": 2732.04
     },
     {
       "sim_time": "2026-09-04T15:14:30Z",
-      "assimilated_rmse": 37.42,
-      "uncorrected_rmse": 2760.54
+      "assimilated_rmse": 36.25,
+      "uncorrected_rmse": 2756.79
     },
     {
       "sim_time": "2026-09-04T15:15:00Z",
-      "assimilated_rmse": 31.86,
-      "uncorrected_rmse": 2776.84
+      "assimilated_rmse": 28.71,
+      "uncorrected_rmse": 2773.31
     },
     {
       "sim_time": "2026-09-04T15:15:30Z",
-      "assimilated_rmse": 19.99,
-      "uncorrected_rmse": 2761.68
+      "assimilated_rmse": 20.98,
+      "uncorrected_rmse": 2758.62
     },
     {
       "sim_time": "2026-09-04T15:16:00Z",
-      "assimilated_rmse": 15.21,
-      "uncorrected_rmse": 2742.5
+      "assimilated_rmse": 23.92,
+      "uncorrected_rmse": 2739.81
     },
     {
       "sim_time": "2026-09-04T15:16:30Z",
-      "assimilated_rmse": 23.17,
-      "uncorrected_rmse": 2710.99
+      "assimilated_rmse": 26.02,
+      "uncorrected_rmse": 2708.68
     },
     {
       "sim_time": "2026-09-04T15:17:00Z",
-      "assimilated_rmse": 18.07,
-      "uncorrected_rmse": 2679.31
+      "assimilated_rmse": 23.89,
+      "uncorrected_rmse": 2677.32
     },
     {
       "sim_time": "2026-09-04T15:17:30Z",
-      "assimilated_rmse": 22.22,
-      "uncorrected_rmse": 2647.22
+      "assimilated_rmse": 23.13,
+      "uncorrected_rmse": 2644.95
     },
     {
       "sim_time": "2026-09-04T15:18:00Z",
-      "assimilated_rmse": 34.95,
-      "uncorrected_rmse": 2607.88
+      "assimilated_rmse": 36.9,
+      "uncorrected_rmse": 2605.7
     },
     {
       "sim_time": "2026-09-04T15:18:30Z",
-      "assimilated_rmse": 32.56,
-      "uncorrected_rmse": 2561.0
+      "assimilated_rmse": 34.25,
+      "uncorrected_rmse": 2558.84
     },
     {
       "sim_time": "2026-09-04T15:19:00Z",
-      "assimilated_rmse": 39.79,
-      "uncorrected_rmse": 2534.44
+      "assimilated_rmse": 42.19,
+      "uncorrected_rmse": 2532.07
     },
     {
       "sim_time": "2026-09-04T15:19:30Z",
-      "assimilated_rmse": 19.15,
-      "uncorrected_rmse": 2511.03
+      "assimilated_rmse": 22.24,
+      "uncorrected_rmse": 2508.33
     },
     {
       "sim_time": "2026-09-04T15:20:00Z",
-      "assimilated_rmse": 29.4,
-      "uncorrected_rmse": 2479.32
+      "assimilated_rmse": 31.28,
+      "uncorrected_rmse": 2475.96
     }
   ]
 }

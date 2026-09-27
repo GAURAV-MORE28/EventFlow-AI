@@ -54,7 +54,7 @@ npm run validate:mocks   # AJV-validates every mock against contracts/schemas/*.
 cd Backend
 pip install -r requirements.txt
 python run.py                       # http://localhost:8000, OpenAPI docs at /docs
-python -m pytest tests/ -q          # 192 tests (temp DB via tests/conftest.py; no network)
+python -m pytest tests/ -q          # 233 tests (temp DB via tests/conftest.py; no network)
 python -m pytest tests/test_contract.py::test_name -q     # single test
 ```
 No DB/Redis setup required — SQLite (`Backend/eventflow.db`) and an in-process cache are the
@@ -102,6 +102,25 @@ happens under `engine.world_lock`. What-If (`services/simulation.py`), candidate
 (`services/evaluation.py`) and the look-ahead projection (`services/projection.py`) all run clones
 through the same `run_forward`. Other services: `events.py` (schedule), `accommodation.py`
 (hotels/recommendation), `attendee.py` (time-dependent routing, departure options, nudges).
+
+**Accommodation is partial demand against bounded capacity** (`generator.py`, config `hospitality`):
+- Only `lodging_share` of an event's attendance needs a room. The share is per event if set, else
+  `hospitality.default_lodging_share` (0.25), and must be 0–1; anything else → 400, never clamped.
+  Rooms needed = guests / `guests_per_room` (2.2). The rest are locals travelling from home.
+- Guests check in over [start − `check_in_lead_min`, start] and check out over
+  [end + `check_out_lag_min`, + `check_out_window_min`] (normal CDF).
+- Allocation is deterministic and capacity-limited: a logit spread, then a greedy fill in score
+  order (price, travel time, tier, free share, station load). What cannot be placed is `unmet`.
+  Unmet guests travel as locals; only housed guests start their journey at a hotel.
+- Per-event ledger invariant: requested = placed + unmet; in-house = placed − checked_out; a
+  hotel's event rooms = Σ in-house.
+- Status is `saturated` when there are 0 free rooms, and `limited` (UI: TIGHT) when free ≤
+  `tight_free_share`.
+- Capacity source precedence (`blueprint.hotel_capacity`): OSM `capacity:rooms` > `rooms` >
+  beds-derived (`capacity:beds` / `beds` / `capacity:persons` ÷ gpr) > `derived_estimate`.
+  `rooms_source` / `rooms_confidence` say which applied; the UI prefixes non-high-confidence
+  counts with `~`. Baseline occupancy and bookings are simulated
+  (`occupancy_baseline_source: "simulated"`).
 
 **Backpressure rule (`§2`, enforced in `_maybe_shed_load`):** when a cycle blows the total
 latency cap, shed the *forecast* refresh, never assimilation — drift compounds, a stale forecast

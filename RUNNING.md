@@ -62,8 +62,10 @@ new what-if are disabled, and What-If shows the one recorded scenario.
 ## How the product works
 
 1. **Events drive demand.** Each event's arrivals and egress follow its
-   schedule; out-of-town visitors book hotel rooms (allocated by price, travel
-   time and tier; what cannot be placed is unmet demand).
+   schedule. Only the event's lodging share needs a room (see
+   "Accommodation"); those guests check in before the event and out after it.
+   Rooms are allocated by price, travel time, tier and free rooms, and what
+   cannot be placed is unmet demand. Everyone else is a local travelling from home.
 2. **Visitors move through the graph** (`app/ml_reference/generator.py`):
    hotel/home → station, hub or car park → gate → venue, choosing routes by
    graph coefficients discounted by congestion. Stations and gates have
@@ -100,6 +102,42 @@ new what-if are disabled, and What-If shows the one recorded scenario.
    instrumented), the twin's estimate with its ensemble uncertainty, what the
    announced plan implies, the 30-minute forecast, the do-nothing value for
    every executing action, and an over-capacity flag.
+
+## Accommodation: capacity and partial hotel demand
+
+**Capacity: mapped where OSM says so, estimated otherwise, and always labelled.**
+
+| OSM tags present | `rooms_source` | Confidence | UI |
+|---|---|---|---|
+| `capacity:rooms` | `osm_capacity_rooms` | high | `120 rooms · OSM rooms` |
+| `rooms` | `osm_rooms` | high | `361 rooms · OSM rooms` |
+| `capacity:beds` / `beds` / `capacity:persons` only | `derived_from_osm_*` (beds ÷ `guests_per_room`) | medium | `~41 rooms · Derived from OSM beds` |
+| none | `derived_estimate` (per-subtype default) | low | `~80 rooms · Derived estimate` |
+
+Tag values are parsed as plain numbers only; ranges, text or implausible values are ignored and
+fall through to the next source. `bed_capacity` / `bed_source` and `effective_guest_capacity`
+travel with each hotel. Baseline occupancy (non-event guests), bookings, check-ins and prices are
+**simulated** (`occupancy_baseline_source: "simulated"`, `price_per_night_paise: null` → "unknown").
+Nothing is presented as an actual room count unless it came from a `rooms` / `capacity:rooms` tag.
+
+**Demand: only part of the crowd needs a hotel.**
+- `lodging_guests = attendance × lodging_share`. The share comes from the event (`POST /events`,
+  `POST /events/{id}`, the activation form) or `hospitality.default_lodging_share` (0.25). It must
+  be between 0 and 1; anything else is rejected with 400, never clamped.
+- `local_guests` is the rest; they start their journey from home.
+- Rooms needed = guests / `guests_per_room` (2.2).
+- Guests check in over the `check_in_lead_min` (180) before the start and check out from
+  `check_out_lag_min` (120) after the end, over `check_out_window_min` (120), so rooms free up again.
+- Allocation is deterministic and capacity-limited (scored by price when known, travel time to
+  the venue, tier, free rooms and the hotel station's load).
+- Guests who cannot be placed are `unmet`. They are counted, shown as a red banner ("N event guests
+  could not be placed in K hotels within the selected network …") and travel as locals.
+- `GET /accommodation/hotels` returns per-hotel `rooms_occupied` / `rooms_available` /
+  `event_rooms_occupied` / `event_guests`, a summary (lodging, local, placed, unmet, pending,
+  in-house, checked out) and `lodging_by_event`.
+- A hotel is SATURATED at 0 free rooms and TIGHT at ≤ `tight_free_share` (10%) free.
+- The stay finder never offers a saturated hotel. With nothing free it answers "No room available
+  in the selected network" plus the reason.
 
 ## Venue & Network: simulate any real venue
 
@@ -156,7 +194,7 @@ real sources (`Backend/app/providers/`):
 
 ```bash
 cd Backend
-python -m pytest tests/ -q       # 192 tests; temporary database, no network (tests/conftest.py)
+python -m pytest tests/ -q       # 233 tests; temporary database, no network (tests/conftest.py)
 cd ../Frontend
 npm run validate:mocks            # fixtures vs contracts/schemas
 npm run build
@@ -178,7 +216,8 @@ cd ../Frontend && npm run validate:mocks
 `Backend/config.yaml` holds every threshold and knob: warning/critical
 utilisation (with per-type overrides for venues and hotels), intervention
 lifetime (`interventions.ttl_sec`, `min_wall_visible_sec`), effect duration,
-default compliance, demand model, hotel saturation thresholds, cascade caps,
+default compliance, demand model, hospitality (`default_lodging_share`,
+`guests_per_room`, check-in lead, check-out lag/window, `tight_free_share`), cascade caps,
 projection horizon, departure options and the event schedule.
 
 No database or Redis setup is needed: SQLite (`Backend/eventflow.db`) and an

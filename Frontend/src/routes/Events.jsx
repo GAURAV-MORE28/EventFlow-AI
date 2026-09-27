@@ -117,7 +117,7 @@ function emptyForm(simTime) {
   return {
     name: '', venue_entity_id: '', category: 'event', description: '',
     start_date: d, start_time: '18:30', end_date: d, end_time: '22:30',
-    expected_attendance: 10000, status: 'scheduled', custom: false,
+    expected_attendance: 10000, status: 'scheduled', custom: false, lodging_pct: '',
     arrival_window_start: `${d}T17:00`, arrival_window_end: `${d}T19:00`,
     departure_window_start: `${d}T22:00`, departure_window_end: `${d}T23:30`,
   };
@@ -130,6 +130,7 @@ function formFromEvent(e) {
     end_date: datePart(e.end_time), end_time: timePart(e.end_time),
     expected_attendance: e.expected_attendance, status: e.status === 'cancelled' ? 'cancelled' : 'scheduled',
     custom: e.custom_windows,
+    lodging_pct: e.lodging_share == null ? '' : String(Math.round(e.lodging_share * 1000) / 10),
     ...Object.fromEntries(WINDOW_KEYS.map((k) => [k, localPart(e[k])])),
   };
 }
@@ -182,6 +183,10 @@ function EventForm({ initial, event, venues, onSubmit, onClose, busy }) {
         <label className={label}>Expected visitors *
           <input type="number" min={0} max={500000} step={100} className={input} value={f.expected_attendance} onChange={set('expected_attendance')} required />
         </label>
+        <label className={label}>Need a hotel room (%)
+          <input type="number" min={0} max={100} step={1} className={input} value={f.lodging_pct} onChange={set('lodging_pct')}
+            placeholder="default" aria-label="Lodging share percent" />
+        </label>
         <label className={label}>Status
           <select className={input} value={f.status} onChange={set('status')}>
             <option value="scheduled">scheduled</option>
@@ -227,6 +232,8 @@ function payload(f, event) {
     name: f.name.trim(), venue_entity_id: f.venue_entity_id, category: f.category, description: f.description || null,
     start_time: toIso(f.start_date, f.start_time), end_time: toIso(f.end_date, f.end_time),
     expected_attendance: Number(f.expected_attendance), status: f.status,
+    // Share of visitors who need accommodation; empty = the configured default (the backend validates 0-1).
+    lodging_share: f.lodging_pct === '' ? null : Number(f.lodging_pct) / 100,
   };
   for (const k of WINDOW_KEYS) body[k] = f.custom ? localToIso(f[k]) : null;
   if (!event) return body;
@@ -280,6 +287,13 @@ function EventRow({ event, busy, replay, onEdit, onChange, onCancel, onDelete })
         </div>
         <div className="text-[10px] text-slate-400">{integer(event.arrived)} arrived · {integer(event.inside)} inside</div>
         <div className="text-[10px] text-slate-400">{integer(event.remaining_demand)} still to come</div>
+        {event.lodging_share_effective != null && (
+          <div className="text-[10px] text-slate-400">
+            {Math.round(event.lodging_share_effective * 100)}% need a room ({event.lodging_share_source}) ·{' '}
+            {integer(event.lodging_guests)} lodging · {integer(event.local_guests)} local
+            {event.lodging_unmet_guests ? <span className="font-semibold text-red-600"> · {integer(event.lodging_unmet_guests)} unplaced</span> : null}
+          </div>
+        )}
       </td>
       <td className="py-2">
         <div className="flex flex-wrap gap-1">

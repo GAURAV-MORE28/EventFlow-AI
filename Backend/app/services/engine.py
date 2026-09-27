@@ -890,7 +890,7 @@ class Engine:
                      / (PRIOR_COMPLIANCE_WEIGHT + len(answers)), 4)
 
     def optimiser_context(self) -> dict[str, Any]:
-        from .accommodation import cluster_availability
+        from .accommodation import cluster_availability, cluster_options
 
         with self.world_lock:
             has = hasattr(self.generator, "closed_entities")
@@ -916,6 +916,7 @@ class Engine:
             "venue_gates": venue_gates,
             "events": events,
             "hotel_availability": cluster_availability(self) if hasattr(self.generator, "properties_state") else {},
+            "hotel_options": cluster_options(self) if hasattr(self.generator, "properties_state") else {},
         }
 
     def intervention_ttl_sec(self) -> int:

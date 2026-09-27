@@ -90,8 +90,8 @@ DEFAULT_DEMAND = {
     "observed_fraction": 0.75, "sensor_dropout_rate": 0.03,
 }
 DEFAULT_HOSPITALITY = {
-    "saturation_threshold": 0.95, "limited_threshold": 0.85, "guests_per_room": 2.2,
-    "room_need_share": 0.55, "prebooked_share": 0.65, "booking_window_min": 180,
+    "guests_per_room": 2.2, "default_lodging_share": 0.25, "tight_free_share": 0.10,
+    "check_in_lead_min": 180, "check_out_lag_min": 120, "check_out_window_min": 120,
 }
 
 
@@ -108,7 +108,7 @@ def _parse(value: str) -> datetime:
 _DYNAMIC = (
     "seed", "_elapsed_sec", "_counts", "_util_prev", "_queue", "_parked", "_held",
     "_ev_state", "_events_base", "_modifiers", "_mod_counter", "_event_rooms",
-    "_requested_rooms", "_unmet_rooms", "_displaced_rooms", "_stats", "_prev_counts",
+    "_lodging", "_displaced_rooms", "_stats", "_prev_counts",
     "_observed", "_eff", "_last_flows", "_path_time", "_flow_view",
 )
 # What `resimulate_last_step` rolls back: everything that evolves with time.
@@ -284,8 +284,8 @@ class SyntheticGenerator:
         self._held: dict[str, float] = {}
         self._ev_state: dict[str, dict[str, Any]] = {}
         self._event_rooms: dict[str, float] = {p["property_id"]: 0.0 for p in self.properties}
-        self._requested_rooms = 0.0
-        self._unmet_rooms = 0.0
+        # Per event, in rooms: requested / placed / unmet / checked_out (see _allocate_rooms).
+        self._lodging: dict[str, dict[str, float]] = {}
         self._displaced_rooms = 0.0
         self._stats = {
             "diverted_people": 0.0, "late_entries": 0.0, "unparked_people": 0.0,
@@ -348,6 +348,10 @@ class SyntheticGenerator:
                 "attendance": attendance, "start": start + shift, "end": end + shift,
                 "cancelled": status == "cancelled",
                 "oot": float(ev.get("out_of_town_share", 0.25)),
+                # Share of attendees who need a room: the event's own value, else the default.
+                "lodging": float(ev["lodging_share"]) if ev.get("lodging_share") is not None
+                else float(self.hosp["default_lodging_share"]),
+                "lodging_src": "event" if ev.get("lodging_share") is not None else "default",
                 # Arrival / departure curves: centre and spread in sim minutes.
                 # An explicit window holds ~95% of its people (mid +- 2 sd).
                 "arr_mid": arr[0] if arr else start + shift - float(self.demand["arrival_lead_min"]),
@@ -595,22 +599,60 @@ class SyntheticGenerator:
         return max(1.0, self.cap[entity_id] * mult)
 
     # --- accommodation ------------------------------------------------------------------------
-    def _room_demand(self) -> tuple[float, dict[str, float]]:
-        need = float(self.hosp["room_need_share"])
-        gpr = float(self.hosp["guests_per_room"])
-        per = {}
-        for ev in self._events():
-            if ev["cancelled"]:
-                continue
-            per[ev["event_id"]] = ev["attendance"] * ev["oot"] * need / gpr
-        return sum(per.values()), per
+    # Units: hotel capacity and occupancy are ROOMS (entity current_count = rooms
+    # occupied). Demand originates in PEOPLE: lodging guests = attendance x
+    # lodging_share; room demand = lodging guests / guests_per_room.
+    def _gpr(self) -> float:
+        return max(0.1, float(self.hosp["guests_per_room"]))
 
     def _property_rooms(self, p: dict) -> float:
-        return p["rooms_total"] * self._eff["room_mult"].get(p["cluster_entity_id"], 1.0)
+        """Bookable rooms in service: mapped/derived rooms, limited by beds when beds
+        are known (guests = rooms x guests_per_room can never exceed beds), after
+        shortage modifiers."""
+        rooms = float(p["rooms_total"])
+        if p.get("bed_capacity"):
+            rooms = min(rooms, float(p["bed_capacity"]) / self._gpr())
+        return rooms * self._eff["room_mult"].get(p["cluster_entity_id"], 1.0)
+
+    def _base_rooms(self, p: dict) -> float:
+        """Non-event (baseline, simulated) occupancy, never above what is in service."""
+        return min(float(p["base_occupancy"]) * float(p["rooms_total"]), self._property_rooms(p))
 
     def property_available(self, p: dict) -> float:
-        occupied = p["base_occupancy"] * p["rooms_total"] + self._event_rooms[p["property_id"]]
-        return max(0.0, self._property_rooms(p) - occupied)
+        return max(0.0, self._property_rooms(p) - self._base_rooms(p) - self._event_rooms[p["property_id"]])
+
+    def _lodging_fractions(self, ev: dict, t_min: float) -> tuple[float, float]:
+        """(checked-in share, checked-out share) of an event's lodging guests at t.
+        Check-in spans [start - check_in_lead, start]; check-out spans
+        [end + check_out_lag, end + check_out_lag + check_out_window] (~95% inside
+        each window, the same normal-CDF shape the arrival windows use)."""
+        lead = max(1.0, float(self.hosp["check_in_lead_min"]))
+        lag = float(self.hosp["check_out_lag_min"])
+        win = max(1.0, float(self.hosp["check_out_window_min"]))
+        f_in = _phi((t_min - (ev["start"] - lead / 2.0)) / (lead / 4.0))
+        f_out = _phi((t_min - (ev["end"] + lag + win / 2.0)) / (win / 4.0))
+        return f_in, f_out
+
+    def _hotel_share(self, ev: dict) -> float:
+        """Share of this event's arrivals that start from a hotel: its lodging share
+        times the fraction of its lodging requests that actually got a room. Guests
+        without a room (unmet) travel like local visitors — nobody is dropped."""
+        L = self._lodging.get(ev["event_id"])
+        if not self.properties:
+            return 0.0
+        ratio = (L["placed"] / L["requested"]) if L and L["requested"] > 1e-9 else 1.0
+        return clamp(ev["lodging"] * ratio, 0.0, 1.0)
+
+    def _release(self, rooms: float) -> float:
+        """Free `rooms` event rooms pro rata across properties (check-out / cancellation)."""
+        held = sum(self._event_rooms.values())
+        if rooms <= 0 or held <= 0:
+            return 0.0
+        take = min(rooms, held)
+        scale = (held - take) / held
+        for pid in sorted(self._event_rooms):
+            self._event_rooms[pid] *= scale
+        return take
 
     def _main_venue(self) -> str | None:
         evs = self._events()
@@ -640,77 +682,144 @@ class SyntheticGenerator:
         zones = sorted((-self.cap[z], z) for z in self.venues if self.types[z] == "zone" and self.options.get(z))
         return zones[0][1] if zones else self._main_venue()
 
-    def _allocate(self, rooms: float, exclude: set[str] | None = None, prefer: set[str] | None = None) -> float:
-        """Place `rooms` bookings across properties by logit preference, capped by
-        availability. Returns the rooms that could not be placed."""
+    def _allocate(self, rooms: float, exclude: set[str] | None = None, prefer: set[str] | None = None,
+                  venue: str | None = None) -> float:
+        """Place `rooms` bookings across properties, capacity-limited and deterministic.
+
+        Score = price (neutral when unknown) + travel time to the event's venue + tier
+        + free-room share + congestion at the hotel's transport node (- operator
+        avoidance). Bookings are split by a logit over the score (so demand spreads,
+        not "first hotel takes all"), each property capped at its free rooms; what
+        the spread cannot place is then filled greedily in score order. A property
+        with no free room gets nothing. Returns the rooms that could not be placed."""
         if rooms <= 0 or not self.properties:
             return max(0.0, rooms)
         exclude = exclude or set()
-        venue = self._main_venue()
-        prices = [p["price_per_night_paise"] for p in self.properties if p.get("price_per_night_paise") is not None]
+        venue = venue or self._main_venue()
+        props = sorted(self.properties, key=lambda q: q["property_id"])
+        prices = [q["price_per_night_paise"] for q in props if q.get("price_per_night_paise") is not None]
         pmin, pmax = (min(prices), max(prices)) if prices else (0, 1)
-        times = [self._travel_to_venue[p["property_id"]].get(venue, 3600) for p in self.properties]
+        times = [self._travel_to_venue[q["property_id"]].get(venue, 3600) for q in props]
         tmin, tmax = min(times), max(times)
         avoid = self._eff["hotel_avoid"]
+
+        def score(q: dict) -> float:
+            pid = q["property_id"]
+            price_n = 0.5 if q.get("price_per_night_paise") is None else \
+                (q["price_per_night_paise"] - pmin) / max(pmax - pmin, 1)
+            time_n = (self._travel_to_venue[pid].get(venue, 3600) - tmin) / max(tmax - tmin, 1)
+            cap = self._property_rooms(q)
+            free_share = self.property_available(q) / cap if cap > 0 else 0.0
+            station_load = self._util_prev.get(q.get("transport_entity_id") or "", 0.0)
+            u = -1.1 * price_n - 1.3 * time_n + 0.5 * TIER_SCORE.get(q.get("tier"), 0.3)
+            u += 0.8 * free_share - 0.6 * max(0.0, station_load - 0.7)
+            return u - avoid.get(q["cluster_entity_id"], 0.0)
+
+        def eligible() -> list[dict]:
+            return [q for q in props if q["property_id"] not in exclude
+                    and not (prefer and q["cluster_entity_id"] not in prefer)
+                    and self.property_available(q) >= 1e-6]
+
         remaining = rooms
         for _ in range(6):
-            weights = {}
-            for p in self.properties:
-                pid = p["property_id"]
-                if pid in exclude or (prefer and p["cluster_entity_id"] not in prefer):
-                    continue
-                avail = self.property_available(p)
-                if avail < 0.5:
-                    continue
-                # Unknown price (generated hotels): neutral, never a fabricated number.
-                price_n = 0.5 if p.get("price_per_night_paise") is None else \
-                    (p["price_per_night_paise"] - pmin) / max(pmax - pmin, 1)
-                t = self._travel_to_venue[pid].get(venue, 3600)
-                time_n = (t - tmin) / max(tmax - tmin, 1)
-                u = -1.1 * price_n - 1.3 * time_n + 0.5 * TIER_SCORE.get(p["tier"], 0.3)
-                u -= avoid.get(p["cluster_entity_id"], 0.0)
-                weights[pid] = math.exp(2.0 * u)
-            total = sum(weights.values())
-            if total <= 0 or remaining < 0.5:
+            pool = eligible()
+            if not pool or remaining < 1e-6:
                 break
+            weights = {q["property_id"]: math.exp(2.0 * score(q)) for q in pool}
+            total = sum(weights.values())
             placed = 0.0
-            for pid, w in weights.items():
-                p = self._props_by_id[pid]
-                take = min(self.property_available(p), remaining * w / total)
-                self._event_rooms[pid] += take
+            for q in pool:
+                take = min(self.property_available(q), remaining * weights[q["property_id"]] / total)
+                self._event_rooms[q["property_id"]] += take
                 placed += take
             remaining -= placed
-            if placed < 1e-6:
+            if placed < 1e-9:
                 break
+        if remaining > 1e-6:                     # fill what the spread left, best score first
+            for q in sorted(eligible(), key=lambda q: (-score(q), q["property_id"])):
+                take = min(self.property_available(q), remaining)
+                self._event_rooms[q["property_id"]] += take
+                remaining -= take
+                if remaining <= 1e-6:
+                    break
         return max(0.0, remaining)
 
     def _allocate_rooms(self, initial: bool = False) -> None:
-        """Bring bookings in line with demand-to-date (called each step and on change)."""
-        total, _ = self._room_demand()
-        t_min = self._elapsed_sec / 60.0
-        pre = float(self.hosp["prebooked_share"])
-        window = max(1.0, float(self.hosp["booking_window_min"]))
-        target = total * (pre + (1.0 - pre) * min(1.0, t_min / window))
-        new = target - self._requested_rooms
-        if new > 0.5:
-            self._requested_rooms += new
-            self._unmet_rooms += self._allocate(new)
-        elif new < -0.5:
-            # Demand fell (cancellation / attendance cut): release bookings pro rata.
-            self._requested_rooms += new
-            held = sum(self._event_rooms.values())
-            if held > 0:
-                scale = max(0.0, (held + new) / held)
-                for pid in self._event_rooms:
-                    self._event_rooms[pid] *= scale
-        # Supply shrank below what is booked: displaced guests are re-placed or lost.
-        for p in self.properties:
-            over = p["base_occupancy"] * p["rooms_total"] + self._event_rooms[p["property_id"]] - self._property_rooms(p)
-            if over > 0.5:
-                moved = min(over, self._event_rooms[p["property_id"]])
-                self._event_rooms[p["property_id"]] -= moved
+        """Bring hotel bookings in line with each event's check-in / check-out curve
+        (called every step and on any schedule / modifier change).
+
+        Per event, in ROOMS: requested (checked-in demand to date) = placed + unmet;
+        checked_out <= placed; in-house = placed - checked_out. The property ledger
+        `_event_rooms` holds the in-house rooms of all events together."""
+        gpr = self._gpr()
+        t = self._elapsed_sec / 60.0
+        for ev in sorted(self._events(), key=lambda e: e["event_id"]):
+            L = self._lodging.setdefault(ev["event_id"], {"requested": 0.0, "placed": 0.0, "unmet": 0.0,
+                                                         "checked_out": 0.0})
+            total = 0.0 if ev["cancelled"] else ev["attendance"] * ev["lodging"] / gpr
+            f_in, f_out = self._lodging_fractions(ev, t)
+            delta = total * f_in - L["requested"]
+            if delta > 1e-6:
+                L["requested"] += delta
+                left = self._allocate(delta, venue=ev["venue"])
+                L["placed"] += delta - left
+                L["unmet"] += left
+            elif delta < -1e-6:
+                # Demand fell (attendance cut / cancellation): unplaced requests go first,
+                # then guests still in the hotel give their rooms back.
+                drop = -delta
+                L["requested"] -= drop
+                take = min(L["unmet"], drop)
+                L["unmet"] -= take
+                drop -= take
+                in_house = max(0.0, L["placed"] - L["checked_out"])
+                freed = self._release(min(drop, in_house))
+                L["placed"] -= freed
+                rest = drop - freed                   # already checked out: remove from both
+                if rest > 1e-9:
+                    L["placed"] = max(0.0, L["placed"] - rest)
+                    L["checked_out"] = max(0.0, L["checked_out"] - rest)
+            out = L["placed"] * f_out - L["checked_out"]
+            if out > 1e-6:
+                L["checked_out"] += self._release(min(out, max(0.0, L["placed"] - L["checked_out"])))
+        # Supply shrank below what is booked (hotel shortage): displaced guests are
+        # re-placed elsewhere, or become unmet — never packed over capacity.
+        for p in sorted(self.properties, key=lambda q: q["property_id"]):
+            pid = p["property_id"]
+            over = self._base_rooms(p) + self._event_rooms[pid] - self._property_rooms(p)
+            if over > 1e-6:
+                moved = min(over, self._event_rooms[pid])
+                self._event_rooms[pid] -= moved
                 self._displaced_rooms += moved
-                self._unmet_rooms += self._allocate(moved, exclude={p["property_id"]})
+                left = self._allocate(moved, exclude={pid})
+                if left > 1e-9:
+                    in_house = {k: max(0.0, v["placed"] - v["checked_out"]) for k, v in self._lodging.items()}
+                    tot = sum(in_house.values())
+                    for k in sorted(in_house):
+                        share = left * in_house[k] / tot if tot > 0 else 0.0
+                        self._lodging[k]["placed"] -= share
+                        self._lodging[k]["unmet"] += share
+
+    def lodging_state(self) -> dict[str, dict[str, Any]]:
+        """Per event: attendance split into local and lodging guests, and the lodging
+        guests' booking state (people, plus the same in rooms)."""
+        gpr = self._gpr()
+        out = {}
+        for ev in sorted(self._events(), key=lambda e: e["event_id"]):
+            L = self._lodging.get(ev["event_id"], {"requested": 0.0, "placed": 0.0, "unmet": 0.0, "checked_out": 0.0})
+            lodging = 0.0 if ev["cancelled"] else ev["attendance"] * ev["lodging"]
+            out[ev["event_id"]] = {
+                "attendance": ev["attendance"], "lodging_share": ev["lodging"], "lodging_share_source": ev["lodging_src"],
+                "lodging_guests": lodging, "local_guests": ev["attendance"] - lodging,
+                "requested_guests": L["requested"] * gpr, "allocated_guests": L["placed"] * gpr,
+                "unmet_guests": L["unmet"] * gpr, "pending_guests": max(0.0, lodging - L["requested"] * gpr),
+                "in_house_guests": max(0.0, L["placed"] - L["checked_out"]) * gpr,
+                "checked_out_guests": L["checked_out"] * gpr,
+                "requested_rooms": L["requested"], "allocated_rooms": L["placed"], "unmet_rooms": L["unmet"],
+                "in_house_rooms": max(0.0, L["placed"] - L["checked_out"]),
+                "hotel_origin_share": self._hotel_share(ev), "cancelled": ev["cancelled"],
+            }
+        return out
 
     def _rebalance_rooms(self, mod: dict) -> None:
         """accommodation_rebalance: guests at a saturated cluster accept a transfer
@@ -787,8 +896,8 @@ class SyntheticGenerator:
                 loads[a] = loads.get(a, 0.0) + v
 
         # Hotel guests: from each cluster to its transport node(s).
-        hotel_people = people * hotel_share
         cshare = self._split(cluster_guests)
+        hotel_people = people * hotel_share if cshare else 0.0   # nobody in a hotel: all travel from home
         for c, s in cshare.items():
             acc = [(a, co) for a, co, _ in self.hotel_access.get(c, []) if a not in closed]
             if not acc:
@@ -898,8 +1007,6 @@ class SyntheticGenerator:
         closed = eff["closed"]
         d = self.demand
         cluster_guests = self._cluster_guests()
-        total_guests = sum(cluster_guests.values())
-        room_total, room_per_event = self._room_demand()
 
         flows = {"acc_in": {}, "acc_out": {}, "gate_in": {}, "gate_out": {}, "direct": {}, "line": {},
                  "car_in": {}, "car_out": {}, "boarding": {}, "pair": {}}
@@ -943,8 +1050,7 @@ class SyntheticGenerator:
                         self._queue[v] = self._queue.get(v, 0.0) + (pre - admit)
                     # Record how they came, so their egress loads the right paths.
                     scratch = {"gate_in": {}, "direct": {}}
-                    guests_e = total_guests * (room_per_event.get(ev["event_id"], 0.0) / room_total if room_total > 0 else 0.0)
-                    h = min(0.9, guests_e / A) if A > 0 else 0.0
+                    h = self._hotel_share(ev)
                     for a, lam in self._access_loads(pre, cluster_guests, h).items():
                         via = a if a in self.options.get(ev["venue"], {}) else None
                         if via is None:
@@ -987,8 +1093,9 @@ class SyntheticGenerator:
             egress_by_venue[ev["venue"]] = egress_by_venue.get(ev["venue"], 0.0) + eg_rate
 
             if arr_rate > 0:
-                guests_e = total_guests * (room_per_event.get(ev["event_id"], 0.0) / room_total if room_total > 0 else 0.0)
-                h = min(0.9, guests_e / A) if A > 0 else 0.0
+                # Lodging guests with a room start from their hotel; locals (and lodging
+                # guests who found no room) start from home access nodes.
+                h = self._hotel_share(ev)
                 loads = self._access_loads(arr_rate, cluster_guests, h)
                 for a, lam in loads.items():
                     flows["acc_in"][a] = flows["acc_in"].get(a, 0.0) + lam
@@ -1270,7 +1377,7 @@ class SyntheticGenerator:
             self._allocate_rooms()
         for h in (e for e, ty in self.types.items() if ty == "hotel"):
             counts[h] = sum(
-                p["base_occupancy"] * p["rooms_total"] + self._event_rooms[p["property_id"]]
+                self._base_rooms(p) + self._event_rooms[p["property_id"]]
                 for p in self.properties if p["cluster_entity_id"] == h
             )
 
@@ -1430,32 +1537,49 @@ class SyntheticGenerator:
 
     # --- reporting --------------------------------------------------------------------------
     def properties_state(self) -> list[dict[str, Any]]:
-        sat = float(self.hosp["saturation_threshold"])
-        lim = float(self.hosp["limited_threshold"])
+        """Per property, in whole rooms: in service = occupied + free exactly
+        (free = bookable rooms left, floored; a fraction of a room is not a room).
+        saturated = no free room; limited (TIGHT) = free <= tight_free_share of rooms."""
+        tight = float(self.hosp["tight_free_share"])
+        gpr = self._gpr()
         out = []
-        for p in self.properties:
+        for p in sorted(self.properties, key=lambda q: q["property_id"]):
             rooms = self._property_rooms(p)
-            occupied = min(rooms, p["base_occupancy"] * p["rooms_total"] + self._event_rooms[p["property_id"]])
-            occ = occupied / rooms if rooms > 0 else 1.0
+            base = self._base_rooms(p)
+            event = self._event_rooms[p["property_id"]]
+            in_service = int(round(rooms))
+            free = int(max(0, min(in_service, math.floor(rooms - base - event + 1e-6))))
+            occupied = in_service - free
+            occ = occupied / in_service if in_service > 0 else 1.0
+            mult = self._eff["room_mult"].get(p["cluster_entity_id"], 1.0)
+            beds = p.get("bed_capacity")
             out.append({
                 **p,
-                "rooms_available_total": int(round(rooms)),
-                "rooms_occupied": int(round(occupied)),
-                "rooms_available": int(max(0, math.floor(rooms - occupied))),
+                "rooms_available_total": in_service,
+                "rooms_occupied": occupied,
+                "rooms_available": free,
                 "occupancy": round(occ, 4),
-                "status": "saturated" if occ >= sat else "limited" if occ >= lim else "available",
+                "status": "saturated" if free == 0 else "limited" if free <= tight * in_service else "available",
+                "baseline_rooms_occupied": round(base, 1),
+                "event_rooms_occupied": round(event, 1),
+                "event_guests": round(event * gpr, 1),
+                "effective_guest_capacity": round(min(float(p["rooms_total"]) * gpr, float(beds) if beds else 1e18) * mult, 1),
                 "travel_time_to_venue_sec": dict(self._travel_to_venue.get(p["property_id"], {})),
             })
         return out
 
     def event_states(self) -> dict[str, dict[str, Any]]:
         out = {}
+        lodging = self.lodging_state()
         for ev in self._events():
             st = self._ev_state.get(ev["event_id"], {})
+            lg = lodging.get(ev["event_id"], {})
             out[ev["event_id"]] = {
                 "attendance": ev["attendance"], "start_min": ev["start"], "end_min": ev["end"],
                 "arrived": st.get("arrived", 0.0), "inside": st.get("inside", 0.0),
                 "egressed": st.get("egressed", 0.0), "venue": ev["venue"], "cancelled": ev["cancelled"],
+                **{k: lg.get(k) for k in ("lodging_share", "lodging_share_source", "lodging_guests", "local_guests",
+                                          "allocated_guests", "unmet_guests")},
             }
         return out
 
@@ -1466,7 +1590,8 @@ class SyntheticGenerator:
         travel = (self._stats["travel_time_weighted"] / self._stats["travel_people"]) if self._stats["travel_people"] > 0 else 0.0
         return {
             "rooms_available": float(sum(p["rooms_available"] for p in props)),
-            "rooms_unmet": round(self._unmet_rooms, 1),
+            "rooms_unmet": round(sum(L["unmet"] for L in self._lodging.values()), 1),
+            **self._lodging_totals(),
             "rooms_displaced": round(self._displaced_rooms, 1),
             "saturated_properties": float(sum(1 for p in props if p["status"] == "saturated")),
             "queued_people": round(queued, 1),
@@ -1478,6 +1603,14 @@ class SyntheticGenerator:
             "arrivals_per_min": round(self._last_flows.get("arrivals_per_min", 0.0), 1),
             "egress_per_min": round(self._last_flows.get("egress_per_min", 0.0), 1),
         }
+
+    def _lodging_totals(self) -> dict[str, float]:
+        st = self.lodging_state().values()
+        names = {"attendance": "attendance_total", "local_guests": "local_guests", "lodging_guests": "lodging_guests",
+                 "requested_guests": "lodging_requested_guests", "allocated_guests": "lodging_allocated_guests",
+                 "unmet_guests": "lodging_unmet_guests", "pending_guests": "lodging_pending_guests",
+                 "in_house_guests": "lodging_in_house_guests", "checked_out_guests": "lodging_checked_out_guests"}
+        return {out: round(sum(e[k] for e in st), 1) for k, out in names.items()}
 
     # --- lifecycle ------------------------------------------------------------------------------
     def reset(self, seed: int | None = None) -> None:

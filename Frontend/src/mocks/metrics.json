@@ -2,10 +2,10 @@
   "sim_time": "2026-09-04T15:20:00Z",
   "operations": {
     "capacity_utilisation": {
-      "value": 0.4212
+      "value": 0.4209
     },
     "peak_congestion": {
-      "value": 1.1427,
+      "value": 1.114,
       "target": 0.9
     },
     "critical_locations": {
@@ -13,10 +13,10 @@
       "target": 0.0
     },
     "queued_people": {
-      "value": 4050.2
+      "value": 4177.9
     },
     "avg_travel_time_sec": {
-      "value": 795.8
+      "value": 798.3
     },
     "late_entries": {
       "value": 332.8,
@@ -27,10 +27,10 @@
       "target": 0.0
     },
     "rooms_available": {
-      "value": 1775.0
+      "value": 1160.0
     },
     "saturated_hotels": {
-      "value": 6.0
+      "value": 4.0
     },
     "visitors_redirected": {
       "value": 0.0
@@ -51,9 +51,9 @@
   "prediction": {
     "forecast_mae": {
       "value": 0.0043,
-      "baseline": 0.051,
+      "baseline": 0.0522,
       "baseline_name": "persistence",
-      "improvement_pct": 91.6
+      "improvement_pct": 91.8
     },
     "cascade_lead_time_sec": {
       "value": 0.0,
@@ -63,7 +63,7 @@
     },
     "cascade_precision": {
       "value": 0.0,
-      "sample_size": 4
+      "sample_size": 5
     },
     "cascade_recall": {
       "value": 0.0,
@@ -72,10 +72,10 @@
   },
   "twin": {
     "rmse": {
-      "value": 29.4,
-      "baseline": 2479.32,
+      "value": 31.28,
+      "baseline": 2475.96,
       "baseline_name": "uncorrected_abm",
-      "improvement_pct": 98.8
+      "improvement_pct": 98.7
     },
     "ensemble_coverage": {
       "value": 1.0,
@@ -95,11 +95,11 @@
       "baseline_name": "do_nothing_counterfactual"
     },
     "unstable_interventions_caught": {
-      "value": 6.0,
+      "value": 5.0,
       "baseline_name": "naive_optimiser_would_approve"
     },
     "certificate_accuracy_pct": {
-      "value": 32.0,
+      "value": 36.0,
       "target": 85.0,
       "baseline_name": "twin_branch_ground_truth"
     },
@@ -110,7 +110,7 @@
   },
   "system": {
     "cycle_latency_ms": {
-      "value": 118.0,
+      "value": 27.0,
       "target": 2000.0
     },
     "commander_ungrounded_rate": {

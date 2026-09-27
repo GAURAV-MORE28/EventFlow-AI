@@ -81,6 +81,7 @@ def normalise_event(raw: dict, known_entities: set[str]) -> dict:
         "end_time": iso_utc(raw["end_time"]),
         "expected_attendance": int(raw["expected_attendance"]),
         "out_of_town_share": fraction(raw.get("out_of_town_share", 0.25)),
+        "lodging_share": fraction(raw["lodging_share"]) if raw.get("lodging_share") is not None else None,
     }
     if ev["venue_entity_id"] not in known_entities:
         raise DataError(f"event {ev['event_id']}: unknown venue {ev['venue_entity_id']}")

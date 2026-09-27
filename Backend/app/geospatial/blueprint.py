@@ -110,6 +110,66 @@ def parse_speed_kmh(value: str | None) -> float | None:
     return v if 3.0 <= v <= 150.0 else None
 
 
+CAPACITY_TAGS = ("capacity:rooms", "rooms", "capacity:beds", "beds", "capacity:persons")
+
+
+def parse_capacity(value: Any, hi: int = 20000) -> int | None:
+    """A mapped capacity tag -> positive int, or None. Accepts "235", " 235 ", "235.0";
+    rejects "unknown", "-3", "0", "200-250", "~200", "1e3" and anything above `hi`."""
+    if value is None:
+        return None
+    m = re.match(r"^\s*(\d+(?:\.\d+)?)\s*$", str(value))
+    if not m:
+        return None
+    v = float(m.group(1))
+    if v < 0.5 or v > hi:
+        return None
+    return int(round(v))
+
+
+def hotel_capacity(tags: dict[str, str], subtype: str, guests_per_room: float,
+                   default_rooms: dict[str, int]) -> dict[str, Any]:
+    """Room / bed / guest capacity of one mapped hotel, with provenance.
+
+    Precedence (rooms are the simulation's unit): capacity:rooms, rooms (mapped,
+    high confidence) -> rooms derived from capacity:beds / beds / capacity:persons
+    (medium: the bed count is mapped, the rooms are computed) -> a type default
+    (low: estimate). Beds are kept as beds, never relabelled as rooms.
+    """
+    rooms, rooms_src = None, None
+    for key, src in (("capacity:rooms", "osm_capacity_rooms"), ("rooms", "osm_rooms")):
+        rooms = parse_capacity(tags.get(key))
+        if rooms:
+            rooms_src = src
+            break
+    beds, bed_src = None, None
+    for key, src in (("capacity:beds", "osm_capacity_beds"), ("beds", "osm_beds"),
+                     ("capacity:persons", "osm_capacity_persons")):
+        beds = parse_capacity(tags.get(key))
+        if beds:
+            bed_src = src
+            break
+    gpr = max(float(guests_per_room), 0.1)
+    if rooms:
+        conf = "high"
+    elif beds:
+        rooms, rooms_src, conf = max(1, math.ceil(beds / gpr)), f"derived_from_{bed_src}", "medium"
+    else:
+        rooms, rooms_src, conf = int(default_rooms.get(subtype, 40)), "derived_estimate", "low"
+    if beds and rooms_src.startswith("osm_"):
+        guests, guests_src = min(rooms * gpr, float(beds)), "min(osm_rooms x guests_per_room, osm_beds)"
+    elif beds:
+        guests, guests_src = float(beds), bed_src
+    else:
+        guests, guests_src = rooms * gpr, f"{rooms_src} x guests_per_room"
+    return {
+        "room_capacity": int(rooms), "rooms_source": rooms_src, "rooms_confidence": conf,
+        "bed_capacity": beds, "bed_source": bed_src,
+        "effective_guest_capacity": round(guests, 1), "guest_capacity_source": guests_src,
+        "capacity_tags": {k: tags[k] for k in CAPACITY_TAGS if k in tags},
+    }
+
+
 def parse_int(value: str | None, lo: int = 1, hi: int = 10**6) -> int | None:
     if value is None:
         return None
@@ -701,6 +761,7 @@ class BlueprintBuilder:
         hotel_items = [{"key": f"osm:{h['osm_type']}/{h['osm_id']}", **h} for h in raw.hotels]
         properties: list[dict[str, Any]] = []
         defaults_rooms = self._cfg("hotel_default_rooms", {})
+        gpr = float(self._cfg("guests_per_room", 2.2))
         stars_tier = {1: "budget", 2: "budget", 3: "midscale", 4: "upscale", 5: "luxury"}
         transit_nodes = [a for a in access if nodes[a]["entity_type"] == "transport_node"]
         for h in nearest_n(hotel_items, int(self._cfg("max_hotels", 30))):
@@ -708,19 +769,15 @@ class BlueprintBuilder:
             s = snap_or_warn(label, h["lat"], h["lon"])
             if s is None:
                 continue
-            rooms = parse_int(h["tags"].get("rooms"), 1, 5000)
-            if rooms:
-                rsrc, rconf = "osm_attribute", "medium"
-            elif parse_int(h["tags"].get("beds"), 1, 10000):
-                rooms, rsrc, rconf = max(1, parse_int(h["tags"]["beds"]) // 2), "osm_attribute_beds", "low"
-            else:
-                rooms, rsrc, rconf = int(defaults_rooms.get(h["subtype"], 40)), "estimated_type_default", "low"
+            cap = hotel_capacity(h["tags"], h["subtype"], gpr, defaults_rooms)
+            rooms, rsrc, rconf = cap["room_capacity"], cap["rooms_source"], cap["rooms_confidence"]
             hid = add_node({
                 "entity_id": _hid("n", f"hotel:{h['key']}"), "entity_type": "hotel", "subtype": h["subtype"],
                 "display_name": label, "lat": h["lat"], "lon": h["lon"], "nominal_capacity": float(rooms),
                 "capacity_source": rsrc, "capacity_confidence": rconf, "parent_id": None,
                 "provenance": _prov("osm", f"{h['osm_type']}/{h['osm_id']}", "high", True, False),
-                "meta": {"stars": h["tags"].get("stars")},
+                "meta": {"stars": h["tags"].get("stars"), "capacity_tags": cap["capacity_tags"],
+                         **{k: h["tags"][k] for k in ("brand", "operator", "website") if h["tags"].get(k)}},
             })
             road, sd = s
             add_edge(hid, road, "connects_to", sd / walk, key="snap", distance=sd,
@@ -748,6 +805,10 @@ class BlueprintBuilder:
                 "walk_to_transport_sec": int(round(walk_sec)) if walk_sec is not None else 900,
                 "base_occupancy": float(self._cfg("hotel_base_occupancy", 0.45)),
                 "rooms_source": rsrc, "rooms_confidence": rconf, "price_source": "unknown",
+                "bed_capacity": cap["bed_capacity"], "bed_source": cap["bed_source"],
+                "effective_guest_capacity": cap["effective_guest_capacity"],
+                "guest_capacity_source": cap["guest_capacity_source"], "capacity_tags": cap["capacity_tags"],
+                "occupancy_baseline_source": "simulated",
                 "tier_source": "osm_stars" if stars else "unknown",
                 "provenance": _prov("osm", f"{h['osm_type']}/{h['osm_id']}", "high", True, False),
             })

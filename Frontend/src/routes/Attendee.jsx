@@ -28,6 +28,7 @@ import {
 import { api } from '../lib/api.js';
 import { riskColor } from '../lib/colors.js';
 import { clock, humanise, minutes, percent, rupees } from '../lib/format.js';
+import { capacitySourceLabel, roomCapacityLabel, statusLabel } from '../lib/accommodation.js';
 import { useLiveQuery } from '../lib/useLiveQuery.js';
 import { useStore } from '../store/useStore.js';
 
@@ -142,19 +143,31 @@ function HotelCard({ propertyId, eventId, segment }) {
   if (!data) return null;
   const current = data.current;
   const needsAlternative = !current || current.status !== 'available';
+  const tone = (st) => (st === 'saturated' ? 'text-red-600' : st === 'limited' ? 'text-amber-600' : 'text-emerald-700');
   return (
     <section className="panel p-3">
       <div className="flex items-center gap-1.5">
         <BedDouble className="h-4 w-4 text-teal-600" />
         <h2 className="panel-title">{current ? 'Your hotel' : 'Where to stay'}</h2>
       </div>
+      {!current && (
+        <p className="mt-1 text-[11px] text-slate-400">
+          You are travelling as a local visitor (from home via a station, stop or car park) — no hotel needed. Options
+          below are for visitors who do need a room.
+        </p>
+      )}
       {current && (
         <div className="mt-1.5 text-xs text-slate-300">
-          <b className="text-slate-100">{current.name}</b> · {percent(current.occupancy)} occupied ·{' '}
-          <span className={current.status === 'saturated' ? 'text-red-600' : current.status === 'limited' ? 'text-amber-600' : 'text-emerald-700'}>
-            {current.status}
-          </span>
+          <b className="text-slate-100">{current.name}</b> · {current.rooms_available} of{' '}
+          {roomCapacityLabel(current.rooms_in_service, current.rooms_confidence)} free · {percent(current.occupancy)} occupied ·{' '}
+          <span className={`font-semibold ${tone(current.status)}`}>{statusLabel(current.status)}</span>
+          <div className="text-[10px] text-slate-400">capacity: {capacitySourceLabel(current.rooms_source)}</div>
         </div>
+      )}
+      {needsAlternative && data.options.length === 0 && (
+        <p className="mt-1.5 text-[11px] font-semibold text-red-600">
+          No room available in the selected network. {data.no_availability_reason || ''}
+        </p>
       )}
       {needsAlternative && data.options.length > 0 && (
         <>
@@ -162,8 +175,16 @@ function HotelCard({ propertyId, eventId, segment }) {
           <ul className="mt-1.5 space-y-1">
             {data.options.map((o) => (
               <li key={o.property.property_id} className="rounded border border-surface-700/60 bg-surface-850 px-2 py-1 text-[11px]">
-                <div className="font-semibold text-slate-100">{o.property.name} <span className="font-normal text-slate-400">· {o.property.zone}</span></div>
-                <div className="text-slate-400">{o.reasons.slice(0, 3).join(' · ')}</div>
+                <div className="font-semibold text-slate-100">
+                  {o.property.name} <span className="font-normal text-slate-400">· {o.property.zone}</span>{' '}
+                  <span className={tone(o.property.status)}>{statusLabel(o.property.status)}</span>
+                </div>
+                <div className="text-slate-400">
+                  {o.property.rooms_available} of {roomCapacityLabel(o.property.rooms_in_service, o.property.rooms_confidence)} free
+                  {o.property.price_per_night_paise != null ? ` · ${rupees(o.property.price_per_night_paise)}/night` : ''}
+                  {o.travel_time_sec != null ? ` · ${minutes(o.travel_time_sec)} to venue` : ''}
+                  {` · ${o.property.transport_name || 'transport'} ${percent(o.property.transport_utilisation)} load`}
+                </div>
               </li>
             ))}
           </ul>
@@ -280,7 +301,7 @@ export default function Attendee() {
                 ))}
                 {!hotels.data && plan.origin && <option value={plan.origin}>{plan.origin}</option>}
               </optgroup>
-              <optgroup label="Stations, hubs, parking, zones">
+              <optgroup label="Local visitor (no hotel): from a station, stop, car park or zone">
                 {origins.map((n) => <option key={n.entity_id} value={n.entity_id}>{n.display_name}</option>)}
               </optgroup>
             </select>

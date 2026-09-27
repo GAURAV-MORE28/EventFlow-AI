@@ -1,6 +1,6 @@
 {
   "What is the biggest problem right now?": {
-    "response": "Across the event, 2 entities are critical and 7 are at high risk. The most urgent is Gate 5, projected to cross critical in 0 minutes. It is currently filling, net flow 71.0 per minute, against a nominal capacity of 1500, at 100 risk. The forecast source is twin_model. Predicted propagation reaches road_5 in 5 minutes and road_10 in 13 minutes, 5 downstream failures in total.",
+    "response": "Across the event, 2 entities are critical and 7 are at high risk. The most urgent is Gate 5, projected to cross critical in 0 minutes. It is currently filling, net flow 67.5 per minute, against a nominal capacity of 1500, at 100 risk. The forecast source is twin_model. Predicted propagation reaches road_5 in 5 minutes and emergency_south in 11 minutes, 4 downstream failures in total.",
     "is_cached": false,
     "tool_calls": [
       {
@@ -8,14 +8,14 @@
         "args": {
           "entity_id": "all"
         },
-        "result_digest": "overall_risk=73 load_variance=0.0351"
+        "result_digest": "overall_risk=73 load_variance=0.0349"
       },
       {
         "tool": "get_state",
         "args": {
           "entity_id": "gate_5"
         },
-        "result_digest": "utilisation=1.1427 risk=100"
+        "result_digest": "utilisation=1.114 risk=100"
       },
       {
         "tool": "get_forecast",
@@ -29,7 +29,7 @@
         "args": {
           "entity_id": "gate_5"
         },
-        "result_digest": "5 downstream failures"
+        "result_digest": "4 downstream failures"
       },
       {
         "tool": "summarize_window",
@@ -43,28 +43,26 @@
         "7",
         "5",
         "0",
-        "71.0",
+        "67.5",
         "1500",
         "100",
         "5",
         "5",
-        "10",
-        "13",
-        "5"
+        "11",
+        "4"
       ],
       "numbers_grounded": [
         "2",
         "7",
         "5",
         "0",
-        "71.0",
+        "67.5",
         "1500",
         "100",
         "5",
         "5",
-        "10",
-        "13",
-        "5"
+        "11",
+        "4"
       ],
       "ungrounded": [],
       "ungrounded_count": 0,
@@ -72,7 +70,7 @@
     }
   },
   "Which hotels are nearing capacity?": {
-    "response": "6 of 20 hotels are saturated and 5 have limited rooms; 1775 rooms are free city-wide and 0 booking requests could not be placed. Nearing or at capacity: Southgate Apartments (100 percent), Harbour Lodge (100 percent), Central Budget Stay (100 percent), Arena Business Hotel (100 percent). Best alternative right now: Metro B Residency in North, 166 rooms free at Rs 6200 per night, 34 minutes to the venue.",
+    "response": "4 of 20 hotels are saturated and 4 have limited rooms; 1160 rooms are free city-wide and 0 booking requests could not be placed. Nearing or at capacity: Backpackers West (100 percent), Central Budget Stay (100 percent), Harbour Lodge (100 percent), Southgate Apartments (100 percent). Best alternative right now: Metro B Residency in North, 118 rooms free at Rs 6200 per night, 34 minutes to the venue.",
     "is_cached": false,
     "tool_calls": [
       {
@@ -80,7 +78,7 @@
         "args": {
           "entity_id": "all"
         },
-        "result_digest": "overall_risk=73 load_variance=0.0351"
+        "result_digest": "overall_risk=73 load_variance=0.0349"
       },
       {
         "tool": "get_state",
@@ -93,30 +91,30 @@
     ],
     "grounding": {
       "numbers_emitted": [
-        "6",
+        "4",
         "20",
-        "5",
-        "1775",
+        "4",
+        "1160",
         "0",
         "100",
         "100",
         "100",
         "100",
-        "166",
+        "118",
         "6200",
         "34"
       ],
       "numbers_grounded": [
-        "6",
+        "4",
         "20",
-        "5",
-        "1775",
+        "4",
+        "1160",
         "0",
         "100",
         "100",
         "100",
         "100",
-        "166",
+        "118",
         "6200",
         "34"
       ],
@@ -126,7 +124,7 @@
     }
   },
   "What happens if Gate 5 closes?": {
-    "response": "Simulated gate closure for the next 60 minutes against an unchanged copy of the city. Peak utilisation goes from 162 percent at Arterial 5 to 162 percent at Arterial 6. Newly critical: Gate 1, Arterial 10, Arterial 12. Biggest changes: Gate 5 116 to 0 percent; Arterial 12 33 to 123 percent; Arterial 10 46 to 126 percent. Average transport pressure moves from 63 to 63 percent, and late entries change by -869.",
+    "response": "Simulated gate closure for the next 60 minutes against an unchanged copy of the city. Peak utilisation goes from 162 percent at Arterial 5 to 162 percent at Arterial 6. Newly critical: South Emergency Post, Gate 1, Arterial 10, Arterial 12. Biggest changes: Gate 5 116 to 0 percent; Arterial 12 31 to 113 percent; Arterial 10 45 to 118 percent. Average transport pressure moves from 63 to 63 percent, and late entries change by -994.",
     "is_cached": false,
     "tool_calls": [
       {
@@ -134,7 +132,7 @@
         "args": {
           "entity_id": "all"
         },
-        "result_digest": "overall_risk=73 load_variance=0.0351"
+        "result_digest": "overall_risk=73 load_variance=0.0349"
       },
       {
         "tool": "run_whatif",
@@ -146,7 +144,7 @@
             }
           }
         },
-        "result_digest": "peak 162% -> 162%, 3 newly critical"
+        "result_digest": "peak 162% -> 162%, 4 newly critical"
       }
     ],
     "grounding": {
@@ -163,14 +161,14 @@
         "116",
         "0",
         "12",
-        "33",
-        "123",
+        "31",
+        "113",
         "10",
-        "46",
-        "126",
+        "45",
+        "118",
         "63",
         "63",
-        "-869"
+        "-994"
       ],
       "numbers_grounded": [
         "60",
@@ -185,14 +183,14 @@
         "116",
         "0",
         "12",
-        "33",
-        "123",
+        "31",
+        "113",
         "10",
-        "46",
-        "126",
+        "45",
+        "118",
         "63",
         "63",
-        "-869"
+        "-994"
       ],
       "ungrounded": [],
       "ungrounded_count": 0,
@@ -208,7 +206,7 @@
         "args": {
           "entity_id": "all"
         },
-        "result_digest": "overall_risk=73 load_variance=0.0351"
+        "result_digest": "overall_risk=73 load_variance=0.0349"
       },
       {
         "tool": "summarize_window",

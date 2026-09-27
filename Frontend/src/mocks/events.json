@@ -24,7 +24,14 @@
       "departure_window_start": "2026-09-04T16:55:00Z",
       "departure_window_end": "2026-09-04T17:35:00Z",
       "custom_windows": false,
-      "remaining_demand": 0
+      "remaining_demand": 0,
+      "lodging_share": 0.136,
+      "lodging_share_effective": 0.136,
+      "lodging_share_source": "event",
+      "lodging_guests": 1904,
+      "local_guests": 12096,
+      "lodging_allocated_guests": 1904,
+      "lodging_unmet_guests": 0
     },
     {
       "event_id": "evt_fanfest",
@@ -48,7 +55,14 @@
       "departure_window_start": "2026-09-04T19:25:00Z",
       "departure_window_end": "2026-09-04T20:05:00Z",
       "custom_windows": false,
-      "remaining_demand": 88
+      "remaining_demand": 88,
+      "lodging_share": 0.034,
+      "lodging_share_effective": 0.034,
+      "lodging_share_source": "event",
+      "lodging_guests": 187,
+      "local_guests": 5313,
+      "lodging_allocated_guests": 186,
+      "lodging_unmet_guests": 0
     },
     {
       "event_id": "evt_demo",
@@ -65,14 +79,21 @@
       "out_of_town_share": 0.3,
       "status": "arriving",
       "arrived": 35000,
-      "inside": 30950,
+      "inside": 30892,
       "description": null,
       "arrival_window_start": "2026-09-04T14:24:00Z",
       "arrival_window_end": "2026-09-04T16:16:00Z",
       "departure_window_start": "2026-09-04T18:25:00Z",
       "departure_window_end": "2026-09-04T19:05:00Z",
       "custom_windows": false,
-      "remaining_demand": 35000
+      "remaining_demand": 35000,
+      "lodging_share": 0.102,
+      "lodging_share_effective": 0.102,
+      "lodging_share_source": "event",
+      "lodging_guests": 7140,
+      "local_guests": 62860,
+      "lodging_allocated_guests": 6189,
+      "lodging_unmet_guests": 0
     }
   ]
 }

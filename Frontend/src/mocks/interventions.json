@@ -2,48 +2,49 @@
   "sim_time": "2026-09-04T15:20:00Z",
   "interventions": [
     {
-      "intervention_id": "int_2a4e9",
-      "intervention_type": "stagger_entry",
+      "intervention_id": "int_dcd7d",
+      "intervention_type": "gate_redistribution",
       "status": "proposed",
       "target_entity_ids": [
-        "gate_6"
+        "gate_6",
+        "gate_3"
       ],
       "triggered_by_entity_id": "road_6",
-      "title": "Stagger entry at Gate 6",
-      "description": "Ask 35% of arrivals for these gates (group and price-sensitive ticket holders first) to arrive 12 minutes later, with a food-and-drink credit for doing so.",
-      "estimated_relief_pct": 30.5,
-      "estimated_cost_paise": 180000,
-      "estimated_delay_sec": 720,
-      "feasibility": 0.85,
-      "rank_score": 0.6408,
+      "title": "Reassign 30% of Gate 6 entries to Gate 3",
+      "description": "Stewards and app alerts direct 30% of arrivals heading for Gate 6 (117%) to Gate 3 (9%).",
+      "estimated_relief_pct": 48.5,
+      "estimated_cost_paise": 25000,
+      "estimated_delay_sec": 240,
+      "feasibility": 0.9,
+      "rank_score": 0.9782,
       "certificate": {
-        "certificate_id": "cert_9645",
-        "intervention_id": "int_2a4e9",
-        "verdict": "STABLE",
+        "certificate_id": "cert_9c1c",
+        "intervention_id": "int_dcd7d",
+        "verdict": "CONDITIONAL",
         "converged": true,
-        "iterations": 29,
-        "post_nudge_variance": 0.0291,
-        "baseline_variance": 0.0312,
-        "max_zone_utilisation": 0.7572,
+        "iterations": 31,
+        "post_nudge_variance": 0.0317,
+        "baseline_variance": 0.0322,
+        "max_zone_utilisation": 0.7673,
         "max_zone_entity_id": "zone_fanpark",
         "oscillation_risk": false,
         "compliance_sensitivity": 0.0,
-        "reason": "Equilibrium holds across 40-90% compliance; peak 76% at Fan Park.",
+        "reason": "Holds below 90% compliance; Fan Park reaches 77% above that.",
         "compliance_sweep": [
           {
             "compliance_rate": 0.4,
-            "max_utilisation": 0.7572,
+            "max_utilisation": 0.7673,
             "verdict": "STABLE"
           },
           {
             "compliance_rate": 0.6,
-            "max_utilisation": 0.7572,
+            "max_utilisation": 0.7673,
             "verdict": "STABLE"
           },
           {
             "compliance_rate": 0.9,
-            "max_utilisation": 0.7572,
-            "verdict": "STABLE"
+            "max_utilisation": 0.7673,
+            "verdict": "UNSTABLE"
           }
         ]
       },
@@ -53,20 +54,20 @@
         "horizon_sec": 1800,
         "compliance": 0.6,
         "root_entity_id": "road_6",
-        "root_peak_before": 1.0701,
-        "root_peak_after": 0.7433,
-        "network_peak_before": 1.6112,
-        "network_peak_after": 1.5434,
+        "root_peak_before": 0.9555,
+        "root_peak_after": 0.4922,
+        "network_peak_before": 1.6072,
+        "network_peak_after": 1.161,
         "critical_before": 5,
         "critical_after": 4,
         "new_critical_entities": [],
-        "people_redirected": 1512,
-        "travel_time_delta_sec": -22.0,
+        "people_redirected": 1324,
+        "travel_time_delta_sec": -29.5,
         "rooms_unmet_delta": 0.0
       }
     },
     {
-      "intervention_id": "int_5dd76",
+      "intervention_id": "int_0b038",
       "intervention_type": "event_delay",
       "status": "proposed",
       "target_entity_ids": [
@@ -74,39 +75,39 @@
       ],
       "triggered_by_entity_id": "gate_6",
       "title": "Delay National Cup Final by 20 minutes",
-      "description": "Announce a 20-minute later start for National Cup Final (15% of visitors have arrived). The arrival wave flattens and the egress moves with it; every visitor gets the new time.",
+      "description": "Announce a 20-minute later start for National Cup Final (16% of visitors have arrived). The arrival wave flattens and the egress moves with it; every visitor gets the new time.",
       "estimated_relief_pct": 85.2,
       "estimated_cost_paise": 400000,
       "estimated_delay_sec": 1200,
       "feasibility": 0.75,
       "rank_score": 0.1704,
       "certificate": {
-        "certificate_id": "cert_39c2",
-        "intervention_id": "int_5dd76",
+        "certificate_id": "cert_e912",
+        "intervention_id": "int_0b038",
         "verdict": "UNSTABLE",
         "converged": true,
-        "iterations": 12,
-        "post_nudge_variance": 0.0277,
-        "baseline_variance": 0.0261,
-        "max_zone_utilisation": 0.6994,
+        "iterations": 13,
+        "post_nudge_variance": 0.0271,
+        "baseline_variance": 0.0254,
+        "max_zone_utilisation": 0.6932,
         "max_zone_entity_id": "zone_fanpark",
         "oscillation_risk": false,
         "compliance_sensitivity": 0.0,
-        "reason": "Redistribution increases load variance from 0.026 to 0.028.",
+        "reason": "Redistribution increases load variance from 0.025 to 0.027.",
         "compliance_sweep": [
           {
             "compliance_rate": 0.4,
-            "max_utilisation": 0.6994,
+            "max_utilisation": 0.6932,
             "verdict": "UNSTABLE"
           },
           {
             "compliance_rate": 0.6,
-            "max_utilisation": 0.6994,
+            "max_utilisation": 0.6932,
             "verdict": "UNSTABLE"
           },
           {
             "compliance_rate": 0.9,
-            "max_utilisation": 0.6994,
+            "max_utilisation": 0.6932,
             "verdict": "UNSTABLE"
           }
         ]
@@ -117,15 +118,15 @@
         "horizon_sec": 1800,
         "compliance": 0.6,
         "root_entity_id": "gate_6",
-        "root_peak_before": 0.8149,
-        "root_peak_after": 0.1203,
-        "network_peak_before": 1.1603,
+        "root_peak_before": 0.8293,
+        "root_peak_after": 0.1223,
+        "network_peak_before": 1.1553,
         "network_peak_after": 0.9333,
         "critical_before": 2,
         "critical_after": 0,
         "new_critical_entities": [],
         "people_redirected": 0,
-        "travel_time_delta_sec": -100.2,
+        "travel_time_delta_sec": -109.4,
         "rooms_unmet_delta": 0.0
       }
     }

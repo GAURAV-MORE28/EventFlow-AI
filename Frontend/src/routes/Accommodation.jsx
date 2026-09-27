@@ -13,6 +13,7 @@ import { BedDouble, AlertTriangle, Search, Accessibility, ArrowRight } from 'luc
 import PageShell, { ErrorNote, Stat } from '../components/PageShell.jsx';
 import { api } from '../lib/api.js';
 import { integer, minutes, percent, rupees } from '../lib/format.js';
+import { capacitySourceLabel, confidenceLabel, roomCapacityLabel, statusLabel } from '../lib/accommodation.js';
 import { useLiveQuery } from '../lib/useLiveQuery.js';
 import { useStore } from '../store/useStore.js';
 
@@ -24,7 +25,56 @@ const STATUS = {
 const SEGMENTS = ['price_sensitive', 'time_sensitive', 'accessibility_constrained', 'group', 'premium'];
 
 function StatusChip({ status }) {
-  return <span className={`chip border text-[10px] uppercase ${STATUS[status] || ''}`}>{status}</span>;
+  return <span className={`chip border text-[10px] uppercase ${STATUS[status] || ''}`}>{statusLabel(status)}</span>;
+}
+
+/** Capacity with its provenance: mapped values plain, derived / estimated values marked "~". */
+function Capacity({ h }) {
+  return (
+    <div>
+      <div className="tabular-nums text-slate-100">{roomCapacityLabel(h.rooms_total, h.rooms_confidence)}</div>
+      <div className="text-[10px] text-slate-400" title={h.capacity_tags ? JSON.stringify(h.capacity_tags) : 'no capacity tag mapped'}>
+        {capacitySourceLabel(h.rooms_source)} · {confidenceLabel(h.rooms_confidence)} confidence
+        {h.bed_capacity ? ` · ${integer(h.bed_capacity)} beds` : ''}
+      </div>
+    </div>
+  );
+}
+
+/** Each event's accommodation demand: only its lodging share needs rooms (simulated). */
+function LodgingTable({ rows }) {
+  if (!rows?.length) return null;
+  return (
+    <section className="panel mb-3 overflow-x-auto p-3">
+      <h2 className="panel-title mb-2">Accommodation demand by event (simulated)</h2>
+      <table className="w-full min-w-[720px] text-left text-xs">
+        <thead className="text-[10px] uppercase tracking-wider text-slate-400">
+          <tr>
+            <th className="pb-1">Event</th><th className="pb-1">Attendance</th><th className="pb-1">Lodging share</th>
+            <th className="pb-1">Local</th><th className="pb-1">Need a room</th><th className="pb-1">Placed</th>
+            <th className="pb-1">Unmet</th><th className="pb-1">Not yet checked in</th><th className="pb-1">In hotels now</th>
+            <th className="pb-1">Checked out</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((r) => (
+            <tr key={r.event_id} className="border-t border-surface-700/40 tabular-nums">
+              <td className="py-1.5 pr-2 font-semibold text-slate-100">{r.name}{r.cancelled ? ' (cancelled)' : ''}</td>
+              <td className="pr-2">{integer(r.attendance)}</td>
+              <td className="pr-2">{percent(r.lodging_share)} <span className="text-[10px] text-slate-400">({r.lodging_share_source})</span></td>
+              <td className="pr-2">{integer(r.local_guests)}</td>
+              <td className="pr-2">{integer(r.lodging_guests)}</td>
+              <td className="pr-2">{integer(r.allocated_guests)}</td>
+              <td className={`pr-2 ${r.unmet_guests >= 1 ? 'font-semibold text-red-600' : ''}`}>{integer(r.unmet_guests)}</td>
+              <td className="pr-2">{integer(r.pending_guests)}</td>
+              <td className="pr-2">{integer(r.in_house_guests)}</td>
+              <td className="pr-2">{integer(r.checked_out_guests)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </section>
+  );
 }
 
 function OccupancyBar({ occupancy, status }) {
@@ -58,10 +108,12 @@ function StayOption({ option, rank }) {
       <div className="flex items-start justify-between gap-2">
         <div>
           <div className="text-sm font-semibold text-slate-100">
-            {rank}. {p.name} <span className="text-[10px] font-normal text-slate-400">· {p.zone} · {p.tier}</span>
+            {rank}. {p.name} <span className="text-[10px] font-normal text-slate-400">· {p.zone}{p.tier ? ` · ${p.tier}` : ''}</span>
           </div>
           <div className="text-[11px] text-slate-400">
-            {rupees(p.price_per_night_paise)}/night · {p.rooms_available} rooms free · {percent(p.occupancy)} occupied
+            {p.price_per_night_paise != null ? `${rupees(p.price_per_night_paise)}/night · ` : 'price unknown · '}
+            {p.rooms_available} of {roomCapacityLabel(p.rooms_in_service, p.rooms_confidence)} free · {percent(p.occupancy)} occupied
+            {' · '}<StatusChip status={p.status} />
             {p.accessible && <Accessibility className="ml-1 inline h-3 w-3 text-sky-600" />}
           </div>
         </div>
@@ -141,7 +193,7 @@ function StayFinder({ events }) {
       </form>
       {result && (
         <div className="mt-3 space-y-2">
-          <p className="text-xs text-slate-300">{result.explanation}</p>
+          <p className={`text-xs ${result.options.length ? 'text-slate-300' : 'font-semibold text-red-600'}`}>{result.explanation}</p>
           <div className="grid gap-2 md:grid-cols-2">
             {result.options.map((o, i) => <StayOption key={o.property.property_id} option={o} rank={i + 1} />)}
           </div>
@@ -161,24 +213,34 @@ export default function Accommodation() {
   );
   const sat = useLiveQuery(() => api.saturation(), [], { everyCycles: 6 });
   const summary = data?.summary;
-  const zones = ['North', 'Core', 'East', 'South', 'West', 'Airport'];
+  // Zones come from the hotels of the active world (demo or generated), never a fixed list.
+  const zones = [...new Set([...(data?.hotels || []).map((h) => h.zone), filters.zone].filter(Boolean))].sort();
 
   return (
     <PageShell
       title="Accommodation"
-      subtitle="Live room availability across the city's hotels, driven by event bookings in the simulation. Saturated properties are paired with ranked, explained alternatives."
+      subtitle="Hotels are a constrained resource: only the lodging share of each event's attendees needs a room (the rest travel from home). Guests check in before the event and check out after it; rooms free up again at check-out. Capacity is mapped from OpenStreetMap where tagged, otherwise estimated — each value says which. Occupancy, bookings and unmet demand are simulated."
     >
       <ErrorNote error={error} />
       {summary && (
         <div className="mb-3 grid grid-cols-2 gap-2 md:grid-cols-6">
-          <Stat label="Occupancy" value={percent(summary.occupancy)} />
-          <Stat label="Rooms free" value={integer(summary.rooms_available)} sub={`of ${integer(summary.rooms_in_service)} in service`} />
-          <Stat label="Saturated" value={summary.saturated} tone={summary.saturated ? 'text-red-600' : 'text-slate-100'} sub={`of ${summary.properties} hotels`} />
-          <Stat label="Limited" value={summary.limited} tone={summary.limited ? 'text-amber-600' : 'text-slate-100'} />
-          <Stat label="Unplaced bookings" value={integer(summary.unmet_room_requests)} tone={summary.unmet_room_requests ? 'text-red-600' : 'text-slate-100'} sub="requests with no room" />
-          <Stat label="Hotels listed" value={data.hotels.length} />
+          <Stat label="Total hotels" value={integer(summary.properties)} sub={`${summary.saturated} saturated · ${summary.limited} tight`} />
+          <Stat label="Total rooms" value={integer(summary.rooms_in_service)} sub={summary.effective_guest_capacity != null ? `${integer(summary.effective_guest_capacity)} guests` : null} />
+          <Stat label="Occupied" value={integer(summary.rooms_occupied)} sub={`${percent(summary.occupancy)} of rooms`} />
+          <Stat label="Free" value={integer(summary.rooms_available)} tone={summary.rooms_available ? 'text-slate-100' : 'text-red-600'} sub="bookable rooms" />
+          <Stat label="Lodging demand" value={summary.lodging_guests != null ? integer(summary.lodging_guests) : '—'}
+            sub={summary.attendance_total != null ? `guests of ${integer(summary.attendance_total)} attendees · ${integer(summary.local_guests)} local` : null} />
+          <Stat label="Unmet demand" value={summary.lodging_unmet_guests != null ? integer(summary.lodging_unmet_guests) : integer(summary.unmet_room_requests)}
+            tone={(summary.lodging_unmet_guests || summary.unmet_room_requests) ? 'text-red-600' : 'text-slate-100'}
+            sub={summary.lodging_unmet_guests != null ? 'guests with no room' : 'room requests with no room'} />
         </div>
       )}
+      {summary?.shortage_message && (
+        <div role="alert" className="mb-3 rounded border border-red-500/40 bg-red-500/10 px-3 py-2 text-xs font-semibold text-red-700">
+          <AlertTriangle className="mr-1 inline h-3.5 w-3.5" /> {summary.shortage_message}
+        </div>
+      )}
+      <LodgingTable rows={data?.lodging_by_event} />
 
       <div className="grid gap-3 lg:grid-cols-[1fr_380px]">
         <section className="panel overflow-x-auto p-3">
@@ -195,7 +257,7 @@ export default function Accommodation() {
             </select>
             <select id="f-status" aria-label="Status" className="rounded border border-surface-700 bg-surface-850 px-1.5 py-0.5" value={filters.status} onChange={(e) => setFilters({ ...filters, status: e.target.value })}>
               <option value="">Any status</option>
-              {['available', 'limited', 'saturated'].map((t) => <option key={t} value={t}>{t}</option>)}
+              {['available', 'limited', 'saturated'].map((t) => <option key={t} value={t}>{statusLabel(t).toLowerCase()}</option>)}
             </select>
             <select id="f-sort" aria-label="Sort" className="rounded border border-surface-700 bg-surface-850 px-1.5 py-0.5" value={filters.sort} onChange={(e) => setFilters({ ...filters, sort: e.target.value })}>
               <option value="occupancy">Busiest first</option>
@@ -212,24 +274,31 @@ export default function Accommodation() {
           <table className="w-full min-w-[720px] text-left text-xs">
             <thead className="text-[10px] uppercase tracking-wider text-slate-400">
               <tr>
-                <th className="pb-1">Hotel</th><th className="pb-1">Status</th><th className="pb-1">Occupancy</th>
-                <th className="pb-1">Free</th><th className="pb-1">Price</th><th className="pb-1">To venue</th><th className="pb-1">Transport load</th>
+                <th className="pb-1">Hotel</th><th className="pb-1">Capacity</th><th className="pb-1">Status</th><th className="pb-1">Occupancy</th>
+                <th className="pb-1">Occupied / free</th><th className="pb-1">Price</th><th className="pb-1">To venue</th><th className="pb-1">Transport load</th>
               </tr>
             </thead>
             <tbody>
               {(data?.hotels || []).map((h) => (
-                <tr key={h.property_id} className="border-t border-surface-700/40">
+                <tr key={h.property_id} className={`border-t border-surface-700/40 ${h.status === 'saturated' ? 'bg-red-500/[0.05]' : ''}`}>
                   <td className="py-1.5 pr-2">
                     <div className="font-semibold text-slate-100">{h.name}</div>
-                    <div className="text-[10px] text-slate-400">{h.zone} · {h.tier}{h.accessible ? ' · step-free' : ''}</div>
+                    <div className="text-[10px] text-slate-400">{h.zone}{h.tier ? ` · ${h.tier}` : ''}{h.accessible ? ' · step-free' : ''}</div>
                   </td>
-                  <td className="pr-2"><StatusChip status={h.status} /></td>
+                  <td className="pr-2"><Capacity h={h} /></td>
+                  <td className="pr-2">
+                    <StatusChip status={h.status} />
+                    {h.status === 'saturated' && <div className="mt-0.5 text-[10px] font-semibold text-red-600">0 rooms available</div>}
+                  </td>
                   <td className="pr-2">
                     <div className="tabular-nums text-slate-200">{percent(h.occupancy)}</div>
                     <OccupancyBar occupancy={h.occupancy} status={h.status} />
                   </td>
-                  <td className="pr-2 tabular-nums">{h.rooms_available} / {h.rooms_in_service}</td>
-                  <td className="pr-2 tabular-nums">{rupees(h.price_per_night_paise)}</td>
+                  <td className="pr-2 tabular-nums">
+                    {integer(h.rooms_occupied)} occupied · <b>{integer(h.rooms_available)}</b> free
+                    {h.event_guests != null && <div className="text-[10px] text-slate-400">{integer(h.event_guests)} event guests</div>}
+                  </td>
+                  <td className="pr-2 tabular-nums">{h.price_per_night_paise != null ? rupees(h.price_per_night_paise) : 'unknown'}</td>
                   <td className="pr-2 tabular-nums">{minutes(h.travel_time_to_venue_sec)}</td>
                   <td className="pr-2 tabular-nums">
                     {h.transport_name}: {percent(h.transport_utilisation)}
@@ -262,7 +331,7 @@ export default function Accommodation() {
                   {s.alternatives.map((a) => (
                     <li key={a.property.property_id} className="flex items-center gap-1 text-slate-300">
                       <ArrowRight className="h-3 w-3 text-teal-600" />
-                      {a.property.name} — {a.property.rooms_available} free, {rupees(a.property.price_per_night_paise)}, {minutes(a.travel_time_sec)}
+                      {a.property.name} — {a.property.rooms_available} free, {a.property.price_per_night_paise != null ? rupees(a.property.price_per_night_paise) : 'price unknown'}, {minutes(a.travel_time_sec)}
                     </li>
                   ))}
                 </ul>

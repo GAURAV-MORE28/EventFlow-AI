@@ -195,6 +195,117 @@
           ],
           "default": null,
           "title": "Travel Time To Venue Sec"
+        },
+        "bed_capacity": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Bed Capacity"
+        },
+        "bed_source": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Bed Source"
+        },
+        "effective_guest_capacity": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Effective Guest Capacity"
+        },
+        "guest_capacity_source": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Guest Capacity Source"
+        },
+        "baseline_rooms_occupied": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Baseline Rooms Occupied"
+        },
+        "event_rooms_occupied": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Event Rooms Occupied"
+        },
+        "event_guests": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Event Guests"
+        },
+        "occupancy_baseline_source": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Occupancy Baseline Source"
+        },
+        "capacity_tags": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Capacity Tags"
         }
       },
       "required": [
@@ -252,6 +363,162 @@
         "unmet_room_requests": {
           "title": "Unmet Room Requests",
           "type": "integer"
+        },
+        "effective_guest_capacity": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Effective Guest Capacity"
+        },
+        "attendance_total": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Attendance Total"
+        },
+        "local_guests": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Local Guests"
+        },
+        "lodging_guests": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Lodging Guests"
+        },
+        "lodging_requested_guests": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Lodging Requested Guests"
+        },
+        "lodging_allocated_guests": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Lodging Allocated Guests"
+        },
+        "lodging_unmet_guests": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Lodging Unmet Guests"
+        },
+        "lodging_pending_guests": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Lodging Pending Guests"
+        },
+        "lodging_in_house_guests": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Lodging In House Guests"
+        },
+        "lodging_checked_out_guests": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Lodging Checked Out Guests"
+        },
+        "default_lodging_share": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Default Lodging Share"
+        },
+        "guests_per_room": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Guests Per Room"
+        },
+        "shortage_message": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Shortage Message"
         }
       },
       "required": [
@@ -265,6 +532,95 @@
         "unmet_room_requests"
       ],
       "title": "HotelSummary",
+      "type": "object"
+    },
+    "LodgingEvent": {
+      "additionalProperties": false,
+      "description": "One event's accommodation demand (people). lodging = allocated + unmet + pending.",
+      "properties": {
+        "event_id": {
+          "title": "Event Id",
+          "type": "string"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "attendance": {
+          "title": "Attendance",
+          "type": "number"
+        },
+        "lodging_share": {
+          "title": "Lodging Share",
+          "type": "number"
+        },
+        "lodging_share_source": {
+          "enum": [
+            "event",
+            "default"
+          ],
+          "title": "Lodging Share Source",
+          "type": "string"
+        },
+        "lodging_guests": {
+          "title": "Lodging Guests",
+          "type": "number"
+        },
+        "local_guests": {
+          "title": "Local Guests",
+          "type": "number"
+        },
+        "requested_guests": {
+          "title": "Requested Guests",
+          "type": "number"
+        },
+        "allocated_guests": {
+          "title": "Allocated Guests",
+          "type": "number"
+        },
+        "unmet_guests": {
+          "title": "Unmet Guests",
+          "type": "number"
+        },
+        "pending_guests": {
+          "title": "Pending Guests",
+          "type": "number"
+        },
+        "in_house_guests": {
+          "title": "In House Guests",
+          "type": "number"
+        },
+        "checked_out_guests": {
+          "title": "Checked Out Guests",
+          "type": "number"
+        },
+        "hotel_origin_share": {
+          "title": "Hotel Origin Share",
+          "type": "number"
+        },
+        "cancelled": {
+          "title": "Cancelled",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "event_id",
+        "name",
+        "attendance",
+        "lodging_share",
+        "lodging_share_source",
+        "lodging_guests",
+        "local_guests",
+        "requested_guests",
+        "allocated_guests",
+        "unmet_guests",
+        "pending_guests",
+        "in_house_guests",
+        "checked_out_guests",
+        "hotel_origin_share",
+        "cancelled"
+      ],
+      "title": "LodgingEvent",
       "type": "object"
     }
   },
@@ -282,6 +638,13 @@
         "$ref": "#/$defs/HotelProperty"
       },
       "title": "Hotels",
+      "type": "array"
+    },
+    "lodging_by_event": {
+      "items": {
+        "$ref": "#/$defs/LodgingEvent"
+      },
+      "title": "Lodging By Event",
       "type": "array"
     }
   },

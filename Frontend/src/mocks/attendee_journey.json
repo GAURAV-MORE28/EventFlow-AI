@@ -29,12 +29,12 @@
       },
       {
         "from_entity_id": "zone_east",
-        "to_entity_id": "gate_3",
+        "to_entity_id": "gate_4",
         "mode": "walk",
         "duration_sec": 240
       },
       {
-        "from_entity_id": "gate_3",
+        "from_entity_id": "gate_4",
         "to_entity_id": "stadium_main",
         "mode": "walk",
         "duration_sec": 180
@@ -43,7 +43,7 @@
     "total_duration_sec": 1595,
     "predicted_crowding_band": "moderate",
     "label": "Recommended",
-    "peak_utilisation": 0.5665,
+    "peak_utilisation": 0.5649,
     "congestion_delay_sec": 0,
     "depart_at": "2026-09-04T15:20:00Z"
   },
@@ -75,12 +75,12 @@
       },
       {
         "from_entity_id": "zone_east",
-        "to_entity_id": "gate_3",
+        "to_entity_id": "gate_4",
         "mode": "walk",
         "duration_sec": 240
       },
       {
-        "from_entity_id": "gate_3",
+        "from_entity_id": "gate_4",
         "to_entity_id": "stadium_main",
         "mode": "walk",
         "duration_sec": 180
@@ -89,11 +89,11 @@
     "total_duration_sec": 1595,
     "predicted_crowding_band": "moderate",
     "label": "Fastest",
-    "peak_utilisation": 0.5665,
+    "peak_utilisation": 0.5649,
     "congestion_delay_sec": 0,
     "depart_at": "2026-09-04T15:20:00Z"
   },
-  "advice": "The fastest route is also the best balance right now (peak 57% crowding).",
+  "advice": "The fastest route is also the best balance right now (peak 56% crowding).",
   "priority": "balanced",
   "alternatives": [
     {
@@ -138,7 +138,7 @@
       "total_duration_sec": 1595,
       "predicted_crowding_band": "moderate",
       "label": "Alternative",
-      "peak_utilisation": 0.5665,
+      "peak_utilisation": 0.5649,
       "congestion_delay_sec": 0,
       "depart_at": "2026-09-04T15:20:00Z"
     }
@@ -149,7 +149,7 @@
       "depart_at": "2026-09-04T15:20:00Z",
       "arrive_at": "2026-09-04T15:48:47Z",
       "travel_time_sec": 1727,
-      "peak_utilisation": 0.5665,
+      "peak_utilisation": 0.5649,
       "crowding_band": "moderate",
       "meets_event_start": true,
       "recommended": true
@@ -157,10 +157,10 @@
     {
       "offset_sec": 900,
       "depart_at": "2026-09-04T15:35:00Z",
-      "arrive_at": "2026-09-04T16:03:45Z",
-      "travel_time_sec": 1725,
-      "peak_utilisation": 0.5004,
-      "crowding_band": "moderate",
+      "arrive_at": "2026-09-04T16:03:44Z",
+      "travel_time_sec": 1724,
+      "peak_utilisation": 0.4988,
+      "crowding_band": "low",
       "meets_event_start": false,
       "recommended": false
     },
@@ -169,7 +169,7 @@
       "depart_at": "2026-09-04T15:50:00Z",
       "arrive_at": "2026-09-04T16:18:43Z",
       "travel_time_sec": 1723,
-      "peak_utilisation": 0.4365,
+      "peak_utilisation": 0.4355,
       "crowding_band": "low",
       "meets_event_start": false,
       "recommended": false
@@ -177,16 +177,16 @@
     {
       "offset_sec": 2700,
       "depart_at": "2026-09-04T16:05:00Z",
-      "arrive_at": "2026-09-04T16:30:05Z",
-      "travel_time_sec": 1505,
-      "peak_utilisation": 0.5204,
+      "arrive_at": "2026-09-04T16:29:23Z",
+      "travel_time_sec": 1463,
+      "peak_utilisation": 0.519,
       "crowding_band": "moderate",
       "meets_event_start": false,
       "recommended": false
     }
   ],
   "recommended_departure_offset_sec": 0,
-  "departure_advice": "Leave now: waiting does not meaningfully reduce crowding (peak 57% on your route).",
+  "departure_advice": "Leave now: waiting does not meaningfully reduce crowding (peak 56% on your route).",
   "return_route": {
     "legs": [
       {
@@ -199,7 +199,7 @@
         "from_entity_id": "gate_5",
         "to_entity_id": "metro_c",
         "mode": "walk",
-        "duration_sec": 1306
+        "duration_sec": 1291
       },
       {
         "from_entity_id": "metro_c",
@@ -208,11 +208,11 @@
         "duration_sec": 480
       }
     ],
-    "total_duration_sec": 1966,
+    "total_duration_sec": 1951,
     "predicted_crowding_band": "critical",
     "label": "Return after National Cup Final",
-    "peak_utilisation": 1.0162,
-    "congestion_delay_sec": 747,
+    "peak_utilisation": 1.0036,
+    "congestion_delay_sec": 736,
     "depart_at": "2026-09-04T18:40:00Z"
   },
   "event": {
