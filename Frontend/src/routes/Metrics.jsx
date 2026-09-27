@@ -298,7 +298,7 @@ export default function Metrics() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-surface-950 p-4 md:p-6 font-sans">
+    <div className="min-h-0 flex-1 overflow-y-auto bg-surface-950 p-4 md:p-6 font-sans">
       <div className="mx-auto max-w-7xl">
         <ReplayBanner />
         {/* Header Bar */}
