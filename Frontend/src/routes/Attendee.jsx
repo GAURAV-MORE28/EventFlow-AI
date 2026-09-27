@@ -253,7 +253,7 @@ export default function Attendee() {
   const select = 'w-full rounded border border-surface-700 bg-surface-850 px-1.5 py-1 text-xs';
 
   return (
-    <div className="min-h-screen bg-surface-950 py-4 font-sans text-slate-100">
+    <div className="min-h-0 flex-1 overflow-y-auto bg-surface-950 py-4 font-sans text-slate-100">
       <div className="mx-auto w-full max-w-[480px] space-y-3 px-3">
         <header className="flex items-center justify-between border-b border-surface-700/60 pb-3 transition-all">
           <div className="flex items-center gap-3">
